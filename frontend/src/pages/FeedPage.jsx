@@ -1,26 +1,39 @@
 // @ts-nocheck
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
-import { STORIES, POSTS } from '../data/mock';
+import { supabase } from '../lib/supabase';
 
 function StoryRail() {
+  const [profiles, setProfiles] = useState([]);
+
+  useEffect(() => {
+    async function fetchStories() {
+      // Fetch some users to simulate stories
+      const { data } = await supabase.from('profiles').select('*').limit(10);
+      if (data) setProfiles(data);
+    }
+    fetchStories();
+  }, []);
+
+  if (profiles.length === 0) return null;
+
   return (
     <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide">
-      {STORIES.map((story) => (
-        <div key={story.id} className="flex flex-col items-center flex-shrink-0 cursor-pointer">
+      {profiles.map((profile) => (
+        <div key={profile.id} className="flex flex-col items-center flex-shrink-0 cursor-pointer">
           <div
-            className={`rounded-full p-[3px] ${story.isUser ? '' : 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500'}`}
+            className={`rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500`}
           >
             <div className="bg-white dark:bg-black p-[2px] rounded-full">
               <img
-                src={story.avatar}
-                alt={story.username}
+                src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                alt={profile.username}
                 className="w-[60px] h-[60px] rounded-full object-cover"
               />
             </div>
           </div>
           <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-[64px] text-center">
-            {story.isUser ? 'Your story' : story.username}
+            {profile.username}
           </span>
         </div>
       ))}
@@ -29,24 +42,23 @@ function StoryRail() {
 }
 
 function PlaylistPost({ post }) {
+  const user = post.profiles; // Joined data
   return (
     <article className="pb-4 border-b border-gray-100 dark:border-gray-800">
       {/* Header */}
       <div className="flex justify-between items-center px-3 py-3">
         <div className="flex items-center gap-2 cursor-pointer">
           <img
-            src={post.user.avatar}
-            alt={post.user.username}
+            src={user?.avatar_url || 'https://via.placeholder.com/150'}
+            alt={user?.username}
             className="w-8 h-8 rounded-full object-cover border border-gray-100"
           />
           <div className="flex flex-col">
             <span className="font-semibold text-sm leading-none hover:underline">
-              {post.user.username}
+              {user?.username || 'Unknown'}
             </span>
-            {post.user.location && (
-              <span className="text-xs text-gray-500 leading-none mt-0.5">
-                {post.user.location}
-              </span>
+            {user?.location && (
+              <span className="text-xs text-gray-500 leading-none mt-0.5">{user.location}</span>
             )}
           </div>
         </div>
@@ -58,8 +70,11 @@ function PlaylistPost({ post }) {
       {/* Playlist Visual (Square) */}
       <div className="relative w-full aspect-square bg-gray-100 cursor-pointer group overflow-hidden">
         <img
-          src={post.playlist.cover}
-          alt={post.playlist.title}
+          src={
+            post.cover_url ||
+            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=600&fit=crop'
+          }
+          alt={post.title}
           className="w-full h-full object-cover"
         />
 
@@ -72,7 +87,7 @@ function PlaylistPost({ post }) {
 
         {/* Playlist Tag */}
         <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2">
-          <span className="text-xs font-medium text-white">🎵 Playlist</span>
+          <span className="text-xs font-medium text-white">🎵 {post.title}</span>
         </div>
       </div>
 
@@ -96,34 +111,75 @@ function PlaylistPost({ post }) {
 
       {/* Likes */}
       <div className="px-3">
-        <span className="font-semibold text-sm">{post.likes.toLocaleString()} likes</span>
+        <span className="font-semibold text-sm">0 likes</span>
       </div>
 
       {/* Caption */}
       <div className="px-3 pt-1">
         <div className="text-sm">
-          <span className="font-semibold mr-2">{post.user.username}</span>
-          <span className="text-gray-900 dark:text-gray-100">{post.caption}</span>
+          <span className="font-semibold mr-2">{user?.username}</span>
+          <span className="text-gray-900 dark:text-gray-100">{post.description}</span>
         </div>
-        <button className="text-gray-500 text-sm mt-1">View all {post.comments} comments</button>
+        <button className="text-gray-500 text-sm mt-1">View comments</button>
       </div>
 
       {/* Timestamp */}
       <div className="px-3 mt-1">
-        <span className="text-[10px] text-gray-400 uppercase tracking-wide">{post.timestamp}</span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-wide">
+          {new Date(post.created_at).toLocaleDateString()}
+        </span>
       </div>
     </article>
   );
 }
 
 export default function FeedPage() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        // Fetch playlists and join with profiles
+        const { data, error } = await supabase
+          .from('playlists')
+          .select(
+            `
+                    *,
+                    profiles:user_id (
+                        username,
+                        avatar_url,
+                        full_name
+                    )
+                `
+          )
+          .order('created_at', { ascending: false });
+
+        if (error) console.error(error);
+        else setPosts(data || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPosts();
+  }, []);
+
+  if (loading) return <div className="p-10 text-center">Loading feed...</div>;
+
   return (
     <div className="pb-20">
       <StoryRail />
       <div className="space-y-2 mt-2">
-        {POSTS.map((post) => (
-          <PlaylistPost key={post.id} post={post} />
-        ))}
+        {posts.length > 0 ? (
+          posts.map((post) => <PlaylistPost key={post.id} post={post} />)
+        ) : (
+          <div className="py-20 text-center text-gray-500">
+            <p>No posts yet.</p>
+            <p className="text-sm">Follow some musicians or create a playlist!</p>
+          </div>
+        )}
       </div>
     </div>
   );

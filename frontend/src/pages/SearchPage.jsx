@@ -1,11 +1,21 @@
 // @ts-nocheck
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search as SearchIcon } from 'lucide-react';
-import { POSTS } from '../data/mock';
+import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['For You', 'K-Pop', 'Jazz', 'Pop', 'Hip-hop', 'R&B', 'Classic'];
 
 export default function SearchPage() {
+  const [posts, setPosts] = useState([]);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      const { data } = await supabase.from('playlists').select('*').limit(21);
+      if (data) setPosts(data);
+    }
+    fetchPosts();
+  }, []);
+
   return (
     <div className="pb-20">
       {/* Search Bar (Sticky) */}
@@ -37,23 +47,31 @@ export default function SearchPage() {
 
       {/* Explore Grid */}
       <div className="grid grid-cols-3 gap-1 px-1">
-        {/* Repeating mock posts to fill the grid */}
-        {Array.from({ length: 15 }).map((_, idx) => {
-          const post = POSTS[idx % POSTS.length];
-          // Make every 3rd item span 2 rows if we want a fancy grid (Instagram style)
-          // simplistic grid for now
-          const isLarge = idx % 10 === 0;
+        {/* Repeating mock posts -> Real posts */}
+        {posts.length > 0 ? (
+          posts.map((post, idx) => {
+            const isLarge = idx % 10 === 0;
 
-          return (
-            <div
-              key={idx}
-              className={`relative bg-gray-200 aspect-square overflow-hidden cursor-pointer ${isLarge ? 'row-span-2 col-span-2' : ''}`}
-            >
-              <img src={post.playlist.cover} alt="cover" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/10 hover:bg-black/30 transition-colors" />
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={post.id || idx}
+                className={`relative bg-gray-200 aspect-square overflow-hidden cursor-pointer ${isLarge ? 'row-span-2 col-span-2' : ''}`}
+              >
+                <img
+                  src={
+                    post.cover_url ||
+                    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=600&fit=crop'
+                  }
+                  alt="cover"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/10 hover:bg-black/30 transition-colors" />
+              </div>
+            );
+          })
+        ) : (
+          <div className="col-span-3 py-10 text-center text-gray-500 text-sm">No recent posts.</div>
+        )}
       </div>
     </div>
   );
