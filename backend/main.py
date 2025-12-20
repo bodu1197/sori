@@ -667,6 +667,24 @@ async def search_summary(
                                     except Exception as album_err:
                                         logger.warning(f"Album fetch error: {album_err}")
 
+                # Get related artists from artist page
+                related_section = artist_info.get("related")
+                if related_section and isinstance(related_section, dict):
+                    related_results = related_section.get("results") or []
+                    for related_artist in related_results[:10]:  # Limit to 10 related artists
+                        if isinstance(related_artist, dict):
+                            related_entry = {
+                                "browseId": related_artist.get("browseId") or "",
+                                "artist": related_artist.get("title") or related_artist.get("name") or "",
+                                "name": related_artist.get("title") or related_artist.get("name") or "",
+                                "subscribers": related_artist.get("subscribers") or "",
+                                "thumbnails": related_artist.get("thumbnails") or []
+                            }
+                            # Add to artist_entry's related list
+                            if "related" not in artist_entry:
+                                artist_entry["related"] = []
+                            artist_entry["related"].append(related_entry)
+
                 # Get singles using get_artist_albums
                 singles_section = artist_info.get("singles")
                 if singles_section and isinstance(singles_section, dict):
