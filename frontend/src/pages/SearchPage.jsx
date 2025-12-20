@@ -46,6 +46,7 @@ export default function SearchPage() {
 
   // Processed data
   const [artists, setArtists] = useState([]);
+  const [albums, setAlbums] = useState([]);
   const [allTracks, setAllTracks] = useState([]);
 
   // UI State
@@ -89,6 +90,7 @@ export default function SearchPage() {
   const resetSearchData = () => {
     setSearchData(null);
     setArtists([]);
+    setAlbums([]);
     setAllTracks([]);
     setShowAllTracks(false);
   };
@@ -97,6 +99,10 @@ export default function SearchPage() {
     // Process artists
     const artistsList = data.artists || [];
     setArtists(artistsList);
+
+    // Process albums
+    const albumsList = data.albums2 || [];
+    setAlbums(albumsList);
 
     // Process all tracks
     const tracks = [];
@@ -170,6 +176,19 @@ export default function SearchPage() {
     }));
     const shuffled = [...playlist].sort(() => Math.random() - 0.5);
     startPlayback(shuffled, 0);
+  };
+
+  // Play album tracks
+  const handlePlayAlbum = (album) => {
+    if (!album.tracks || album.tracks.length === 0) return;
+    const playlist = album.tracks.map((t) => ({
+      videoId: t.videoId,
+      title: t.title,
+      artist: t.artists?.[0]?.name || album.artists?.[0]?.name || 'Unknown Artist',
+      thumbnail: t.thumbnails?.[0]?.url || album.thumbnails?.[0]?.url,
+      cover: t.thumbnails?.[0]?.url || album.thumbnails?.[0]?.url,
+    }));
+    startPlayback(playlist, 0);
   };
 
   // Add to liked songs
@@ -388,8 +407,60 @@ export default function SearchPage() {
             </div>
           )}
 
+          {/* Albums Section */}
+          {albums.length > 0 && (
+            <div className="mt-8">
+              <h3 className="font-bold text-lg text-black dark:text-white mb-4">
+                Albums ({albums.length})
+              </h3>
+
+              {/* Albums Grid - 2 columns */}
+              <div className="grid grid-cols-2 gap-3">
+                {albums.map((album, index) => (
+                  <div
+                    key={album.browseId || index}
+                    onClick={() => handlePlayAlbum(album)}
+                    className="relative bg-gray-50 dark:bg-gray-800/50 rounded-lg overflow-hidden cursor-pointer group"
+                  >
+                    {/* Album Cover */}
+                    <div className="aspect-square bg-gray-200 dark:bg-gray-700">
+                      <img
+                        src={getBestThumbnail(album.thumbnails, 226) || PLACEHOLDER_ARTIST}
+                        alt={album.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = PLACEHOLDER_ARTIST;
+                        }}
+                      />
+                    </div>
+
+                    {/* Album Info */}
+                    <div className="p-3">
+                      <div className="font-medium text-sm text-black dark:text-white truncate">
+                        {album.title}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {album.year && `${album.year} · `}
+                        {album.type || 'Album'}
+                        {album.tracks && ` · ${album.tracks.length} tracks`}
+                      </div>
+                    </div>
+
+                    {/* Play indicator on hover */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center">
+                        <Play size={24} fill="black" className="text-black ml-1" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* No Results */}
-          {allTracks.length === 0 && artists.length === 0 && (
+          {allTracks.length === 0 && artists.length === 0 && albums.length === 0 && (
             <div className="text-center py-20 text-gray-500">
               <SearchIcon size={48} className="mx-auto mb-4 opacity-50" />
               <p>No results found for "{searchQuery}"</p>
