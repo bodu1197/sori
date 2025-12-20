@@ -1,0 +1,80 @@
+{
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "retry": "다시 시도",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "수정",
+    "close": "닫기",
+    "search": "검색",
+    "noResults": "검색 결과가 없습니다"
+  },
+  "nav": {
+    "home": "홈",
+    "search": "검색",
+    "create": "만들기",
+    "charts": "차트",
+    "profile": "프로필"
+  },
+  "profile": {
+    "playlists": "플레이리스트",
+    "liked": "좋아요",
+    "following": "팔로잉",
+    "followers": "팔로워",
+    "editProfile": "프로필 편집",
+    "signOut": "로그아웃",
+    "searchMusic": "YouTube Music에서 음악 검색...",
+    "yourMusic": "내 음악",
+    "songs": "곡",
+    "shuffle": "셔플",
+    "noLikedSongs": "좋아요한 곡이 없습니다.",
+    "likedSongsHint": "좋아하는 음악이 여기에 표시됩니다.",
+    "noPlaylists": "플레이리스트가 없습니다. 새로 만들어보세요!",
+    "private": "비공개 섹션입니다."
+  },
+  "search": {
+    "topTracks": "인기곡",
+    "albumsAndSingles": "앨범 & 싱글",
+    "similarArtists": "비슷한 아티스트",
+    "showMore": "더보기",
+    "showLess": "접기",
+    "moreSongs": "{{count}}곡 더보기",
+    "tracks": "곡",
+    "clickToViewTracks": "클릭하여 트랙 보기",
+    "loadingTracks": "트랙 로딩 중...",
+    "noTracksAvailable": "트랙 정보를 불러올 수 없습니다."
+  },
+  "player": {
+    "play": "재생",
+    "pause": "일시정지",
+    "playAll": "전체 재생",
+    "shufflePlay": "셔플",
+    "previous": "이전",
+    "next": "다음",
+    "repeat": "반복",
+    "volume": "볼륨",
+    "mute": "음소거",
+    "nowPlaying": "재생 중"
+  },
+  "feed": {
+    "forYou": "맞춤 추천",
+    "trending": "인기",
+    "newReleases": "신규 발매"
+  },
+  "charts": {
+    "title": "차트",
+    "topSongs": "인기곡",
+    "topAlbums": "인기 앨범"
+  },
+  "auth": {
+    "signIn": "로그인",
+    "signUp": "회원가입",
+    "email": "이메일",
+    "password": "비밀번호",
+    "forgotPassword": "비밀번호를 잊으셨나요?",
+    "noAccount": "계정이 없으신가요?",
+    "hasAccount": "이미 계정이 있으신가요?"
+  }
+}

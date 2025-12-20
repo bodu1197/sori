@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Grid,
   Heart,
@@ -120,6 +121,7 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuthStore();
   const { setTrack, startPlayback, currentTrack, isPlaying } = usePlayerStore();
 
@@ -500,7 +502,9 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">{t('common.loading')}</div>
+    );
   }
 
   return (
@@ -523,9 +527,9 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-1 justify-around ml-4">
-            <StatItem count={playlists.length} label="Playlists" />
-            <StatItem count={likedSongs.length} label="Liked" />
-            <StatItem count={0} label="Following" />
+            <StatItem count={playlists.length} label={t('profile.playlists')} />
+            <StatItem count={likedSongs.length} label={t('profile.liked')} />
+            <StatItem count={0} label={t('profile.following')} />
           </div>
         </div>
 
@@ -543,13 +547,13 @@ export default function ProfilePage() {
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
           <button className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-            Edit profile
+            {t('profile.editProfile')}
           </button>
           <button
             onClick={signOut}
             className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
           >
-            <LogOut size={16} /> Sign Out
+            <LogOut size={16} /> {t('profile.signOut')}
           </button>
         </div>
 
@@ -559,7 +563,7 @@ export default function ProfilePage() {
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search music on YouTube Music..."
+            placeholder={t('profile.searchMusic')}
             className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -623,13 +627,13 @@ export default function ProfilePage() {
                           onClick={handlePlayAllSongs}
                           className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-sm font-semibold hover:opacity-80 transition"
                         >
-                          <Play size={14} fill="currentColor" /> Play All
+                          <Play size={14} fill="currentColor" /> {t('player.playAll')}
                         </button>
                         <button
                           onClick={handleShuffleSearchSongs}
                           className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                         >
-                          <Shuffle size={14} /> Shuffle
+                          <Shuffle size={14} /> {t('player.shufflePlay')}
                         </button>
                         <button className="p-1.5 text-gray-400 hover:text-red-500">
                           <Heart size={20} />
@@ -644,7 +648,7 @@ export default function ProfilePage() {
               {searchSongs.length > 0 && (
                 <div>
                   <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                    Top Tracks ({searchSongs.length})
+                    {t('search.topTracks')} ({searchSongs.length})
                   </h3>
                   <div className="space-y-1">
                     {(showAllSongs ? searchSongs : searchSongs.slice(0, 10)).map((song, i) => (
@@ -690,12 +694,12 @@ export default function ProfilePage() {
                       {showAllSongs ? (
                         <>
                           <ChevronUp size={16} />
-                          접기
+                          {t('search.showLess')}
                         </>
                       ) : (
                         <>
                           <ChevronDown size={16} />
-                          더보기 ({searchSongs.length - 10}곡)
+                          {t('search.showMore')} ({searchSongs.length - 10})
                         </>
                       )}
                     </button>
@@ -707,7 +711,7 @@ export default function ProfilePage() {
               {searchAlbums.length > 0 && (
                 <div>
                   <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                    Albums & Singles ({searchAlbums.length})
+                    {t('search.albumsAndSingles')} ({searchAlbums.length})
                   </h3>
                   <div className="space-y-3">
                     {searchAlbums.map((album) => {
@@ -751,10 +755,10 @@ export default function ProfilePage() {
                                 )}
                                 <span>
                                   {isLoading
-                                    ? '로딩 중...'
+                                    ? t('common.loading')
                                     : trackCount > 0
-                                      ? `${trackCount}곡`
-                                      : '클릭하여 트랙 보기'}
+                                      ? `${trackCount} ${t('search.tracks')}`
+                                      : t('search.clickToViewTracks')}
                                 </span>
                               </div>
                             </div>
@@ -772,7 +776,7 @@ export default function ProfilePage() {
                                   }}
                                   className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-xs font-semibold hover:opacity-80"
                                 >
-                                  <Play size={12} fill="currentColor" /> 전체 재생
+                                  <Play size={12} fill="currentColor" /> {t('player.playAll')}
                                 </button>
                                 <button
                                   onClick={(e) => {
@@ -781,7 +785,7 @@ export default function ProfilePage() {
                                   }}
                                   className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
                                 >
-                                  <Shuffle size={12} /> 셔플
+                                  <Shuffle size={12} /> {t('player.shufflePlay')}
                                 </button>
                               </div>
                               {/* Track List */}
@@ -828,14 +832,16 @@ export default function ProfilePage() {
                           {isExpanded && isLoading && (
                             <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex items-center justify-center">
                               <Loader2 size={20} className="animate-spin text-gray-400" />
-                              <span className="ml-2 text-sm text-gray-500">트랙 로딩 중...</span>
+                              <span className="ml-2 text-sm text-gray-500">
+                                {t('search.loadingTracks')}
+                              </span>
                             </div>
                           )}
 
                           {/* No Tracks Message */}
                           {isExpanded && !isLoading && trackCount === 0 && (
                             <div className="border-t border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-500">
-                              트랙 정보를 불러올 수 없습니다.
+                              {t('search.noTracksAvailable')}
                             </div>
                           )}
                         </div>
@@ -849,7 +855,7 @@ export default function ProfilePage() {
               {searchArtist?.related && searchArtist.related.length > 0 && (
                 <div>
                   <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                    Similar Artists ({searchArtist.related.length})
+                    {t('search.similarArtists')} ({searchArtist.related.length})
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
                     {searchArtist.related.map((artist, i) => (
@@ -926,8 +932,10 @@ export default function ProfilePage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-bold text-lg">Your Music</h3>
-              <p className="text-xs text-gray-500">{likedSongs.length} songs</p>
+              <h3 className="font-bold text-lg">{t('profile.yourMusic')}</h3>
+              <p className="text-xs text-gray-500">
+                {likedSongs.length} {t('profile.songs')}
+              </p>
             </div>
             {likedSongs.length > 0 && (
               <button
@@ -935,7 +943,7 @@ export default function ProfilePage() {
                 className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
               >
                 <Shuffle size={16} />
-                Shuffle
+                {t('profile.shuffle')}
               </button>
             )}
           </div>
@@ -957,8 +965,8 @@ export default function ProfilePage() {
             ) : (
               <div className="py-10 text-center text-gray-500">
                 <Heart size={48} className="mx-auto mb-2 opacity-50" />
-                <p>No liked songs yet.</p>
-                <p className="text-sm mt-1">Your favorite music will appear here.</p>
+                <p>{t('profile.noLikedSongs')}</p>
+                <p className="text-sm mt-1">{t('profile.likedSongsHint')}</p>
               </div>
             )}
           </div>
@@ -1029,7 +1037,7 @@ export default function ProfilePage() {
             })
           ) : (
             <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
-              No playlists yet. Create one!
+              {t('profile.noPlaylists')}
             </div>
           )}
         </div>
@@ -1037,7 +1045,7 @@ export default function ProfilePage() {
         // Private Tab
         <div className="py-20 text-center text-gray-500">
           <Lock size={48} className="mx-auto mb-2 opacity-50" />
-          <p>This section is private.</p>
+          <p>{t('profile.private')}</p>
         </div>
       )}
     </div>

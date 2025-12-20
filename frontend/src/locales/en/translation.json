@@ -1,0 +1,80 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "noResults": "No results found"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "create": "Create",
+    "charts": "Charts",
+    "profile": "Profile"
+  },
+  "profile": {
+    "playlists": "Playlists",
+    "liked": "Liked",
+    "following": "Following",
+    "followers": "Followers",
+    "editProfile": "Edit profile",
+    "signOut": "Sign Out",
+    "searchMusic": "Search music on YouTube Music...",
+    "yourMusic": "Your Music",
+    "songs": "songs",
+    "shuffle": "Shuffle",
+    "noLikedSongs": "No liked songs yet.",
+    "likedSongsHint": "Your favorite music will appear here.",
+    "noPlaylists": "No playlists yet. Create one!",
+    "private": "This section is private."
+  },
+  "search": {
+    "topTracks": "Top Tracks",
+    "albumsAndSingles": "Albums & Singles",
+    "similarArtists": "Similar Artists",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "moreSongs": "{{count}} more songs",
+    "tracks": "tracks",
+    "clickToViewTracks": "Click to view tracks",
+    "loadingTracks": "Loading tracks...",
+    "noTracksAvailable": "Track information not available."
+  },
+  "player": {
+    "play": "Play",
+    "pause": "Pause",
+    "playAll": "Play All",
+    "shufflePlay": "Shuffle",
+    "previous": "Previous",
+    "next": "Next",
+    "repeat": "Repeat",
+    "volume": "Volume",
+    "mute": "Mute",
+    "nowPlaying": "Now Playing"
+  },
+  "feed": {
+    "forYou": "For You",
+    "trending": "Trending",
+    "newReleases": "New Releases"
+  },
+  "charts": {
+    "title": "Charts",
+    "topSongs": "Top Songs",
+    "topAlbums": "Top Albums"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  }
+}
