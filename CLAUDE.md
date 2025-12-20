@@ -205,6 +205,7 @@ sori/
 | 컨텍스트 기반 추천 (For You) | `FeedPage.jsx`, `useContextRecommendation.js` | ✅ 완료 |
 | 실제 차트 API 연결 | `ChartsPage.jsx` | ✅ 완료 |
 | 다크모드 전체 적용 | 모든 페이지 | ✅ 완료 |
+| Story Highlights 버튼 삭제 | `ProfilePage.jsx` | ✅ 완료 |
 
 #### 삭제된 하드코딩 데이터
 
@@ -218,6 +219,7 @@ sori/
 #### 커밋 히스토리 (최신순)
 
 ```
+41947f7 Remove Story Highlights section from ProfilePage
 3890435 Remove hardcoded demo data and fix dark mode text colors
 2d0d662 Add player controls, song deletion, and context-based recommendations
 c1cb85c Remove hardcoded mock data and connect real APIs
