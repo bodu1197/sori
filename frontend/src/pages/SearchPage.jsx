@@ -7,17 +7,30 @@ const CATEGORIES = ['For You', 'K-Pop', 'Jazz', 'Pop', 'Hip-hop', 'R&B', 'Classi
 
 export default function SearchPage() {
   const [posts, setPosts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function fetchPosts() {
-      const { data } = await supabase.from('playlists').select('*').limit(21);
+      let query = supabase.from('playlists').select('*').limit(21);
+
+      if (searchQuery.length > 0) {
+        query = query.ilike('title', `%${searchQuery}%`);
+      }
+
+      const { data } = await query;
       if (data) setPosts(data);
     }
-    fetchPosts();
-  }, []);
+
+    // Debounce search
+    const timer = setTimeout(() => {
+      fetchPosts();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 min-h-screen bg-white dark:bg-black">
       {/* Search Bar (Sticky) */}
       <div className="sticky top-0 bg-white dark:bg-black z-10 px-4 py-2">
         <div className="relative">
@@ -28,7 +41,9 @@ export default function SearchPage() {
           <input
             type="text"
             placeholder="Search"
-            className="w-full bg-gray-100 dark:bg-gray-800 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-gray-700"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-gray-700"
           />
         </div>
       </div>
@@ -38,7 +53,7 @@ export default function SearchPage() {
         {CATEGORIES.map((cat, idx) => (
           <button
             key={idx}
-            className="px-4 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium whitespace-nowrap bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-gray-900"
+            className="px-4 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium whitespace-nowrap bg-white dark:bg-black text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-900"
           >
             {cat}
           </button>
@@ -66,11 +81,16 @@ export default function SearchPage() {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/10 hover:bg-black/30 transition-colors" />
+                <div className="absolute bottom-2 left-2 text-white font-bold opacity-0 group-hover:opacity-100">
+                  {post.title}
+                </div>
               </div>
             );
           })
         ) : (
-          <div className="col-span-3 py-10 text-center text-gray-500 text-sm">No recent posts.</div>
+          <div className="col-span-3 py-10 text-center text-gray-500 dark:text-gray-400 text-sm">
+            No results found.
+          </div>
         )}
       </div>
     </div>

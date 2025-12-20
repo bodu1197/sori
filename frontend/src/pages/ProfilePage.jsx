@@ -184,7 +184,7 @@ export default function ProfilePage() {
             <input
               type="text"
               placeholder="Search music..."
-              className="w-full bg-gray-100 dark:bg-gray-900 rounded-xl py-2 pl-10 pr-4 focus:outline-none"
+              className="w-full bg-gray-100 dark:bg-gray-900 text-black dark:text-white rounded-xl py-2 pl-10 pr-4 focus:outline-none"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

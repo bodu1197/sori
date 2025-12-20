@@ -56,10 +56,12 @@ export default function CreatePage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Title (Song or Album)</label>
+          <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
+            Title (Song or Album)
+          </label>
           <input
             type="text"
-            className="w-full bg-gray-100 dark:bg-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-gray-100 dark:bg-gray-900 text-black dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter title..."
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -67,9 +69,11 @@ export default function CreatePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+          <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
+            Description
+          </label>
           <textarea
-            className="w-full bg-gray-100 dark:bg-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+            className="w-full bg-gray-100 dark:bg-gray-900 text-black dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
             placeholder="Tell us about this release..."
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -77,10 +81,12 @@ export default function CreatePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Cover Image URL</label>
+          <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
+            Cover Image URL
+          </label>
           <input
             type="url"
-            className="w-full bg-gray-100 dark:bg-gray-900 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full bg-gray-100 dark:bg-gray-900 text-black dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="https://..."
             value={formData.cover_url}
             onChange={(e) => setFormData({ ...formData, cover_url: e.target.value })}
