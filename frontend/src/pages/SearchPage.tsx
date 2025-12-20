@@ -34,7 +34,9 @@ interface SearchArtist {
 }
 
 interface RelatedArtist {
-  title: string;
+  name?: string;
+  artist?: string;
+  title?: string;
   browseId?: string;
   subscribers?: string;
   thumbnails?: Thumbnail[];
@@ -124,8 +126,10 @@ export default function SearchPage() {
         const response = await fetch(`${API_BASE_URL}/api/album/${album.browseId}`);
         if (response.ok) {
           const data = await response.json();
-          if (data.tracks && data.tracks.length > 0) {
-            setAlbumTracks((prev) => ({ ...prev, [albumId]: data.tracks }));
+          // API returns tracks inside data.album.tracks
+          const tracks = data.album?.tracks || data.tracks || [];
+          if (tracks.length > 0) {
+            setAlbumTracks((prev) => ({ ...prev, [albumId]: tracks }));
           }
         }
       } catch {
@@ -583,32 +587,35 @@ export default function SearchPage() {
                   {t('search.similarArtists')} ({searchArtist.related.length})
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
-                  {searchArtist.related.map((artist, i) => (
-                    <div
-                      key={artist.browseId || `related-${i}`}
-                      onClick={() => handleSearchSimilarArtist(artist.title)}
-                      className="flex flex-col items-center cursor-pointer group"
-                    >
-                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
-                        <img
-                          src={getBestThumbnail(artist.thumbnails)}
-                          alt={artist.title}
-                          className="w-full h-full object-cover"
-                          onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                            e.currentTarget.src = PLACEHOLDER;
-                          }}
-                        />
-                      </div>
-                      <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1">
-                        {artist.title}
-                      </span>
-                      {artist.subscribers && (
-                        <span className="text-xs text-gray-500 truncate w-full text-center">
-                          {artist.subscribers}
+                  {searchArtist.related.map((artist, i) => {
+                    const artistName = artist.name || artist.artist || artist.title || 'Unknown';
+                    return (
+                      <div
+                        key={artist.browseId || `related-${i}`}
+                        onClick={() => handleSearchSimilarArtist(artistName)}
+                        className="flex flex-col items-center cursor-pointer group"
+                      >
+                        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
+                          <img
+                            src={getBestThumbnail(artist.thumbnails)}
+                            alt={artistName}
+                            className="w-full h-full object-cover"
+                            onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                              e.currentTarget.src = PLACEHOLDER;
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1">
+                          {artistName}
                         </span>
-                      )}
-                    </div>
-                  ))}
+                        {artist.subscribers && (
+                          <span className="text-xs text-gray-500 truncate w-full text-center">
+                            {artist.subscribers}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
