@@ -16,15 +16,15 @@ export default function TopNav() {
       <div className="flex items-center gap-5">
         <button className="relative hover:opacity-70 transition-opacity">
           <Heart size={26} strokeWidth={2} className="text-black dark:text-white" />
-          <span className="absolute -top-1 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white dark:border-black">
+          {/* <span className="absolute -top-1 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white dark:border-black">
             2
-          </span>
+          </span> */}
         </button>
         <button className="relative hover:opacity-70 transition-opacity">
           <MessageCircle size={26} strokeWidth={2} className="text-black dark:text-white" />
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white dark:border-black">
+          {/* <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border-2 border-white dark:border-black">
             5
-          </span>
+          </span> */}
         </button>
       </div>
     </header>

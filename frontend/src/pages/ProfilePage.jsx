@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
-import { Grid, List, Lock, Play, LogOut } from 'lucide-react';
+import { Grid, List, Lock, Play, LogOut, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 import { supabase } from '../lib/supabase';
 
@@ -14,11 +15,16 @@ function StatItem({ count, label }) {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
   const [activeTab, setActiveTab] = useState('playlists');
   const [profile, setProfile] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -55,6 +61,24 @@ export default function ProfilePage() {
 
     fetchProfileData();
   }, [user]);
+
+  // Search Logic
+  useEffect(() => {
+    if (activeTab === 'search' && searchQuery.length > 1) {
+      const timer = setTimeout(async () => {
+        const { data } = await supabase
+          .from('playlists')
+          .select('*, profiles:user_id(username)')
+          .ilike('title', `%${searchQuery}%`)
+          .limit(20);
+
+        if (data) setSearchResults(data);
+      }, 500); // Debounce
+      return () => clearTimeout(timer);
+    } else {
+      setSearchResults([]);
+    }
+  }, [activeTab, searchQuery]);
 
   if (loading) {
     return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
@@ -112,8 +136,11 @@ export default function ProfilePage() {
 
         {/* Story Highlights (Placeholder) */}
         <div className="flex gap-4 overflow-x-auto mb-6 scrollbar-hide">
-          <div className="flex flex-col items-center flex-shrink-0">
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 flex items-center justify-center cursor-pointer">
+          <div
+            className="flex flex-col items-center flex-shrink-0"
+            onClick={() => navigate('/create')}
+          >
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition">
               <span className="text-2xl">+</span>
             </div>
             <span className="text-xs mt-1">New</span>
@@ -130,6 +157,12 @@ export default function ProfilePage() {
           <Grid size={24} />
         </button>
         <button
+          onClick={() => setActiveTab('search')}
+          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'search' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
+        >
+          <Search size={24} />
+        </button>
+        <button
           onClick={() => setActiveTab('liked')}
           className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'liked' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
         >
@@ -143,30 +176,73 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Grid Content */}
-      <div className="grid grid-cols-3 gap-0.5">
-        {playlists.length > 0 ? (
-          playlists.map((playlist) => (
-            <div
-              key={playlist.id}
-              className="aspect-square relative group bg-gray-100 cursor-pointer"
-            >
-              <img
-                src={
-                  playlist.cover_url ||
-                  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
-                }
-                alt="cover"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ))
-        ) : (
-          <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
-            No playlists yet. Create one!
+      {/* Content Area */}
+      {activeTab === 'search' ? (
+        <div className="p-4">
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search music..."
+              className="w-full bg-gray-100 dark:bg-gray-900 rounded-xl py-2 pl-10 pr-4 focus:outline-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        )}
-      </div>
+          <div className="space-y-2">
+            {searchResults.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg cursor-pointer"
+              >
+                <img
+                  src={item.cover_url}
+                  className="w-12 h-12 rounded bg-gray-200 object-cover"
+                  alt={item.title}
+                />
+                <div>
+                  <div className="font-semibold text-sm">{item.title}</div>
+                  <div className="text-xs text-gray-500">
+                    {item.profiles?.username || 'Unknown'}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {searchQuery && searchResults.length === 0 && (
+              <div className="text-center text-gray-500 py-4 text-sm">No results found</div>
+            )}
+          </div>
+        </div>
+      ) : activeTab === 'playlists' ? (
+        <div className="grid grid-cols-3 gap-0.5">
+          {playlists.length > 0 ? (
+            playlists.map((playlist) => (
+              <div
+                key={playlist.id}
+                className="aspect-square relative group bg-gray-100 cursor-pointer"
+              >
+                <img
+                  src={
+                    playlist.cover_url ||
+                    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
+                  }
+                  alt="cover"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))
+          ) : (
+            <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
+              No playlists yet. Create one!
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="py-20 text-center text-gray-500">
+          <Lock size={48} className="mx-auto mb-2 opacity-50" />
+          <p>This section is private.</p>
+        </div>
+      )}
     </div>
   );
 }
