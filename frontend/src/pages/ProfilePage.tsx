@@ -235,7 +235,7 @@ function PlaylistPanel({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl max-h-[85vh] overflow-hidden animate-slide-up">
+      <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl h-[100dvh] overflow-hidden animate-slide-up">
         {/* YouTube Video Player - YouTube iframe API compliance */}
         {currentVideoId && (
           <div className="w-full bg-black">
@@ -310,7 +310,7 @@ function PlaylistPanel({
         {/* Track List */}
         <div
           className="overflow-y-auto flex-1"
-          style={{ maxHeight: currentVideoId ? 'calc(85vh - 380px)' : 'calc(85vh - 160px)' }}
+          style={{ maxHeight: currentVideoId ? 'calc(100dvh - 380px)' : 'calc(100dvh - 160px)' }}
         >
           {loading ? (
             <div className="flex justify-center py-10">
