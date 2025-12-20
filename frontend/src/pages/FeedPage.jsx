@@ -74,11 +74,13 @@ function PlaylistPost({ post }) {
             className="w-8 h-8 rounded-full object-cover border border-gray-100"
           />
           <div className="flex flex-col">
-            <span className="font-semibold text-sm leading-none hover:underline">
+            <span className="font-semibold text-sm leading-none hover:underline text-black dark:text-white">
               {user?.username || 'Unknown'}
             </span>
             {user?.location && (
-              <span className="text-xs text-gray-500 leading-none mt-0.5">{user.location}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 leading-none mt-0.5">
+                {user.location}
+              </span>
             )}
           </div>
         </div>
@@ -138,33 +140,33 @@ function PlaylistPost({ post }) {
       {/* Action Bar */}
       <div className="flex justify-between items-center px-3 pt-3 pb-2">
         <div className="flex gap-4">
-          <button className="hover:opacity-60">
+          <button className="hover:opacity-60 text-black dark:text-white">
             <Heart size={26} />
           </button>
-          <button className="hover:opacity-60">
+          <button className="hover:opacity-60 text-black dark:text-white">
             <MessageCircle size={26} />
           </button>
-          <button className="hover:opacity-60">
+          <button className="hover:opacity-60 text-black dark:text-white">
             <Send size={26} />
           </button>
         </div>
-        <button className="hover:opacity-60">
+        <button className="hover:opacity-60 text-black dark:text-white">
           <Bookmark size={26} />
         </button>
       </div>
 
       {/* Likes */}
       <div className="px-3">
-        <span className="font-semibold text-sm">0 likes</span>
+        <span className="font-semibold text-sm text-black dark:text-white">0 likes</span>
       </div>
 
       {/* Caption */}
       <div className="px-3 pt-1">
         <div className="text-sm">
-          <span className="font-semibold mr-2">{user?.username}</span>
-          <span className="text-gray-900 dark:text-gray-100">{post.description}</span>
+          <span className="font-semibold mr-2 text-black dark:text-white">{user?.username}</span>
+          <span className="text-gray-700 dark:text-gray-300">{post.description}</span>
         </div>
-        <button className="text-gray-500 text-sm mt-1">View comments</button>
+        <button className="text-gray-500 dark:text-gray-400 text-sm mt-1">View comments</button>
       </div>
 
       {/* Timestamp */}
