@@ -21,7 +21,7 @@ interface ChartTrack {
   cover?: string;
 }
 
-export default function ChartsPage(): JSX.Element {
+export default function ChartsPage() {
   const country = useCountry();
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
   const [chartData, setChartData] = useState<ChartTrack[]>([]);

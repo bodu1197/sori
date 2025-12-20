@@ -41,7 +41,7 @@ interface PlaylistPost {
 /**
  * For You Section - Context-based recommendations
  */
-function ForYouSection(): JSX.Element {
+function ForYouSection() {
   const context = useContextRecommendation();
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
@@ -191,7 +191,7 @@ function ForYouSection(): JSX.Element {
   );
 }
 
-function StoryRail(): JSX.Element | null {
+function StoryRail() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
@@ -232,7 +232,7 @@ interface PlaylistPostProps {
   post: PlaylistPost;
 }
 
-function PlaylistPostComponent({ post }: PlaylistPostProps): JSX.Element {
+function PlaylistPostComponent({ post }: PlaylistPostProps) {
   const user = post.profiles;
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
 
@@ -368,7 +368,7 @@ function PlaylistPostComponent({ post }: PlaylistPostProps): JSX.Element {
   );
 }
 
-export default function FeedPage(): JSX.Element {
+export default function FeedPage() {
   const [posts, setPosts] = useState<PlaylistPost[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -7,7 +7,7 @@ interface NavItem {
   path: string;
 }
 
-export default function BottomNav(): JSX.Element {
+export default function BottomNav() {
   const navItems: NavItem[] = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },

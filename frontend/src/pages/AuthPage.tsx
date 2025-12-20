@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
-export default function AuthPage(): JSX.Element {
+export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

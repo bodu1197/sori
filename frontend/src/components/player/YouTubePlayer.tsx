@@ -66,7 +66,7 @@ interface YTErrorEvent {
   target: YTPlayer;
 }
 
-export default function YouTubePlayer(): JSX.Element {
+export default function YouTubePlayer() {
   const playerRef = useRef<YTPlayer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

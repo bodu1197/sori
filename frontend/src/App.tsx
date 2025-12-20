@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 }
 
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element => {
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { session, loading } = useAuthStore();
   const location = useLocation();
 
@@ -32,7 +32,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element => {
   return <>{children}</>;
 };
 
-function App(): JSX.Element {
+function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
   useEffect(() => {

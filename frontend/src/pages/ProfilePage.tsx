@@ -10,7 +10,7 @@ interface StatItemProps {
   label: string;
 }
 
-function StatItem({ count, label }: StatItemProps): JSX.Element {
+function StatItem({ count, label }: StatItemProps) {
   return (
     <div className="flex flex-col items-center">
       <span className="font-bold text-lg leading-tight">{count}</span>
@@ -39,14 +39,7 @@ interface TrackItemProps {
 }
 
 // Track Item Component for Your Music list
-function TrackItem({
-  track,
-  index,
-  onPlay,
-  onDelete,
-  isPlaying,
-  isCurrentTrack,
-}: TrackItemProps): JSX.Element {
+function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }: TrackItemProps) {
   const [showDelete, setShowDelete] = useState(false);
 
   return (
@@ -148,7 +141,7 @@ interface Playlist {
   created_at: string;
 }
 
-export default function ProfilePage(): JSX.Element {
+export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, signOut } = useAuthStore();
   const { setTrack, startPlayback, currentTrack, isPlaying } = usePlayerStore();

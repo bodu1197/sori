@@ -66,7 +66,7 @@ interface AlbumTrack {
   duration?: string;
 }
 
-export default function SearchPage(): JSX.Element {
+export default function SearchPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const { startPlayback } = usePlayerStore();

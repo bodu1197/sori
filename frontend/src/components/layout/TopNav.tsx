@@ -1,6 +1,6 @@
 import { Heart, MessageCircle } from 'lucide-react';
 
-export default function TopNav(): JSX.Element {
+export default function TopNav() {
   return (
     <header className="h-[44px] bg-white dark:bg-black px-4 flex justify-between items-center sticky top-0 z-40">
       <div className="flex items-center">
