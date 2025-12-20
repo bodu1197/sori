@@ -48,3 +48,29 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_MMnpzJzpTHCy9vgYxyM6TA_Cv9qXtcv
 ```
 
 _주의: ANON KEY는 공개되어도 안전하지만, SERVICE_ROLE_KEY는 절대 클라이언트에 노출하면 안 됩니다._
+
+## 5. Google Login 설정 (필수)
+
+현재 앱에는 "Google로 시작하기" 버튼이 추가되었습니다. 이 기능이 작동하려면 **Supabase Dashboard**에서 설정을 마쳐야 합니다.
+
+### 설정 방법
+
+1. **Google Cloud Console** ([console.cloud.google.com](https://console.cloud.google.com/))
+
+   - 새 프로젝트 생성 -> **APIs & Services** -> **OAuth Consent Screen** 설정 (External, Test users)
+   - **Credentials** -> **Create Credentials** -> **OAuth Client ID** (Web application)
+   - **Authorized JavaScript Origins**: `https://nrtkbulkzhhlstaomvas.supabase.co`
+   - **Authorized Redirect URIs**: `https://nrtkbulkzhhlstaomvas.supabase.co/auth/v1/callback`
+   - 생성된 **Client ID**와 **Client Secret** 복사
+
+2. **Supabase Dashboard** ([Authentication > Providers](https://supabase.com/dashboard/project/nrtkbulkzhhlstaomvas/auth/providers))
+
+   - **Google** 공급자 선택 및 'Enable' 체크
+   - 복사한 **Client ID**와 **Client Secret** 붙여넣기
+   - 'Save' 클릭
+
+3. **URL Configuration** ([Authentication > URL Configuration](https://supabase.com/dashboard/project/nrtkbulkzhhlstaomvas/auth/url-configuration))
+   - **Site URL**: `https://sori-frontend.vercel.app` (배포 주소) 로 변경
+   - **Redirect URLs**: `https://sori-frontend.vercel.app/**`, `http://localhost:5173/**` 추가
+
+설정이 완료되면 로그인 화면에서 구글 버튼을 눌러 회원가입 및 로그인이 가능합니다.
