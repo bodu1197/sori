@@ -1,16 +1,6 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
-import {
-  Grid,
-  Heart,
-  Lock,
-  Play,
-  LogOut,
-  Search,
-  Music,
-  MoreHorizontal,
-  Shuffle,
-} from 'lucide-react';
+import { Grid, Heart, Lock, Play, LogOut, Search, Music, Shuffle, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
@@ -26,10 +16,14 @@ function StatItem({ count, label }) {
 }
 
 // Track Item Component for Your Music list
-function TrackItem({ track, index, onPlay, isPlaying, isCurrentTrack }) {
+function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }) {
+  const [showDelete, setShowDelete] = useState(false);
+
   return (
     <div
       onClick={() => onPlay(track, index)}
+      onMouseEnter={() => setShowDelete(true)}
+      onMouseLeave={() => setShowDelete(false)}
       className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
         isCurrentTrack ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-900'
       }`}
@@ -74,6 +68,20 @@ function TrackItem({ track, index, onPlay, isPlaying, isCurrentTrack }) {
         </div>
         <div className="text-xs text-gray-500 truncate">{track.artist || 'Unknown Artist'}</div>
       </div>
+
+      {/* Delete Button (on hover) */}
+      {showDelete && onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(track);
+          }}
+          className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+          title="Remove from liked"
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
 
       {/* Play Button */}
       <button
@@ -225,6 +233,23 @@ export default function ProfilePage() {
     startPlayback(shuffled, 0);
   };
 
+  // Delete a liked song
+  const handleDeleteSong = async (track) => {
+    if (!track.playlistId) return;
+
+    try {
+      const { error } = await supabase.from('playlists').delete().eq('id', track.playlistId);
+
+      if (error) throw error;
+
+      // Update local state
+      setLikedSongs((prev) => prev.filter((s) => s.playlistId !== track.playlistId));
+      setPlaylists((prev) => prev.filter((p) => p.id !== track.playlistId));
+    } catch (error) {
+      console.error('Error deleting song:', error);
+    }
+  };
+
   // Play search result
   const handlePlaySearchResult = (item) => {
     if (!item.video_id) return;
@@ -366,6 +391,7 @@ export default function ProfilePage() {
                   track={track}
                   index={index}
                   onPlay={handlePlayTrack}
+                  onDelete={handleDeleteSong}
                   isPlaying={isPlaying}
                   isCurrentTrack={currentTrack?.videoId === track.videoId}
                 />

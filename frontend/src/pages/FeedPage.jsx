@@ -1,15 +1,171 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore from '../stores/usePlayerStore';
+import useContextRecommendation from '../hooks/useContextRecommendation';
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
+
+/**
+ * For You Section - Context-based recommendations
+ */
+function ForYouSection() {
+  const context = useContextRecommendation();
+  const { setTrack, currentTrack, isPlaying } = usePlayerStore();
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(true);
+
+  useEffect(() => {
+    async function fetchRecommendations() {
+      if (context.loading || !context.recommendation) return;
+
+      try {
+        setLoadingRecs(true);
+        const response = await fetch(
+          `${API_BASE_URL}/api/search?q=${encodeURIComponent(context.recommendation.searchQuery)}&filter=songs&limit=5`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setRecommendations(data.results || data || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch recommendations:', error);
+      } finally {
+        setLoadingRecs(false);
+      }
+    }
+
+    fetchRecommendations();
+  }, [context.loading, context.recommendation]);
+
+  const handlePlay = (track) => {
+    setTrack({
+      videoId: track.videoId,
+      title: track.title,
+      artist: track.artists?.[0]?.name || track.artist || 'Unknown',
+      thumbnail: track.thumbnail,
+      cover: track.thumbnail,
+    });
+  };
+
+  if (context.loading) {
+    return (
+      <div className="px-4 py-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black">
+        <div className="flex items-center justify-center py-4">
+          <Loader2 size={24} className="animate-spin text-gray-400" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black border-b border-gray-100 dark:border-gray-800">
+      {/* Greeting & Context */}
+      <div className="mb-3">
+        <h2 className="text-xl font-bold text-black dark:text-white">
+          {context.greeting}! {context.recommendation?.emoji}
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+          {context.recommendation?.message}
+          {context.temperature !== null && (
+            <span className="ml-1 text-gray-400">({context.temperature}°C)</span>
+          )}
+        </p>
+      </div>
+
+      {/* Recommendation Label */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          {context.recommendation?.genre}
+        </span>
+        <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white">
+          See all
+        </button>
+      </div>
+
+      {/* Horizontal Scroll Recommendations */}
+      <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
+        {loadingRecs ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex-shrink-0 w-32">
+              <div className="w-32 h-32 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
+              <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded mt-2 w-24 animate-pulse" />
+              <div className="h-2 bg-gray-100 dark:bg-gray-900 rounded mt-1 w-16 animate-pulse" />
+            </div>
+          ))
+        ) : recommendations.length > 0 ? (
+          recommendations.map((track, idx) => {
+            const isCurrentlyPlaying = currentTrack?.videoId === track.videoId && isPlaying;
+            return (
+              <div
+                key={track.videoId || idx}
+                onClick={() => handlePlay(track)}
+                className="flex-shrink-0 w-32 cursor-pointer group"
+              >
+                <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md">
+                  <img
+                    src={track.thumbnail}
+                    alt={track.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src =
+                        'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+                    }}
+                  />
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center transition-opacity ${
+                      isCurrentlyPlaying
+                        ? 'bg-black/40 opacity-100'
+                        : 'bg-black/0 opacity-0 group-hover:bg-black/30 group-hover:opacity-100'
+                    }`}
+                  >
+                    {isCurrentlyPlaying ? (
+                      <div className="flex gap-0.5">
+                        <div
+                          className="w-0.5 h-4 bg-white animate-bounce"
+                          style={{ animationDelay: '0ms' }}
+                        />
+                        <div
+                          className="w-0.5 h-4 bg-white animate-bounce"
+                          style={{ animationDelay: '150ms' }}
+                        />
+                        <div
+                          className="w-0.5 h-4 bg-white animate-bounce"
+                          style={{ animationDelay: '300ms' }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <Play size={16} className="text-white ml-0.5" fill="white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm font-medium mt-2 truncate text-black dark:text-white">
+                  {track.title}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {track.artists?.[0]?.name || track.artist || 'Unknown'}
+                </p>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-sm text-gray-500 py-4">No recommendations available</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function StoryRail() {
   const [profiles, setProfiles] = useState([]);
 
   useEffect(() => {
     async function fetchStories() {
-      // Fetch some users to simulate stories
       const { data } = await supabase.from('profiles').select('*').limit(10);
       if (data) setProfiles(data);
     }
@@ -43,13 +199,12 @@ function StoryRail() {
 }
 
 function PlaylistPost({ post }) {
-  const user = post.profiles; // Joined data
+  const user = post.profiles;
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
 
   const handlePlayClick = () => {
     if (!post.video_id) return;
 
-    // Convert playlist to track format
     const track = {
       videoId: post.video_id,
       title: post.title || 'Unknown Playlist',
@@ -186,18 +341,17 @@ export default function FeedPage() {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        // Fetch playlists and join with profiles
         const { data, error } = await supabase
           .from('playlists')
           .select(
             `
-                    *,
-                    profiles:user_id (
-                        username,
-                        avatar_url,
-                        full_name
-                    )
-                `
+            *,
+            profiles:user_id (
+              username,
+              avatar_url,
+              full_name
+            )
+          `
           )
           .order('created_at', { ascending: false });
 
@@ -216,7 +370,13 @@ export default function FeedPage() {
 
   return (
     <div className="pb-20">
+      {/* For You - Context-based Recommendations */}
+      <ForYouSection />
+
+      {/* Story Rail */}
       <StoryRail />
+
+      {/* Posts */}
       <div className="space-y-2 mt-2">
         {posts.length > 0 ? (
           posts.map((post) => <PlaylistPost key={post.id} post={post} />)
