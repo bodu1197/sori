@@ -956,6 +956,31 @@ async def get_album(album_id: str, country: str = "US"):
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
+# 플레이리스트 정보 API
+# =============================================================================
+
+@app.get("/api/playlist/{playlist_id}")
+async def get_playlist(playlist_id: str, country: str = "US", limit: int = 100):
+    """플레이리스트 상세 정보 (트랙 목록 포함)"""
+    cache_key = f"playlist:{playlist_id}:{country}:{limit}"
+
+    cached = cache_get(cache_key)
+    if cached:
+        return {"source": "cache", "playlist": cached}
+
+    try:
+        ytmusic = get_ytmusic(country)
+        playlist = ytmusic.get_playlist(playlist_id, limit=limit)
+
+        # 1시간 캐시
+        cache_set(cache_key, playlist, ttl=3600)
+
+        return {"source": "api", "playlist": playlist}
+    except Exception as e:
+        logger.error(f"Playlist error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =============================================================================
 # 엔트리 포인트
 # =============================================================================
 
