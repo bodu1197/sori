@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== MANDATORY: READ CLAUDE.md BEFORE ANY WORK ===' && cat \"$CLAUDE_PROJECT_DIR/CLAUDE.md\" && echo '=== YOU MUST FOLLOW ALL INSTRUCTIONS ABOVE ==='"
+          }
+        ]
+      }
+    ]
+  }
+}
