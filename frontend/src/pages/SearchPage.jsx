@@ -78,7 +78,6 @@ export default function SearchPage() {
 
       {/* Explore Grid */}
       <div className="grid grid-cols-3 gap-1 px-1">
-        {/* Repeating mock posts -> Real posts */}
         {posts.length > 0 ? (
           posts.map((post, idx) => {
             const isLarge = idx % 10 === 0;

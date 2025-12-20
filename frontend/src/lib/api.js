@@ -1,5 +1,7 @@
+// @ts-nocheck
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://sori-backend-xxxxxxxxxx-uc.a.run.app';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
 /**
  * Search music using backend API (YouTube Music)
