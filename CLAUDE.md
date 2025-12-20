@@ -249,6 +249,10 @@ sori/
 | **검색 결과 슬라이드 패널** | `ProfilePage.jsx` | ✅ 완료 |
 | **Cloud Run API 검색 연결** | `ProfilePage.jsx` (ytmusicapi) | ✅ 완료 |
 | **검색 결과 재생 + 좋아요 추가** | `ProfilePage.jsx` | ✅ 완료 |
+| **검색 결과 순서 개선** | `ProfilePage.jsx` | ✅ 완료 |
+| **모든 항목 표시 (slice 제거)** | `ProfilePage.jsx` | ✅ 완료 |
+| **Similar Artists 섹션 추가** | `ProfilePage.jsx` | ✅ 완료 |
+| **큰 썸네일 사용 (getBestThumbnail)** | `ProfilePage.jsx` | ✅ 완료 |
 
 #### 삭제된 하드코딩 데이터
 
@@ -262,6 +266,7 @@ sori/
 #### 커밋 히스토리 (최신순)
 
 ```
+3e0824c Improve search results: show all items and add Similar Artists section
 41947f7 Remove Story Highlights section from ProfilePage
 3890435 Remove hardcoded demo data and fix dark mode text colors
 2d0d662 Add player controls, song deletion, and context-based recommendations
