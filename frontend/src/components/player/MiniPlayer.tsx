@@ -35,6 +35,7 @@ export default function MiniPlayer() {
     shuffleMode,
     repeatMode,
     playlist,
+    trackPanelOpen,
     togglePlay,
     playNext,
     playPrev,
@@ -176,7 +177,9 @@ export default function MiniPlayer() {
 
           <button
             onClick={handleOpenPlaylist}
-            className="text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-1 ml-1"
+            className={`p-1 ml-1 transition-colors ${
+              trackPanelOpen ? 'text-white' : 'text-green-400 hover:text-green-300'
+            }`}
             title="View Playlist"
           >
             <ListMusic size={20} />
