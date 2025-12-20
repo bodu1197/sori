@@ -1,7 +1,8 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import usePlayerStore from '../stores/usePlayerStore';
 
 function StoryRail() {
   const [profiles, setProfiles] = useState([]);
@@ -43,6 +44,25 @@ function StoryRail() {
 
 function PlaylistPost({ post }) {
   const user = post.profiles; // Joined data
+  const { setTrack, currentTrack, isPlaying } = usePlayerStore();
+
+  const handlePlayClick = () => {
+    if (!post.video_id) return;
+
+    // Convert playlist to track format
+    const track = {
+      videoId: post.video_id,
+      title: post.title || 'Unknown Playlist',
+      artist: user?.username || 'Unknown Artist',
+      thumbnail: post.cover_url,
+      cover: post.cover_url,
+    };
+
+    setTrack(track);
+  };
+
+  const isCurrentlyPlaying = currentTrack?.videoId === post.video_id && isPlaying;
+
   return (
     <article className="pb-4 border-b border-gray-100 dark:border-gray-800">
       {/* Header */}
@@ -68,7 +88,10 @@ function PlaylistPost({ post }) {
       </div>
 
       {/* Playlist Visual (Square) */}
-      <div className="relative w-full aspect-square bg-gray-100 cursor-pointer group overflow-hidden">
+      <div
+        className="relative w-full aspect-square bg-gray-100 cursor-pointer group overflow-hidden"
+        onClick={handlePlayClick}
+      >
         <img
           src={
             post.cover_url ||
@@ -79,9 +102,30 @@ function PlaylistPost({ post }) {
         />
 
         {/* Play Overlay */}
-        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="w-16 h-16 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center">
-            <div className="w-0 h-0 border-t-[12px] border-t-transparent border-l-[20px] border-l-white border-b-[12px] border-b-transparent ml-1"></div>
+        <div
+          className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity ${isCurrentlyPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        >
+          <div
+            className={`w-16 h-16 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center ${isCurrentlyPlaying ? 'animate-pulse' : ''}`}
+          >
+            {isCurrentlyPlaying ? (
+              <div className="flex gap-1">
+                <div
+                  className="w-1 h-6 bg-white animate-bounce"
+                  style={{ animationDelay: '0ms' }}
+                ></div>
+                <div
+                  className="w-1 h-6 bg-white animate-bounce"
+                  style={{ animationDelay: '150ms' }}
+                ></div>
+                <div
+                  className="w-1 h-6 bg-white animate-bounce"
+                  style={{ animationDelay: '300ms' }}
+                ></div>
+              </div>
+            ) : (
+              <Play size={28} className="text-white ml-1" fill="white" />
+            )}
           </div>
         </div>
 

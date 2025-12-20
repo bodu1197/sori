@@ -1,13 +1,29 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
-import { Search as SearchIcon } from 'lucide-react';
+import { Search as SearchIcon, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import usePlayerStore from '../stores/usePlayerStore';
 
 const CATEGORIES = ['For You', 'K-Pop', 'Jazz', 'Pop', 'Hip-hop', 'R&B', 'Classic'];
 
 export default function SearchPage() {
   const [posts, setPosts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const { setTrack, currentTrack, isPlaying } = usePlayerStore();
+
+  const handlePlayClick = (post) => {
+    if (!post.video_id) return;
+
+    const track = {
+      videoId: post.video_id,
+      title: post.title || 'Unknown Playlist',
+      artist: 'SORI',
+      thumbnail: post.cover_url,
+      cover: post.cover_url,
+    };
+
+    setTrack(track);
+  };
 
   useEffect(() => {
     async function fetchPosts() {
@@ -66,11 +82,13 @@ export default function SearchPage() {
         {posts.length > 0 ? (
           posts.map((post, idx) => {
             const isLarge = idx % 10 === 0;
+            const isCurrentlyPlaying = currentTrack?.videoId === post.video_id && isPlaying;
 
             return (
               <div
                 key={post.id || idx}
-                className={`relative bg-gray-200 aspect-square overflow-hidden cursor-pointer ${isLarge ? 'row-span-2 col-span-2' : ''}`}
+                className={`relative bg-gray-200 aspect-square overflow-hidden cursor-pointer group ${isLarge ? 'row-span-2 col-span-2' : ''}`}
+                onClick={() => handlePlayClick(post)}
               >
                 <img
                   src={
@@ -79,10 +97,47 @@ export default function SearchPage() {
                   }
                   alt="cover"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src =
+                      'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=600&fit=crop';
+                  }}
                 />
-                <div className="absolute inset-0 bg-black/10 hover:bg-black/30 transition-colors" />
-                <div className="absolute bottom-2 left-2 text-white font-bold opacity-0 group-hover:opacity-100">
-                  {post.title}
+                {/* Overlay */}
+                <div
+                  className={`absolute inset-0 bg-black/10 transition-colors ${isCurrentlyPlaying ? 'bg-black/40' : 'hover:bg-black/30'}`}
+                />
+
+                {/* Play/Playing Indicator */}
+                <div
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity ${isCurrentlyPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                >
+                  {isCurrentlyPlaying ? (
+                    <div className="flex gap-1">
+                      <div
+                        className="w-1 h-6 bg-white animate-bounce"
+                        style={{ animationDelay: '0ms' }}
+                      ></div>
+                      <div
+                        className="w-1 h-6 bg-white animate-bounce"
+                        style={{ animationDelay: '150ms' }}
+                      ></div>
+                      <div
+                        className="w-1 h-6 bg-white animate-bounce"
+                        style={{ animationDelay: '300ms' }}
+                      ></div>
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+                      <Play size={20} className="text-white ml-0.5" fill="white" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Title */}
+                <div className="absolute bottom-2 left-2 right-2">
+                  <span className="text-white font-semibold text-xs drop-shadow-lg line-clamp-1">
+                    {post.title}
+                  </span>
                 </div>
               </div>
             );
