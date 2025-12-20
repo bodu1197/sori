@@ -212,6 +212,7 @@ async def search_summary(
     """
     Comprehensive search returning all artist data (songs, albums, singles).
     Compatible with sample folder's api_proxy.php?type=summary
+    Uses ytmusicapi 1.11.4 with get_artist_albums() for complete discography.
     """
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
@@ -226,85 +227,164 @@ async def search_summary(
     try:
         ytmusic = get_ytmusic(country)
 
-        # 1. Search for artists
-        artists_search = ytmusic.search(q, filter="artists", limit=5)
+        # 1. Search for artists (with error handling)
+        # Note: filter="artists" sometimes returns empty, so use general search as fallback
+        artists_search = []
+        try:
+            artists_search = ytmusic.search(q, filter="artists", limit=5) or []
+            # Fallback: if filtered search returns empty, use general search
+            if not artists_search:
+                general_results = ytmusic.search(q, limit=50) or []
+                artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
+        except Exception as e:
+            logger.warning(f"Artist search error: {e}")
 
         # 2. Search for songs (for exact title matches)
-        songs_search = ytmusic.search(q, filter="songs", limit=50)
+        # Note: filter="songs" sometimes returns empty, so use general search as fallback
+        songs_search = []
+        try:
+            songs_search = ytmusic.search(q, filter="songs", limit=50) or []
+            # Fallback: if filtered search returns empty, use general search
+            if not songs_search:
+                general_results = ytmusic.search(q, limit=100) or []
+                songs_search = [r for r in general_results if r.get("resultType") == "song"]
+        except Exception as e:
+            logger.warning(f"Songs search error: {e}")
 
         # 3. Search for albums
-        albums_search = ytmusic.search(q, filter="albums", limit=20)
+        albums_search = []
+        try:
+            albums_search = ytmusic.search(q, filter="albums", limit=20) or []
+        except Exception as e:
+            logger.warning(f"Albums search error: {e}")
 
         # 4. For each artist, get complete discography
         artists_data = []
         albums_data = []
 
-        for artist in artists_search[:3]:  # Top 3 artists only
+        for artist in artists_search[:2]:  # Top 2 artists to reduce load
+            if not isinstance(artist, dict):
+                continue
             artist_id = artist.get("browseId")
-            if artist_id:
-                try:
-                    artist_info = ytmusic.get_artist(artist_id)
+            if not artist_id:
+                continue
+            try:
+                artist_info = ytmusic.get_artist(artist_id)
+                if not artist_info or not isinstance(artist_info, dict):
+                    continue
 
-                    # Extract artist details
-                    artist_entry = {
-                        "artist": artist_info.get("name", artist.get("artist", "")),
-                        "browseId": artist_id,
-                        "thumbnails": artist_info.get("thumbnails", []),
-                        "description": artist_info.get("description", ""),
-                        "subscribers": artist_info.get("subscribers", "")
-                    }
-                    artists_data.append(artist_entry)
+                # Extract artist details
+                artist_entry = {
+                    "artist": artist_info.get("name") or artist.get("artist") or "",
+                    "browseId": artist_id,
+                    "thumbnails": artist_info.get("thumbnails") or [],
+                    "description": artist_info.get("description") or "",
+                    "subscribers": artist_info.get("subscribers") or ""
+                }
+                artists_data.append(artist_entry)
 
-                    # Extract songs from artist
-                    if "songs" in artist_info and artist_info["songs"].get("results"):
-                        for song in artist_info["songs"]["results"]:
-                            song["artist_bid"] = artist_id
-                            albums_data.append(song)
+                # Extract songs from artist page
+                songs_section = artist_info.get("songs")
+                if songs_section and isinstance(songs_section, dict):
+                    song_results = songs_section.get("results") or []
+                    for song in song_results:
+                        if isinstance(song, dict):
+                            song_copy = dict(song)
+                            song_copy["artist_bid"] = artist_id
+                            albums_data.append(song_copy)
 
-                    # Extract albums
-                    if "albums" in artist_info and artist_info["albums"].get("results"):
-                        for album in artist_info["albums"]["results"]:
-                            album_id = album.get("browseId")
-                            if album_id:
+                # Use get_artist_albums for complete album list (new in 1.11.4)
+                albums_section = artist_info.get("albums")
+                if albums_section and isinstance(albums_section, dict):
+                    params = albums_section.get("params")
+                    browse_id = albums_section.get("browseId")
+                    if params and browse_id:
+                        try:
+                            # Get all albums using get_artist_albums
+                            all_albums = ytmusic.get_artist_albums(browse_id, params) or []
+                            for album in all_albums[:20]:  # Limit to 20 albums
+                                if not isinstance(album, dict):
+                                    continue
+                                album_id = album.get("browseId")
+                                if not album_id:
+                                    continue
                                 try:
                                     album_detail = ytmusic.get_album(album_id)
-                                    album_entry = {
-                                        "title": album_detail.get("title", ""),
-                                        "browseId": album_id,
-                                        "artists": album_detail.get("artists", []),
-                                        "thumbnails": album_detail.get("thumbnails", []),
-                                        "year": album_detail.get("year", ""),
-                                        "type": album_detail.get("type", "Album"),
-                                        "artist_bid": artist_id,
-                                        "tracks": album_detail.get("tracks", [])
-                                    }
-                                    albums_data.append(album_entry)
+                                    if album_detail and isinstance(album_detail, dict):
+                                        album_entry = {
+                                            "title": album_detail.get("title") or "",
+                                            "browseId": album_id,
+                                            "artists": album_detail.get("artists") or [],
+                                            "thumbnails": album_detail.get("thumbnails") or [],
+                                            "year": album_detail.get("year") or "",
+                                            "type": album_detail.get("type") or "Album",
+                                            "artist_bid": artist_id,
+                                            "tracks": album_detail.get("tracks") or []
+                                        }
+                                        albums_data.append(album_entry)
                                 except Exception as album_err:
-                                    logger.warning(f"Album fetch error: {album_err}")
+                                    logger.warning(f"Album detail fetch error: {album_err}")
+                        except Exception as albums_err:
+                            logger.warning(f"get_artist_albums error: {albums_err}")
+                            # Fallback: use results from artist page
+                            album_results = (albums_section.get("results") or [])[:10]
+                            for album in album_results:
+                                if not isinstance(album, dict):
+                                    continue
+                                album_id = album.get("browseId")
+                                if album_id:
+                                    try:
+                                        album_detail = ytmusic.get_album(album_id)
+                                        if album_detail and isinstance(album_detail, dict):
+                                            album_entry = {
+                                                "title": album_detail.get("title") or "",
+                                                "browseId": album_id,
+                                                "artists": album_detail.get("artists") or [],
+                                                "thumbnails": album_detail.get("thumbnails") or [],
+                                                "year": album_detail.get("year") or "",
+                                                "type": album_detail.get("type") or "Album",
+                                                "artist_bid": artist_id,
+                                                "tracks": album_detail.get("tracks") or []
+                                            }
+                                            albums_data.append(album_entry)
+                                    except Exception as album_err:
+                                        logger.warning(f"Album fetch error: {album_err}")
 
-                    # Extract singles
-                    if "singles" in artist_info and artist_info["singles"].get("results"):
-                        for single in artist_info["singles"]["results"]:
-                            single_id = single.get("browseId")
-                            if single_id:
+                # Get singles using get_artist_albums
+                singles_section = artist_info.get("singles")
+                if singles_section and isinstance(singles_section, dict):
+                    params = singles_section.get("params")
+                    browse_id = singles_section.get("browseId")
+                    if params and browse_id:
+                        try:
+                            all_singles = ytmusic.get_artist_albums(browse_id, params) or []
+                            for single in all_singles[:10]:  # Limit to 10 singles
+                                if not isinstance(single, dict):
+                                    continue
+                                single_id = single.get("browseId")
+                                if not single_id:
+                                    continue
                                 try:
                                     single_detail = ytmusic.get_album(single_id)
-                                    single_entry = {
-                                        "title": single_detail.get("title", ""),
-                                        "browseId": single_id,
-                                        "artists": single_detail.get("artists", []),
-                                        "thumbnails": single_detail.get("thumbnails", []),
-                                        "year": single_detail.get("year", ""),
-                                        "type": single_detail.get("type", "Single"),
-                                        "artist_bid": artist_id,
-                                        "tracks": single_detail.get("tracks", [])
-                                    }
-                                    albums_data.append(single_entry)
+                                    if single_detail and isinstance(single_detail, dict):
+                                        single_entry = {
+                                            "title": single_detail.get("title") or "",
+                                            "browseId": single_id,
+                                            "artists": single_detail.get("artists") or [],
+                                            "thumbnails": single_detail.get("thumbnails") or [],
+                                            "year": single_detail.get("year") or "",
+                                            "type": single_detail.get("type") or "Single",
+                                            "artist_bid": artist_id,
+                                            "tracks": single_detail.get("tracks") or []
+                                        }
+                                        albums_data.append(single_entry)
                                 except Exception as single_err:
-                                    logger.warning(f"Single fetch error: {single_err}")
+                                    logger.warning(f"Single detail fetch error: {single_err}")
+                        except Exception as singles_err:
+                            logger.warning(f"get_artist_albums for singles error: {singles_err}")
 
-                except Exception as artist_err:
-                    logger.warning(f"Artist fetch error for {artist_id}: {artist_err}")
+            except Exception as artist_err:
+                logger.warning(f"Artist fetch error for {artist_id}: {artist_err}")
 
         result = {
             "keyword": q,
