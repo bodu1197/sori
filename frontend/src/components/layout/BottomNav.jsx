@@ -5,7 +5,7 @@ import { Home, Search, PlusSquare, PlayCircle, User } from 'lucide-react';
 export default function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
-    { icon: Search, label: 'Search', path: '/search' },
+    { icon: Search, label: 'Search', path: '/profile' }, // Search is on Profile page
     { icon: PlusSquare, label: 'Create', path: '/create' },
     { icon: PlayCircle, label: 'Charts', path: '/charts' }, // Using Charts/Reels slot
     { icon: User, label: 'Profile', path: '/profile' },

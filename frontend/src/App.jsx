@@ -3,12 +3,10 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MobileLayout from './components/layout/MobileLayout';
 import FeedPage from './pages/FeedPage';
-import SearchPage from './pages/SearchPage';
 import ProfilePage from './pages/ProfilePage';
 import CreatePage from './pages/CreatePage';
 import ChartsPage from './pages/ChartsPage';
 import AuthPage from './pages/AuthPage';
-import TestSearchPage from './pages/TestSearchPage';
 import useAuthStore from './stores/useAuthStore';
 
 // Protected Route Wrapper
@@ -42,7 +40,6 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/test-search" element={<TestSearchPage />} />
 
         <Route
           element={
@@ -52,7 +49,7 @@ function App() {
           }
         >
           <Route path="/" element={<FeedPage />} />
-          <Route path="/search" element={<SearchPage />} />
+          <Route path="/search" element={<Navigate to="/profile" replace />} />
           <Route path="/create" element={<CreatePage />} />
           <Route path="/charts" element={<ChartsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
