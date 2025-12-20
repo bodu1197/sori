@@ -61,7 +61,10 @@ export default function MiniPlayer() {
     setVolume(parseInt(e.target.value, 10));
   };
 
-  const thumbnailUrl = currentTrack?.cover || currentTrack?.thumbnail || '/default-album.png';
+  const thumbnailUrl =
+    currentTrack?.cover ||
+    currentTrack?.thumbnail ||
+    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=100&h=100&fit=crop';
 
   const getRepeatIcon = () => {
     if (repeatMode === 'one') {
@@ -88,10 +91,10 @@ export default function MiniPlayer() {
           <img
             src={thumbnailUrl}
             alt="Album Art"
-            className={`w-10 h-10 rounded-md object-cover ${isPlaying ? 'animate-spin-slow' : ''}`}
-            style={{ animationDuration: '10s' }}
+            className="w-10 h-10 rounded-md object-cover"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = '/default-album.png';
+              (e.target as HTMLImageElement).src =
+                'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=100&h=100&fit=crop';
             }}
           />
           <div className="flex flex-col min-w-0">
