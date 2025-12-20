@@ -48,18 +48,43 @@ memory_cache = {}
 # YTMusic 인스턴스 (국가별)
 ytmusic_instances = {}
 
+# 전 세계 국가별 언어 매핑 (ISO 3166-1 -> ISO 639-1)
+COUNTRY_LANGUAGE_MAP = {
+    # 아시아
+    'KR': 'ko', 'JP': 'ja', 'CN': 'zh', 'TW': 'zh', 'HK': 'zh',
+    'TH': 'th', 'VN': 'vi', 'ID': 'id', 'MY': 'ms', 'SG': 'en',
+    'PH': 'tl', 'IN': 'hi', 'PK': 'ur', 'BD': 'bn', 'NP': 'ne',
+    'LK': 'si', 'MM': 'my', 'KH': 'km', 'LA': 'lo', 'MN': 'mn',
+    # 중동
+    'SA': 'ar', 'AE': 'ar', 'EG': 'ar', 'IQ': 'ar', 'JO': 'ar',
+    'KW': 'ar', 'LB': 'ar', 'OM': 'ar', 'QA': 'ar', 'YE': 'ar',
+    'IL': 'he', 'IR': 'fa', 'TR': 'tr',
+    # 유럽
+    'US': 'en', 'GB': 'en', 'AU': 'en', 'NZ': 'en', 'IE': 'en', 'CA': 'en',
+    'DE': 'de', 'AT': 'de', 'CH': 'de',
+    'FR': 'fr', 'BE': 'fr', 'LU': 'fr',
+    'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es', 'CL': 'es', 'PE': 'es',
+    'IT': 'it', 'PT': 'pt', 'BR': 'pt',
+    'NL': 'nl', 'PL': 'pl', 'RU': 'ru', 'UA': 'uk', 'CZ': 'cs', 'SK': 'sk',
+    'HU': 'hu', 'RO': 'ro', 'BG': 'bg', 'HR': 'hr', 'RS': 'sr', 'SI': 'sl',
+    'GR': 'el', 'SE': 'sv', 'NO': 'no', 'DK': 'da', 'FI': 'fi', 'IS': 'is',
+    'EE': 'et', 'LV': 'lv', 'LT': 'lt',
+    # 아프리카
+    'ZA': 'en', 'NG': 'en', 'KE': 'sw', 'GH': 'en', 'TZ': 'sw',
+    'MA': 'ar', 'DZ': 'ar', 'TN': 'ar', 'LY': 'ar',
+    'ET': 'am', 'UG': 'en', 'ZW': 'en', 'SN': 'fr', 'CI': 'fr', 'CM': 'fr',
+}
+
 def get_ytmusic(country: str = "US"):
     """국가별 YTMusic 인스턴스 (싱글톤)"""
     from ytmusicapi import YTMusic
-    
+
+    country = country.upper() if country else "US"
+
     if country not in ytmusic_instances:
-        lang_map = {
-            'KR': 'ko', 'JP': 'ja', 'US': 'en', 'GB': 'en',
-            'DE': 'de', 'FR': 'fr', 'BR': 'pt', 'ES': 'es'
-        }
-        lang = lang_map.get(country, 'en')
+        lang = COUNTRY_LANGUAGE_MAP.get(country, 'en')
         ytmusic_instances[country] = YTMusic(language=lang, location=country)
-    
+
     return ytmusic_instances[country]
 
 def cache_get(key: str):
@@ -798,21 +823,21 @@ async def search_summary(
 # =============================================================================
 
 @app.get("/api/artist/{artist_id}")
-async def get_artist(artist_id: str):
+async def get_artist(artist_id: str, country: str = "US"):
     """아티스트 상세 정보"""
-    cache_key = f"artist:{artist_id}"
-    
+    cache_key = f"artist:{artist_id}:{country}"
+
     cached = cache_get(cache_key)
     if cached:
         return {"source": "cache", "artist": cached}
-    
+
     try:
-        ytmusic = get_ytmusic("US")
+        ytmusic = get_ytmusic(country)
         artist = ytmusic.get_artist(artist_id)
-        
+
         # 6시간 캐시
         cache_set(cache_key, artist, ttl=21600)
-        
+
         return {"source": "api", "artist": artist}
     except Exception as e:
         logger.error(f"Artist error: {e}")
@@ -823,21 +848,21 @@ async def get_artist(artist_id: str):
 # =============================================================================
 
 @app.get("/api/album/{album_id}")
-async def get_album(album_id: str):
+async def get_album(album_id: str, country: str = "US"):
     """앨범 상세 정보"""
-    cache_key = f"album:{album_id}"
-    
+    cache_key = f"album:{album_id}:{country}"
+
     cached = cache_get(cache_key)
     if cached:
         return {"source": "cache", "album": cached}
-    
+
     try:
-        ytmusic = get_ytmusic("US")
+        ytmusic = get_ytmusic(country)
         album = ytmusic.get_album(album_id)
-        
+
         # 6시간 캐시
         cache_set(cache_key, album, ttl=21600)
-        
+
         return {"source": "api", "album": album}
     except Exception as e:
         logger.error(f"Album error: {e}")

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 export interface Country {
   code: string;
@@ -6,23 +6,242 @@ export interface Country {
   flag: string;
 }
 
-export default function useCountry(): Country {
-  const country = useMemo<Country>(() => {
-    try {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+// Timezone -> Country code mapping
+const TIMEZONE_COUNTRY_MAP: Record<string, string> = {
+  // Asia
+  'Asia/Seoul': 'KR',
+  'Asia/Tokyo': 'JP',
+  'Asia/Shanghai': 'CN',
+  'Asia/Hong_Kong': 'HK',
+  'Asia/Taipei': 'TW',
+  'Asia/Singapore': 'SG',
+  'Asia/Bangkok': 'TH',
+  'Asia/Ho_Chi_Minh': 'VN',
+  'Asia/Saigon': 'VN',
+  'Asia/Jakarta': 'ID',
+  'Asia/Kuala_Lumpur': 'MY',
+  'Asia/Manila': 'PH',
+  'Asia/Kolkata': 'IN',
+  'Asia/Calcutta': 'IN',
+  'Asia/Karachi': 'PK',
+  'Asia/Dhaka': 'BD',
+  'Asia/Kathmandu': 'NP',
+  'Asia/Colombo': 'LK',
+  'Asia/Yangon': 'MM',
+  'Asia/Phnom_Penh': 'KH',
+  'Asia/Vientiane': 'LA',
+  'Asia/Ulaanbaatar': 'MN',
+  // Middle East
+  'Asia/Riyadh': 'SA',
+  'Asia/Dubai': 'AE',
+  'Africa/Cairo': 'EG',
+  'Asia/Baghdad': 'IQ',
+  'Asia/Amman': 'JO',
+  'Asia/Kuwait': 'KW',
+  'Asia/Beirut': 'LB',
+  'Asia/Muscat': 'OM',
+  'Asia/Qatar': 'QA',
+  'Asia/Aden': 'YE',
+  'Asia/Jerusalem': 'IL',
+  'Asia/Tehran': 'IR',
+  'Europe/Istanbul': 'TR',
+  'Asia/Istanbul': 'TR',
+  // Europe
+  'Europe/London': 'GB',
+  'Europe/Dublin': 'IE',
+  'Europe/Berlin': 'DE',
+  'Europe/Vienna': 'AT',
+  'Europe/Zurich': 'CH',
+  'Europe/Paris': 'FR',
+  'Europe/Brussels': 'BE',
+  'Europe/Luxembourg': 'LU',
+  'Europe/Madrid': 'ES',
+  'Europe/Rome': 'IT',
+  'Europe/Lisbon': 'PT',
+  'Europe/Amsterdam': 'NL',
+  'Europe/Warsaw': 'PL',
+  'Europe/Moscow': 'RU',
+  'Europe/Kiev': 'UA',
+  'Europe/Kyiv': 'UA',
+  'Europe/Prague': 'CZ',
+  'Europe/Bratislava': 'SK',
+  'Europe/Budapest': 'HU',
+  'Europe/Bucharest': 'RO',
+  'Europe/Sofia': 'BG',
+  'Europe/Zagreb': 'HR',
+  'Europe/Belgrade': 'RS',
+  'Europe/Ljubljana': 'SI',
+  'Europe/Athens': 'GR',
+  'Europe/Stockholm': 'SE',
+  'Europe/Oslo': 'NO',
+  'Europe/Copenhagen': 'DK',
+  'Europe/Helsinki': 'FI',
+  'Atlantic/Reykjavik': 'IS',
+  'Europe/Tallinn': 'EE',
+  'Europe/Riga': 'LV',
+  'Europe/Vilnius': 'LT',
+  // Americas
+  'America/New_York': 'US',
+  'America/Chicago': 'US',
+  'America/Denver': 'US',
+  'America/Los_Angeles': 'US',
+  'America/Toronto': 'CA',
+  'America/Vancouver': 'CA',
+  'America/Mexico_City': 'MX',
+  'America/Sao_Paulo': 'BR',
+  'America/Buenos_Aires': 'AR',
+  'America/Bogota': 'CO',
+  'America/Santiago': 'CL',
+  'America/Lima': 'PE',
+  // Oceania
+  'Australia/Sydney': 'AU',
+  'Australia/Melbourne': 'AU',
+  'Australia/Brisbane': 'AU',
+  'Australia/Perth': 'AU',
+  'Pacific/Auckland': 'NZ',
+  // Africa
+  'Africa/Johannesburg': 'ZA',
+  'Africa/Lagos': 'NG',
+  'Africa/Nairobi': 'KE',
+  'Africa/Accra': 'GH',
+  'Africa/Dar_es_Salaam': 'TZ',
+  'Africa/Casablanca': 'MA',
+  'Africa/Algiers': 'DZ',
+  'Africa/Tunis': 'TN',
+  'Africa/Tripoli': 'LY',
+  'Africa/Addis_Ababa': 'ET',
+};
 
-      if (timezone.includes('Seoul')) {
-        return { code: 'KR', name: 'South Korea', flag: 'KR' };
-      } else if (timezone.includes('Tokyo')) {
-        return { code: 'JP', name: 'Japan', flag: 'JP' };
-      } else if (timezone.includes('London') || timezone.includes('Europe')) {
-        return { code: 'GB', name: 'United Kingdom', flag: 'GB' };
+// Country code -> Name mapping
+const COUNTRY_NAMES: Record<string, string> = {
+  KR: 'South Korea',
+  JP: 'Japan',
+  CN: 'China',
+  HK: 'Hong Kong',
+  TW: 'Taiwan',
+  SG: 'Singapore',
+  TH: 'Thailand',
+  VN: 'Vietnam',
+  ID: 'Indonesia',
+  MY: 'Malaysia',
+  PH: 'Philippines',
+  IN: 'India',
+  PK: 'Pakistan',
+  BD: 'Bangladesh',
+  NP: 'Nepal',
+  LK: 'Sri Lanka',
+  MM: 'Myanmar',
+  KH: 'Cambodia',
+  LA: 'Laos',
+  MN: 'Mongolia',
+  SA: 'Saudi Arabia',
+  AE: 'UAE',
+  EG: 'Egypt',
+  IQ: 'Iraq',
+  JO: 'Jordan',
+  KW: 'Kuwait',
+  LB: 'Lebanon',
+  OM: 'Oman',
+  QA: 'Qatar',
+  YE: 'Yemen',
+  IL: 'Israel',
+  IR: 'Iran',
+  TR: 'Turkey',
+  US: 'United States',
+  GB: 'United Kingdom',
+  CA: 'Canada',
+  AU: 'Australia',
+  NZ: 'New Zealand',
+  IE: 'Ireland',
+  DE: 'Germany',
+  AT: 'Austria',
+  CH: 'Switzerland',
+  FR: 'France',
+  BE: 'Belgium',
+  LU: 'Luxembourg',
+  ES: 'Spain',
+  MX: 'Mexico',
+  AR: 'Argentina',
+  CO: 'Colombia',
+  CL: 'Chile',
+  PE: 'Peru',
+  IT: 'Italy',
+  PT: 'Portugal',
+  BR: 'Brazil',
+  NL: 'Netherlands',
+  PL: 'Poland',
+  RU: 'Russia',
+  UA: 'Ukraine',
+  CZ: 'Czech Republic',
+  SK: 'Slovakia',
+  HU: 'Hungary',
+  RO: 'Romania',
+  BG: 'Bulgaria',
+  HR: 'Croatia',
+  RS: 'Serbia',
+  SI: 'Slovenia',
+  GR: 'Greece',
+  SE: 'Sweden',
+  NO: 'Norway',
+  DK: 'Denmark',
+  FI: 'Finland',
+  IS: 'Iceland',
+  EE: 'Estonia',
+  LV: 'Latvia',
+  LT: 'Lithuania',
+  ZA: 'South Africa',
+  NG: 'Nigeria',
+  KE: 'Kenya',
+  GH: 'Ghana',
+  TZ: 'Tanzania',
+  MA: 'Morocco',
+  DZ: 'Algeria',
+  TN: 'Tunisia',
+  LY: 'Libya',
+  ET: 'Ethiopia',
+};
+
+function getCountryFromTimezone(): string {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return TIMEZONE_COUNTRY_MAP[timezone] || 'US';
+  } catch {
+    return 'US';
+  }
+}
+
+export default function useCountry(): Country {
+  const [countryCode, setCountryCode] = useState<string>(() => getCountryFromTimezone());
+
+  useEffect(() => {
+    // Try IP-based detection for more accuracy (async)
+    const detectByIP = async () => {
+      try {
+        const response = await fetch('https://ipapi.co/country/', {
+          signal: AbortSignal.timeout(3000), // 3s timeout
+        });
+        if (response.ok) {
+          const code = await response.text();
+          if (code && code.length === 2) {
+            setCountryCode(code.toUpperCase());
+          }
+        }
+      } catch {
+        // IP detection failed, keep timezone-based result
       }
-    } catch {
-      // Timezone detection failed, use default
-    }
-    return { code: 'US', name: 'United States', flag: 'US' };
+    };
+
+    detectByIP();
   }, []);
+
+  const country = useMemo<Country>(
+    () => ({
+      code: countryCode,
+      name: COUNTRY_NAMES[countryCode] || 'Unknown',
+      flag: countryCode,
+    }),
+    [countryCode]
+  );
 
   return country;
 }
