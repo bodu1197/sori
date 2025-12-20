@@ -547,24 +547,12 @@ async def search_summary(
         except Exception as e:
             logger.warning(f"Artist search error: {e}")
 
-        # 2. Search for songs (for exact title matches)
-        # Note: filter="songs" sometimes returns empty, so use general search as fallback
-        songs_search = []
-        try:
-            songs_search = ytmusic.search(q, filter="songs", limit=50) or []
-            # Fallback: if filtered search returns empty, use general search
-            if not songs_search:
-                general_results = ytmusic.search(q, limit=100) or []
-                songs_search = [r for r in general_results if r.get("resultType") == "song"]
-        except Exception as e:
-            logger.warning(f"Songs search error: {e}")
+        # 2. Skip general songs search - we'll get songs from artist page only
+        # This ensures we only show songs BY the artist, not songs mentioning the artist
+        songs_search = []  # Will be populated from artist page below
 
-        # 3. Search for albums
-        albums_search = []
-        try:
-            albums_search = ytmusic.search(q, filter="albums", limit=20) or []
-        except Exception as e:
-            logger.warning(f"Albums search error: {e}")
+        # 3. Skip general albums search - we'll get albums from artist page only
+        albums_search = []  # Will be populated from artist page below
 
         # 4. For each artist, get complete discography
         artists_data = []
@@ -591,7 +579,7 @@ async def search_summary(
                 }
                 artists_data.append(artist_entry)
 
-                # Extract songs from artist page
+                # Extract songs from artist page (only this artist's songs)
                 songs_section = artist_info.get("songs")
                 if songs_section and isinstance(songs_section, dict):
                     song_results = songs_section.get("results") or []
@@ -599,7 +587,8 @@ async def search_summary(
                         if isinstance(song, dict):
                             song_copy = dict(song)
                             song_copy["artist_bid"] = artist_id
-                            albums_data.append(song_copy)
+                            song_copy["resultType"] = "song"
+                            songs_search.append(song_copy)  # Add to songs list
 
                 # Use get_artist_albums for complete album list (new in 1.11.4)
                 albums_section = artist_info.get("albums")
@@ -619,6 +608,7 @@ async def search_summary(
                                 try:
                                     album_detail = ytmusic.get_album(album_id)
                                     if album_detail and isinstance(album_detail, dict):
+                                        tracks = album_detail.get("tracks") or []
                                         album_entry = {
                                             "title": album_detail.get("title") or "",
                                             "browseId": album_id,
@@ -627,9 +617,18 @@ async def search_summary(
                                             "year": album_detail.get("year") or "",
                                             "type": album_detail.get("type") or "Album",
                                             "artist_bid": artist_id,
-                                            "tracks": album_detail.get("tracks") or []
+                                            "tracks": tracks
                                         }
                                         albums_data.append(album_entry)
+
+                                        # Add album tracks to songs list
+                                        for track in tracks:
+                                            if isinstance(track, dict) and track.get("videoId"):
+                                                track_copy = dict(track)
+                                                track_copy["artist_bid"] = artist_id
+                                                track_copy["resultType"] = "song"
+                                                track_copy["album"] = {"name": album_entry["title"], "id": album_id}
+                                                songs_search.append(track_copy)
                                 except Exception as album_err:
                                     logger.warning(f"Album detail fetch error: {album_err}")
                         except Exception as albums_err:
@@ -644,6 +643,7 @@ async def search_summary(
                                     try:
                                         album_detail = ytmusic.get_album(album_id)
                                         if album_detail and isinstance(album_detail, dict):
+                                            tracks = album_detail.get("tracks") or []
                                             album_entry = {
                                                 "title": album_detail.get("title") or "",
                                                 "browseId": album_id,
@@ -652,9 +652,18 @@ async def search_summary(
                                                 "year": album_detail.get("year") or "",
                                                 "type": album_detail.get("type") or "Album",
                                                 "artist_bid": artist_id,
-                                                "tracks": album_detail.get("tracks") or []
+                                                "tracks": tracks
                                             }
                                             albums_data.append(album_entry)
+
+                                            # Add tracks to songs list
+                                            for track in tracks:
+                                                if isinstance(track, dict) and track.get("videoId"):
+                                                    track_copy = dict(track)
+                                                    track_copy["artist_bid"] = artist_id
+                                                    track_copy["resultType"] = "song"
+                                                    track_copy["album"] = {"name": album_entry["title"], "id": album_id}
+                                                    songs_search.append(track_copy)
                                     except Exception as album_err:
                                         logger.warning(f"Album fetch error: {album_err}")
 
@@ -675,6 +684,7 @@ async def search_summary(
                                 try:
                                     single_detail = ytmusic.get_album(single_id)
                                     if single_detail and isinstance(single_detail, dict):
+                                        tracks = single_detail.get("tracks") or []
                                         single_entry = {
                                             "title": single_detail.get("title") or "",
                                             "browseId": single_id,
@@ -683,9 +693,18 @@ async def search_summary(
                                             "year": single_detail.get("year") or "",
                                             "type": single_detail.get("type") or "Single",
                                             "artist_bid": artist_id,
-                                            "tracks": single_detail.get("tracks") or []
+                                            "tracks": tracks
                                         }
                                         albums_data.append(single_entry)
+
+                                        # Add single tracks to songs list
+                                        for track in tracks:
+                                            if isinstance(track, dict) and track.get("videoId"):
+                                                track_copy = dict(track)
+                                                track_copy["artist_bid"] = artist_id
+                                                track_copy["resultType"] = "song"
+                                                track_copy["album"] = {"name": single_entry["title"], "id": single_id}
+                                                songs_search.append(track_copy)
                                 except Exception as single_err:
                                     logger.warning(f"Single detail fetch error: {single_err}")
                         except Exception as singles_err:

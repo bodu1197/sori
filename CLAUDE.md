@@ -414,3 +414,146 @@ const results = data.results || [];
 | `GET /api/new-albums` | 신규 앨범 | `country` |
 | `GET /api/artist/{id}` | 아티스트 정보 | - |
 | `GET /api/album/{id}` | 앨범 정보 | - |
+| `GET /api/search/summary` | 아티스트 전체 디스코그래피 | `q`, `country`, `force_refresh` |
+
+---
+
+## ytmusicapi 라이브러리 레퍼런스
+
+> **공식 문서**: https://ytmusicapi.readthedocs.io/
+> **GitHub**: https://github.com/sigma67/ytmusicapi
+> **현재 버전**: 1.11.4
+
+### 검색 (Search)
+
+```python
+# 기본 검색
+ytmusic.search(query, filter=None, limit=20)
+# filter 옵션: "songs", "albums", "artists", "playlists", "videos", "podcasts"
+
+# 자동완성 제안
+ytmusic.get_search_suggestions(query)
+```
+
+### 아티스트 (Artists)
+
+```python
+# 아티스트 정보 조회 - 핵심 함수!
+artist = ytmusic.get_artist(browseId)
+# 반환값:
+# {
+#   "name": "아티스트명",
+#   "description": "소개",
+#   "subscribers": "1.5M",
+#   "thumbnails": [...],
+#   "songs": { "browseId": "...", "results": [...] },      # 인기곡
+#   "albums": { "browseId": "...", "params": "...", "results": [...] },
+#   "singles": { "browseId": "...", "params": "...", "results": [...] },
+#   "videos": { "browseId": "...", "results": [...] },
+#   "related": { "results": [...] }
+# }
+
+# 아티스트의 전체 앨범/싱글 목록 가져오기
+# albums 또는 singles 섹션의 browseId와 params 사용
+all_albums = ytmusic.get_artist_albums(browseId, params)
+# 반환값: [{ "browseId": "...", "title": "앨범명", "year": "2024", ... }, ...]
+```
+
+### 앨범 (Albums)
+
+```python
+# 앨범 상세 정보 (트랙 목록 포함)
+album = ytmusic.get_album(browseId)
+# 반환값:
+# {
+#   "title": "앨범명",
+#   "type": "Album" | "Single" | "EP",
+#   "year": "2024",
+#   "artists": [{ "name": "...", "id": "..." }],
+#   "thumbnails": [...],
+#   "tracks": [
+#     { "videoId": "abc123", "title": "곡 제목", "duration": "3:45", ... },
+#     ...
+#   ]
+# }
+```
+
+### 노래 (Songs)
+
+```python
+# 노래 상세 정보
+song = ytmusic.get_song(videoId)
+
+# 가사 가져오기
+lyrics = ytmusic.get_lyrics(browseId)  # song에서 lyricsId 사용
+
+# 관련 노래
+related = ytmusic.get_song_related(browseId)
+```
+
+### 차트 (Charts)
+
+```python
+# 국가별 차트
+charts = ytmusic.get_charts(country="KR")
+# 반환값:
+# {
+#   "countries": [...],
+#   "songs": { "items": [...] },
+#   "videos": { "items": [...] },
+#   "artists": { "items": [...] },
+#   "trending": { "items": [...] }
+# }
+```
+
+### 플레이리스트 (Playlists)
+
+```python
+# 플레이리스트 조회
+playlist = ytmusic.get_playlist(playlistId, limit=100)
+
+# 플레이리스트 생성 (인증 필요)
+ytmusic.create_playlist(title, description, privacy="PRIVATE", video_ids=[])
+
+# 플레이리스트 수정
+ytmusic.edit_playlist(playlistId, title=None, description=None, privacy=None)
+
+# 곡 추가/제거
+ytmusic.add_playlist_items(playlistId, videoIds)
+ytmusic.remove_playlist_items(playlistId, videos)
+```
+
+### 라이브러리 (Library) - 인증 필요
+
+```python
+ytmusic.get_library_playlists()   # 내 플레이리스트
+ytmusic.get_library_songs()       # 저장한 노래
+ytmusic.get_library_albums()      # 저장한 앨범
+ytmusic.get_library_artists()     # 구독한 아티스트
+ytmusic.get_liked_songs()         # 좋아요한 노래
+ytmusic.get_history()             # 재생 기록
+
+# 좋아요/싫어요
+ytmusic.rate_song(videoId, rating)  # rating: "LIKE", "DISLIKE", "INDIFFERENT"
+```
+
+### 주요 ID 형식
+
+| ID 타입 | 예시 | 설명 |
+|--------|------|------|
+| browseId (아티스트) | `UCvSDb9ctnIzyrlNewg5SGwQ` | 아티스트 채널 ID |
+| browseId (앨범) | `MPREb_abc123` | 앨범 브라우즈 ID |
+| videoId | `dQw4w9WgXcQ` | YouTube 비디오 ID (곡 재생용) |
+| playlistId | `VLPL...` | 플레이리스트 ID |
+
+### 검색 로직 (SORI 앱용)
+
+```
+1. 아티스트 검색: ytmusic.search(query, filter="artists")
+2. 아티스트 페이지 조회: ytmusic.get_artist(browseId)
+3. 전체 앨범 목록: ytmusic.get_artist_albums(albums.browseId, albums.params)
+4. 각 앨범 상세: ytmusic.get_album(album.browseId)
+5. 트랙 목록 추출: album.tracks
+
+중요: 일반 검색(filter="songs")은 해당 아티스트 외의 노래도 포함됨!
+      아티스트의 노래만 가져오려면 반드시 아티스트 페이지에서 추출할 것!
