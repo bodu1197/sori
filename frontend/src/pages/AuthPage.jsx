@@ -82,6 +82,7 @@ export default function AuthPage() {
         <button
           type="button"
           onClick={async () => {
+            // 사용자의 요청대로 무조건 실서버 주소로만 리다이렉트합니다.
             const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
