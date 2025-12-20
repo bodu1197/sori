@@ -1,6 +1,7 @@
 # SORI (MusicGram) Project Context
 
 > 이 파일은 Claude가 매 세션마다 자동으로 읽어 프로젝트 컨텍스트를 유지합니다.
+> **중요: 세션 시작 시 반드시 "작업 일지" 섹션을 먼저 읽고 이전 작업 내용을 파악할 것!**
 
 ---
 
@@ -178,3 +179,104 @@ sori/
 2. **글로벌 서비스** - 다국어 지원 필수
 3. **sample 폴더 기능 100% 구현** - 마이페이지에 Your Music + Player 완벽 구현
 4. **컨텍스트 기반 추천** - 시간/날씨/기온 기반 플레이리스트 자동 표시
+5. **하드코딩된 가짜 데이터 절대 금지** - 모든 데이터는 실제 API에서 가져올 것
+
+---
+
+## 작업 일지 (Work Log)
+
+> **세션 시작 시 반드시 이 섹션을 먼저 읽을 것!**
+
+### 2025-12-20 세션 작업 내용
+
+#### 완료된 기능 (Completed Features)
+
+| 기능 | 파일 | 상태 |
+|------|------|------|
+| YouTube Music Player | `MiniPlayer.jsx`, `YouTubePlayer.jsx`, `usePlayerStore.js` | ✅ 완료 |
+| Your Music (좋아요한 곡) | `ProfilePage.jsx` | ✅ 완료 |
+| 재생/일시정지/다음/이전 | `MiniPlayer.jsx` | ✅ 완료 |
+| 셔플 모드 | `usePlayerStore.js`, `MiniPlayer.jsx` | ✅ 완료 |
+| 반복 모드 (none/all/one) | `usePlayerStore.js`, `MiniPlayer.jsx` | ✅ 완료 |
+| 볼륨 조절 + 음소거 | `MiniPlayer.jsx` | ✅ 완료 |
+| 진행 바 (시간 표시, 시크) | `MiniPlayer.jsx` | ✅ 완료 |
+| 미니 플레이어 확장/축소 | `MiniPlayer.jsx` | ✅ 완료 |
+| 좋아요 곡 삭제 | `ProfilePage.jsx` | ✅ 완료 |
+| 컨텍스트 기반 추천 (For You) | `FeedPage.jsx`, `useContextRecommendation.js` | ✅ 완료 |
+| 실제 차트 API 연결 | `ChartsPage.jsx` | ✅ 완료 |
+| 다크모드 전체 적용 | 모든 페이지 | ✅ 완료 |
+
+#### 삭제된 하드코딩 데이터
+
+| 파일 | 삭제된 내용 |
+|------|-------------|
+| `MobileLayout.jsx` | Super Shy / NewJeans 데모 트랙 |
+| `ChartsPage.jsx` | MOCK_CHARTS 하드코딩 차트 데이터 |
+| `ChartsPage.jsx` | 데모 스켈레톤 filler |
+| `SearchPage.jsx` | mock 관련 코멘트 |
+
+#### 커밋 히스토리 (최신순)
+
+```
+3890435 Remove hardcoded demo data and fix dark mode text colors
+2d0d662 Add player controls, song deletion, and context-based recommendations
+c1cb85c Remove hardcoded mock data and connect real APIs
+6b725a2 Improve dark mode text contrast and add API utilities
+cea3107 Implement YouTube Music Player and Your Music feature
+```
+
+#### 남은 작업 (TODO)
+
+| 우선순위 | 기능 | 상태 |
+|---------|------|------|
+| 높음 | 플레이리스트 CRUD (생성/수정/삭제) | ⏳ 미구현 |
+| 높음 | 곡 순서 변경 (드래그앤드롭) | ⏳ 미구현 |
+| 중간 | 다국어 지원 (i18n) | ⏳ 미구현 |
+| 중간 | 팔로우/팔로워 시스템 | ⏳ 미구현 |
+| 중간 | 좋아요/댓글 기능 | ⏳ 미구현 |
+| 낮음 | 알림 시스템 | ⏳ 미구현 |
+
+#### 주요 파일 구조
+
+```
+frontend/src/
+├── components/
+│   ├── layout/
+│   │   ├── MobileLayout.jsx    # 메인 레이아웃 (데모 트랙 삭제됨)
+│   │   ├── TopNav.jsx          # 상단 네비게이션
+│   │   └── BottomNav.jsx       # 하단 네비게이션
+│   └── player/
+│       ├── MiniPlayer.jsx      # 미니 플레이어 (볼륨/반복/셔플 추가)
+│       └── YouTubePlayer.jsx   # YouTube IFrame 플레이어
+├── hooks/
+│   ├── useCountry.js           # 국가 감지
+│   └── useContextRecommendation.js  # 시간/날씨 기반 추천 (신규)
+├── stores/
+│   ├── usePlayerStore.js       # 플레이어 상태 관리
+│   └── useAuthStore.js         # 인증 상태 관리
+├── lib/
+│   ├── supabase.js             # Supabase 클라이언트
+│   └── api.js                  # API 유틸리티 (신규)
+└── pages/
+    ├── FeedPage.jsx            # 메인 피드 (For You 섹션 추가)
+    ├── SearchPage.jsx          # 검색 페이지
+    ├── CreatePage.jsx          # 플레이리스트 생성
+    ├── ChartsPage.jsx          # 차트 (실제 API 연결)
+    ├── ProfilePage.jsx         # 프로필 (Your Music, 삭제 기능)
+    └── AuthPage.jsx            # 로그인/회원가입
+```
+
+#### 중요 API 정보
+
+- **Backend API**: `https://musicgram-api-89748215794.us-central1.run.app`
+- **Weather API**: Open-Meteo (무료, API 키 불필요)
+- **IP 위치**: ipapi.co (무료)
+
+---
+
+### 작업 시 주의사항
+
+1. **하드코딩 금지**: 모든 Mock/Demo/Fake 데이터 사용 금지
+2. **다크모드 필수**: 모든 텍스트에 `text-black dark:text-white` 또는 `text-gray-XXX dark:text-gray-XXX` 적용
+3. **API 우선**: 데이터는 반드시 실제 API에서 가져올 것
+4. **Instagram UI 유지**: UI/UX는 Instagram과 동일하게 유지
