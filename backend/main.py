@@ -200,6 +200,132 @@ async def get_new_albums(request: Request, country: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
+# Summary Search API (Sample folder compatible)
+# =============================================================================
+
+@app.get("/api/search/summary")
+async def search_summary(
+    request: Request,
+    q: str,
+    country: str = None
+):
+    """
+    Comprehensive search returning all artist data (songs, albums, singles).
+    Compatible with sample folder's api_proxy.php?type=summary
+    """
+    if not country:
+        country = request.headers.get("CF-IPCountry", "US")
+
+    cache_key = f"summary:{country}:{q}"
+
+    cached = cache_get(cache_key)
+    if cached:
+        logger.info(f"Cache hit: {cache_key}")
+        return cached
+
+    try:
+        ytmusic = get_ytmusic(country)
+
+        # 1. Search for artists
+        artists_search = ytmusic.search(q, filter="artists", limit=5)
+
+        # 2. Search for songs (for exact title matches)
+        songs_search = ytmusic.search(q, filter="songs", limit=50)
+
+        # 3. Search for albums
+        albums_search = ytmusic.search(q, filter="albums", limit=20)
+
+        # 4. For each artist, get complete discography
+        artists_data = []
+        albums_data = []
+
+        for artist in artists_search[:3]:  # Top 3 artists only
+            artist_id = artist.get("browseId")
+            if artist_id:
+                try:
+                    artist_info = ytmusic.get_artist(artist_id)
+
+                    # Extract artist details
+                    artist_entry = {
+                        "artist": artist_info.get("name", artist.get("artist", "")),
+                        "browseId": artist_id,
+                        "thumbnails": artist_info.get("thumbnails", []),
+                        "description": artist_info.get("description", ""),
+                        "subscribers": artist_info.get("subscribers", "")
+                    }
+                    artists_data.append(artist_entry)
+
+                    # Extract songs from artist
+                    if "songs" in artist_info and artist_info["songs"].get("results"):
+                        for song in artist_info["songs"]["results"]:
+                            song["artist_bid"] = artist_id
+                            albums_data.append(song)
+
+                    # Extract albums
+                    if "albums" in artist_info and artist_info["albums"].get("results"):
+                        for album in artist_info["albums"]["results"]:
+                            album_id = album.get("browseId")
+                            if album_id:
+                                try:
+                                    album_detail = ytmusic.get_album(album_id)
+                                    album_entry = {
+                                        "title": album_detail.get("title", ""),
+                                        "browseId": album_id,
+                                        "artists": album_detail.get("artists", []),
+                                        "thumbnails": album_detail.get("thumbnails", []),
+                                        "year": album_detail.get("year", ""),
+                                        "type": album_detail.get("type", "Album"),
+                                        "artist_bid": artist_id,
+                                        "tracks": album_detail.get("tracks", [])
+                                    }
+                                    albums_data.append(album_entry)
+                                except Exception as album_err:
+                                    logger.warning(f"Album fetch error: {album_err}")
+
+                    # Extract singles
+                    if "singles" in artist_info and artist_info["singles"].get("results"):
+                        for single in artist_info["singles"]["results"]:
+                            single_id = single.get("browseId")
+                            if single_id:
+                                try:
+                                    single_detail = ytmusic.get_album(single_id)
+                                    single_entry = {
+                                        "title": single_detail.get("title", ""),
+                                        "browseId": single_id,
+                                        "artists": single_detail.get("artists", []),
+                                        "thumbnails": single_detail.get("thumbnails", []),
+                                        "year": single_detail.get("year", ""),
+                                        "type": single_detail.get("type", "Single"),
+                                        "artist_bid": artist_id,
+                                        "tracks": single_detail.get("tracks", [])
+                                    }
+                                    albums_data.append(single_entry)
+                                except Exception as single_err:
+                                    logger.warning(f"Single fetch error: {single_err}")
+
+                except Exception as artist_err:
+                    logger.warning(f"Artist fetch error for {artist_id}: {artist_err}")
+
+        result = {
+            "keyword": q,
+            "country": country,
+            "artists": artists_data,
+            "songs": songs_search,
+            "albums": albums_search,
+            "albums2": albums_data  # Artist discography (like sample folder)
+        }
+
+        # Cache for 30 minutes
+        cache_set(cache_key, result, ttl=1800)
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Summary search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # 아티스트 정보 API
 # =============================================================================
 

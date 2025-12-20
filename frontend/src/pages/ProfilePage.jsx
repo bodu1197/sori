@@ -184,7 +184,8 @@ export default function ProfilePage() {
     fetchProfileData();
   }, [user]);
 
-  // Real Music Search via Cloud Run API (ytmusicapi) - Songs + Albums
+  // Comprehensive Music Search via Cloud Run API (ytmusicapi) - Summary endpoint
+  // Returns all artist data including full discography (like sample folder)
   useEffect(() => {
     if (searchQuery.length > 1) {
       setSearchLoading(true);
@@ -192,38 +193,77 @@ export default function ProfilePage() {
 
       const timer = setTimeout(async () => {
         try {
-          // Fetch songs and albums in parallel
-          const [songsRes, albumsRes] = await Promise.all([
-            fetch(
-              `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=songs&limit=30`
-            ),
-            fetch(
-              `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=albums&limit=10`
-            ),
-          ]);
+          // Use summary endpoint for comprehensive search (like sample folder)
+          const response = await fetch(
+            `${API_BASE_URL}/api/search/summary?q=${encodeURIComponent(searchQuery)}`
+          );
 
-          let allResults = [];
+          if (response.ok) {
+            const data = await response.json();
 
-          if (songsRes.ok) {
-            const songsData = await songsRes.json();
-            const songs = (songsData.results || []).map((s) => ({ ...s, resultType: 'song' }));
-            allResults = [...allResults, ...songs];
+            // Process all tracks from albums2 (artist discography)
+            const allTracks = [];
+            const seenVideoIds = new Set();
+
+            // 1. Add songs from direct search
+            (data.songs || []).forEach((song) => {
+              if (song.videoId && !seenVideoIds.has(song.videoId)) {
+                seenVideoIds.add(song.videoId);
+                allTracks.push({
+                  ...song,
+                  resultType: 'song',
+                  artist: song.artists?.[0]?.name || 'Unknown Artist',
+                });
+              }
+            });
+
+            // 2. Add tracks from albums2 (artist's complete discography)
+            (data.albums2 || []).forEach((item) => {
+              // If item has tracks array (it's an album/single)
+              if (item.tracks && Array.isArray(item.tracks)) {
+                item.tracks.forEach((track) => {
+                  if (track.videoId && !seenVideoIds.has(track.videoId)) {
+                    seenVideoIds.add(track.videoId);
+                    allTracks.push({
+                      ...track,
+                      resultType: 'song',
+                      album: item.title,
+                      albumThumbnail: item.thumbnails?.[0]?.url,
+                      artist:
+                        track.artists?.[0]?.name || item.artists?.[0]?.name || 'Unknown Artist',
+                      thumbnail: track.thumbnails?.[0]?.url || item.thumbnails?.[0]?.url,
+                    });
+                  }
+                });
+              } else if (item.videoId && !seenVideoIds.has(item.videoId)) {
+                // Direct song from artist
+                seenVideoIds.add(item.videoId);
+                allTracks.push({
+                  ...item,
+                  resultType: 'song',
+                  artist: item.artists?.[0]?.name || 'Unknown Artist',
+                });
+              }
+            });
+
+            // 3. Add albums from search
+            const albums = (data.albums || []).map((album) => ({
+              ...album,
+              resultType: 'album',
+            }));
+
+            // Combine: songs first, then albums
+            setSearchResults([...allTracks, ...albums]);
+          } else {
+            setSearchResults([]);
           }
-
-          if (albumsRes.ok) {
-            const albumsData = await albumsRes.json();
-            const albums = (albumsData.results || []).map((a) => ({ ...a, resultType: 'album' }));
-            allResults = [...allResults, ...albums];
-          }
-
-          setSearchResults(allResults);
         } catch (error) {
           console.error('Search error:', error);
           setSearchResults([]);
         } finally {
           setSearchLoading(false);
         }
-      }, 400);
+      }, 500); // Slightly longer debounce for comprehensive search
 
       return () => clearTimeout(timer);
     } else {
