@@ -547,9 +547,19 @@ async def search_summary(
         except Exception as e:
             logger.warning(f"Artist search error: {e}")
 
-        # 2. Skip general songs search - we'll get songs from artist page only
-        # This ensures we only show songs BY the artist, not songs mentioning the artist
-        songs_search = []  # Will be populated from artist page below
+        # 2. Also search for songs directly (for song title searches)
+        # This helps when user searches for a song title like "Dynamite"
+        songs_search = []
+        try:
+            direct_song_results = ytmusic.search(q, filter="songs", limit=20) or []
+            for song in direct_song_results:
+                if isinstance(song, dict) and song.get("videoId"):
+                    song_copy = dict(song)
+                    song_copy["resultType"] = "song"
+                    song_copy["from_direct_search"] = True  # Mark as from direct search
+                    songs_search.append(song_copy)
+        except Exception as e:
+            logger.warning(f"Song search error: {e}")
 
         # 3. Skip general albums search - we'll get albums from artist page only
         albums_search = []  # Will be populated from artist page below
