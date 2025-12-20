@@ -48,31 +48,32 @@ memory_cache = {}
 # YTMusic 인스턴스 (국가별)
 ytmusic_instances = {}
 
-# 전 세계 국가별 언어 매핑 (ISO 3166-1 -> ISO 639-1)
+# YouTube Music API 지원 언어: en, pt, ru, zh_CN, de, ja, ar, cs, tr, es, ur, it, hi, ko, nl, zh_TW, fr
+# 지원하지 않는 언어는 영어(en)로 대체
 COUNTRY_LANGUAGE_MAP = {
     # 아시아
-    'KR': 'ko', 'JP': 'ja', 'CN': 'zh', 'TW': 'zh', 'HK': 'zh',
-    'TH': 'th', 'VN': 'vi', 'ID': 'id', 'MY': 'ms', 'SG': 'en',
-    'PH': 'tl', 'IN': 'hi', 'PK': 'ur', 'BD': 'bn', 'NP': 'ne',
-    'LK': 'si', 'MM': 'my', 'KH': 'km', 'LA': 'lo', 'MN': 'mn',
+    'KR': 'ko', 'JP': 'ja', 'CN': 'zh_CN', 'TW': 'zh_TW', 'HK': 'zh_TW',
+    'TH': 'en', 'VN': 'en', 'ID': 'en', 'MY': 'en', 'SG': 'en',
+    'PH': 'en', 'IN': 'hi', 'PK': 'ur', 'BD': 'en', 'NP': 'en',
+    'LK': 'en', 'MM': 'en', 'KH': 'en', 'LA': 'en', 'MN': 'en',
     # 중동
     'SA': 'ar', 'AE': 'ar', 'EG': 'ar', 'IQ': 'ar', 'JO': 'ar',
     'KW': 'ar', 'LB': 'ar', 'OM': 'ar', 'QA': 'ar', 'YE': 'ar',
-    'IL': 'he', 'IR': 'fa', 'TR': 'tr',
+    'IL': 'en', 'IR': 'en', 'TR': 'tr',
     # 유럽
     'US': 'en', 'GB': 'en', 'AU': 'en', 'NZ': 'en', 'IE': 'en', 'CA': 'en',
     'DE': 'de', 'AT': 'de', 'CH': 'de',
     'FR': 'fr', 'BE': 'fr', 'LU': 'fr',
     'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es', 'CL': 'es', 'PE': 'es',
     'IT': 'it', 'PT': 'pt', 'BR': 'pt',
-    'NL': 'nl', 'PL': 'pl', 'RU': 'ru', 'UA': 'uk', 'CZ': 'cs', 'SK': 'sk',
-    'HU': 'hu', 'RO': 'ro', 'BG': 'bg', 'HR': 'hr', 'RS': 'sr', 'SI': 'sl',
-    'GR': 'el', 'SE': 'sv', 'NO': 'no', 'DK': 'da', 'FI': 'fi', 'IS': 'is',
-    'EE': 'et', 'LV': 'lv', 'LT': 'lt',
+    'NL': 'nl', 'PL': 'en', 'RU': 'ru', 'UA': 'en', 'CZ': 'cs', 'SK': 'en',
+    'HU': 'en', 'RO': 'en', 'BG': 'en', 'HR': 'en', 'RS': 'en', 'SI': 'en',
+    'GR': 'en', 'SE': 'en', 'NO': 'en', 'DK': 'en', 'FI': 'en', 'IS': 'en',
+    'EE': 'en', 'LV': 'en', 'LT': 'en',
     # 아프리카
-    'ZA': 'en', 'NG': 'en', 'KE': 'sw', 'GH': 'en', 'TZ': 'sw',
+    'ZA': 'en', 'NG': 'en', 'KE': 'en', 'GH': 'en', 'TZ': 'en',
     'MA': 'ar', 'DZ': 'ar', 'TN': 'ar', 'LY': 'ar',
-    'ET': 'am', 'UG': 'en', 'ZW': 'en', 'SN': 'fr', 'CI': 'fr', 'CM': 'fr',
+    'ET': 'en', 'UG': 'en', 'ZW': 'en', 'SN': 'fr', 'CI': 'fr', 'CM': 'fr',
 }
 
 def get_ytmusic(country: str = "US"):
