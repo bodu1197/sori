@@ -13,6 +13,8 @@ import {
   X,
   Loader2,
   Plus,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
@@ -137,10 +139,70 @@ export default function ProfilePage() {
   const [searchArtist, setSearchArtist] = useState(null);
   const [searchAlbums, setSearchAlbums] = useState([]);
   const [searchSongs, setSearchSongs] = useState([]);
+  const [expandedAlbums, setExpandedAlbums] = useState(new Set());
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
+
+  // Helper to get best (largest) thumbnail
+  const getBestThumbnail = (thumbnails) => {
+    if (!thumbnails || !Array.isArray(thumbnails) || thumbnails.length === 0) {
+      return PLACEHOLDER;
+    }
+    // Prefer larger thumbnails (index 1 or 2 if available)
+    return thumbnails[2]?.url || thumbnails[1]?.url || thumbnails[0]?.url || PLACEHOLDER;
+  };
+
+  // Toggle album expansion
+  const toggleAlbumExpand = (albumId) => {
+    setExpandedAlbums((prev) => {
+      const next = new Set(prev);
+      if (next.has(albumId)) {
+        next.delete(albumId);
+      } else {
+        next.add(albumId);
+      }
+      return next;
+    });
+  };
+
+  // Play album tracks
+  const handlePlayAlbum = (album) => {
+    if (!album.tracks || album.tracks.length === 0) return;
+    const playlist = album.tracks.map((t) => ({
+      videoId: t.videoId,
+      title: t.title,
+      artist: t.artists?.[0]?.name || 'Unknown',
+      thumbnail: getBestThumbnail(t.thumbnails) || getBestThumbnail(album.thumbnails),
+    }));
+    startPlayback(playlist, 0);
+  };
+
+  // Shuffle album tracks
+  const handleShuffleAlbum = (album) => {
+    if (!album.tracks || album.tracks.length === 0) return;
+    const playlist = album.tracks.map((t) => ({
+      videoId: t.videoId,
+      title: t.title,
+      artist: t.artists?.[0]?.name || 'Unknown',
+      thumbnail: getBestThumbnail(t.thumbnails) || getBestThumbnail(album.thumbnails),
+    }));
+    const shuffled = [...playlist].sort(() => Math.random() - 0.5);
+    startPlayback(shuffled, 0);
+  };
+
+  // Play a track from album
+  const handlePlayAlbumTrack = (album, trackIndex) => {
+    if (!album.tracks || album.tracks.length === 0) return;
+    const playlist = album.tracks.map((t) => ({
+      videoId: t.videoId,
+      title: t.title,
+      artist: t.artists?.[0]?.name || 'Unknown',
+      thumbnail: getBestThumbnail(t.thumbnails) || getBestThumbnail(album.thumbnails),
+    }));
+    startPlayback(playlist, trackIndex);
+  };
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -251,6 +313,7 @@ export default function ProfilePage() {
     setSearchArtist(null);
     setSearchAlbums([]);
     setSearchSongs([]);
+    setExpandedAlbums(new Set());
   };
 
   // Play a single track from search
@@ -467,14 +530,14 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Search Results Panel - TestSearchPage Style */}
+      {/* Search Results Panel - Sample Folder Style */}
       {showSearchPanel && (
-        <div className="bg-gradient-to-b from-purple-900 to-black text-white p-4 pb-8">
+        <div className="bg-white dark:bg-black text-black dark:text-white p-4 pb-8 min-h-screen">
           {/* Close Button */}
           <div className="flex justify-end mb-4">
             <button
               onClick={closeSearchPanel}
-              className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10"
+              className="p-2 text-gray-500 hover:text-black dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <X size={24} />
             </button>
@@ -482,69 +545,77 @@ export default function ProfilePage() {
 
           {searchLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 size={32} className="animate-spin text-amber-400" />
+              <Loader2 size={32} className="animate-spin text-gray-500" />
             </div>
           ) : (
             <div className="space-y-6">
               {/* Artist Card */}
               {searchArtist && (
-                <div className="bg-gray-800/50 rounded-2xl p-6 text-center">
-                  <div className="w-32 h-32 mx-auto rounded-full overflow-hidden ring-4 ring-amber-500/50 mb-4">
-                    <img
-                      src={searchArtist.thumbnails?.[0]?.url || PLACEHOLDER}
-                      alt={searchArtist.artist}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = PLACEHOLDER;
-                      }}
-                    />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-1">{searchArtist.artist}</h2>
-                  <p className="text-gray-400 mb-2">{searchArtist.subscribers || 'Artist'}</p>
-                  {searchArtist.description && (
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">
-                      {searchArtist.description}
-                    </p>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex justify-center gap-3 mb-4">
-                    <button
-                      onClick={handlePlayAllSongs}
-                      className="flex items-center gap-2 bg-amber-500 text-black px-6 py-2 rounded-full font-semibold hover:bg-amber-400 transition"
-                    >
-                      <Play size={18} fill="currentColor" /> Play All
-                    </button>
-                    <button
-                      onClick={handleShuffleSearchSongs}
-                      className="flex items-center gap-2 border border-white/30 px-6 py-2 rounded-full font-semibold hover:bg-white/10 transition"
-                    >
-                      <Shuffle size={18} /> Shuffle
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-red-500">
-                      <Heart size={22} />
-                    </button>
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6">
+                  <div className="flex items-start gap-4">
+                    {/* Artist Thumbnail */}
+                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                      <img
+                        src={getBestThumbnail(searchArtist.thumbnails)}
+                        alt={searchArtist.artist}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = PLACEHOLDER;
+                        }}
+                      />
+                    </div>
+                    {/* Artist Info */}
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl font-bold text-black dark:text-white mb-1">
+                        {searchArtist.artist}
+                      </h2>
+                      <p className="text-sm text-gray-500 mb-3">
+                        {searchArtist.subscribers || 'Artist'}
+                      </p>
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handlePlayAllSongs}
+                          className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-sm font-semibold hover:opacity-80 transition"
+                        >
+                          <Play size={14} fill="currentColor" /> Play All
+                        </button>
+                        <button
+                          onClick={handleShuffleSearchSongs}
+                          className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                        >
+                          <Shuffle size={14} /> Shuffle
+                        </button>
+                        <button className="p-1.5 text-gray-400 hover:text-red-500">
+                          <Heart size={20} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Similar Artists */}
                   {searchArtist.related && searchArtist.related.length > 0 && (
-                    <div className="mt-6">
-                      <h4 className="text-sm text-gray-400 mb-3">Similar Artists</h4>
-                      <div className="flex gap-4 justify-center flex-wrap">
-                        {searchArtist.related.slice(0, 5).map((r, i) => (
+                    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">
+                        Similar Artists
+                      </h4>
+                      <div className="flex gap-4 overflow-x-auto pb-2">
+                        {searchArtist.related.slice(0, 6).map((r, i) => (
                           <div
                             key={i}
-                            className="text-center cursor-pointer hover:opacity-80"
+                            className="flex flex-col items-center flex-shrink-0 cursor-pointer hover:opacity-80"
                             onClick={() => handleSearchSimilarArtist(r.artist || r.name)}
                           >
-                            <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-700 mx-auto mb-1">
+                            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-1">
                               <img
-                                src={r.thumbnails?.[0]?.url || PLACEHOLDER}
+                                src={getBestThumbnail(r.thumbnails)}
                                 alt={r.artist || r.name}
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <span className="text-xs text-gray-400">{r.artist || r.name}</span>
+                            <span className="text-xs text-gray-600 dark:text-gray-400 text-center w-16 truncate">
+                              {r.artist || r.name}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -553,33 +624,41 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Songs */}
+              {/* Top Tracks */}
               {searchSongs.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold mb-3 text-amber-400">
+                  <h3 className="text-base font-bold mb-3 text-black dark:text-white">
                     Top Tracks ({searchSongs.length})
                   </h3>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {searchSongs.slice(0, 20).map((song, i) => (
                       <div
                         key={song.videoId || i}
                         onClick={() => handlePlayTrackFromSearch(song)}
-                        className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition"
+                        className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                       >
-                        <span className="w-6 text-center text-gray-500">{i + 1}</span>
+                        <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
+                        <img
+                          src={getBestThumbnail(song.thumbnails)}
+                          alt={song.title}
+                          className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
+                        />
                         <div className="flex-1 min-w-0">
-                          <div className="text-white truncate">{song.title}</div>
-                          <div className="text-sm text-gray-400 truncate">
-                            {song.artists?.[0]?.name} {song.album?.name && `• ${song.album.name}`}
+                          <div className="text-sm font-medium text-black dark:text-white truncate">
+                            {song.title}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {song.artists?.[0]?.name}
+                            {song.album?.name && ` • ${song.album.name}`}
                           </div>
                         </div>
-                        <span className="text-sm text-gray-500">{song.duration}</span>
+                        <span className="text-xs text-gray-400">{song.duration}</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleAddToLiked(song);
                           }}
-                          className="text-gray-500 hover:text-red-500"
+                          className="p-1.5 text-gray-400 hover:text-red-500"
                         >
                           <Heart size={16} />
                         </button>
@@ -589,33 +668,111 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Albums */}
+              {/* Albums & Singles */}
               {searchAlbums.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold mb-3 text-amber-400">
-                    Albums ({searchAlbums.length})
+                  <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                    Albums & Singles ({searchAlbums.length})
                   </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {searchAlbums.slice(0, 10).map((album, i) => (
-                      <div
-                        key={album.browseId || i}
-                        className="bg-gray-800/50 rounded-lg overflow-hidden"
-                      >
-                        <div className="aspect-square bg-gray-700">
-                          <img
-                            src={album.thumbnails?.[0]?.url || PLACEHOLDER}
-                            alt={album.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="p-3">
-                          <div className="font-medium text-white truncate">{album.title}</div>
-                          <div className="text-sm text-gray-400">
-                            {album.year} • {album.type} • {album.tracks?.length || 0} tracks
+                  <div className="space-y-3">
+                    {searchAlbums.slice(0, 15).map((album, i) => {
+                      const albumId = album.browseId || `album-${i}`;
+                      const isExpanded = expandedAlbums.has(albumId);
+                      const trackCount = album.tracks?.length || 0;
+
+                      return (
+                        <div
+                          key={albumId}
+                          className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
+                        >
+                          {/* Album Header */}
+                          <div className="flex items-start gap-3 p-3">
+                            <img
+                              src={getBestThumbnail(album.thumbnails)}
+                              alt={album.title}
+                              className="w-20 h-20 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-black dark:text-white truncate">
+                                {album.title}
+                              </div>
+                              <div className="text-xs text-gray-500 mb-2">
+                                {album.type || 'Album'}
+                                {album.year && ` • ${album.year}`}
+                                {trackCount > 0 && ` • ${trackCount} tracks`}
+                              </div>
+                              {/* Album Action Buttons */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {trackCount > 0 && (
+                                  <>
+                                    <button
+                                      onClick={() => handlePlayAlbum(album)}
+                                      className="flex items-center gap-1 bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-full text-xs font-semibold hover:opacity-80"
+                                    >
+                                      <Play size={12} fill="currentColor" /> Play
+                                    </button>
+                                    <button
+                                      onClick={() => handleShuffleAlbum(album)}
+                                      className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 px-3 py-1 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
+                                    >
+                                      <Shuffle size={12} /> Shuffle
+                                    </button>
+                                    <button
+                                      onClick={() => toggleAlbumExpand(albumId)}
+                                      className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 px-3 py-1 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
+                                    >
+                                      Tracks ({trackCount})
+                                      {isExpanded ? (
+                                        <ChevronUp size={12} />
+                                      ) : (
+                                        <ChevronDown size={12} />
+                                      )}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Album Track List (Expandable) */}
+                          {isExpanded && album.tracks && album.tracks.length > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-2">
+                              {album.tracks.map((track, trackIdx) => (
+                                <div
+                                  key={track.videoId || trackIdx}
+                                  onClick={() => handlePlayAlbumTrack(album, trackIdx)}
+                                  className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
+                                >
+                                  <span className="w-5 text-center text-xs text-gray-400">
+                                    {trackIdx + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm text-black dark:text-white truncate">
+                                      {track.title}
+                                    </div>
+                                  </div>
+                                  <span className="text-xs text-gray-400">
+                                    {track.duration || ''}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToLiked({
+                                        ...track,
+                                        thumbnails: track.thumbnails || album.thumbnails,
+                                      });
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-red-500"
+                                  >
+                                    <Heart size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
