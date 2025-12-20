@@ -189,6 +189,36 @@ GET /api/album/{id}          # 앨범 정보
 
 ---
 
+## Cloud Run 환경변수 설정
+
+### 필수 환경변수
+
+```bash
+# Google Cloud Console > Cloud Run > musicgram-api > Edit & Deploy New Revision > Variables
+
+SUPABASE_URL=https://nrtkbulkzhhlstaomvas.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service_role_key>
+REDIS_URL=rediss://default:<password>@<region>.upstash.io:6379
+ALLOWED_ORIGINS=https://sori-frontend.vercel.app,http://localhost:5173
+```
+
+### Upstash Redis 설정 방법
+
+1. https://console.upstash.com/ 접속
+2. Create Database > Name: sori-cache, Region: Iowa (us-central1)
+3. Details 탭에서 Redis URL 복사 (rediss://... 형식)
+4. Cloud Run 환경변수에 REDIS_URL 추가
+
+### 검색 캐시 순서
+
+```
+1. Supabase (영구 저장) - 모든 인스턴스 공유, 24시간 TTL
+2. Redis (임시 캐시) - 빠른 조회, 30분 TTL
+3. ytmusicapi (API 호출) - 캐시 미스 시 사용
+```
+
+---
+
 ## 프로젝트 구조
 
 ```

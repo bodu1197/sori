@@ -216,16 +216,18 @@ def db_save_track(track_data: dict, album_id: str = None, artist_id: str = None)
         logger.warning(f"DB save track error: {e}")
         return None
 
-def db_get_cached_search(keyword: str, country: str = "US") -> dict | None:
-    """검색 캐시에서 데이터 조회"""
+def db_get_cached_search_fast(keyword: str, country: str = "US") -> dict | None:
+    """검색 캐시에서 JSON 데이터 즉시 조회 (단순화된 버전)"""
     if not supabase_client:
         return None
 
     try:
         keyword_normalized = keyword.lower()
 
-        # 검색 캐시 조회
-        result = supabase_client.table("music_search_cache").select("*").eq(
+        # 검색 캐시에서 result_json 직접 조회 (1회 쿼리!)
+        result = supabase_client.table("music_search_cache").select(
+            "id, result_json, expires_at, search_count"
+        ).eq(
             "keyword_normalized", keyword_normalized
         ).eq("country", country).single().execute()
 
@@ -233,97 +235,65 @@ def db_get_cached_search(keyword: str, country: str = "US") -> dict | None:
             return None
 
         cache_entry = result.data
-        last_searched = cache_entry.get("last_searched")
+        result_json = cache_entry.get("result_json")
 
-        # 24시간 이내인지 확인
-        if last_searched:
-            last_time = datetime.fromisoformat(last_searched.replace("Z", "+00:00"))
-            if datetime.now(timezone.utc) - last_time > timedelta(hours=24):
-                logger.info(f"Cache expired for: {keyword}")
-                return None  # 캐시 만료
-
-        # 아티스트 ID 목록으로 데이터 조회
-        artist_ids = cache_entry.get("artist_ids") or []
-        if not artist_ids:
+        # result_json이 없으면 캐시 미스
+        if not result_json:
             return None
 
-        # 아티스트 데이터 조회
-        artists_result = supabase_client.table("music_artists").select("*").in_(
-            "id", artist_ids
-        ).execute()
+        # 만료 시간 확인 (있는 경우)
+        expires_at = cache_entry.get("expires_at")
+        if expires_at:
+            expire_time = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) > expire_time:
+                logger.info(f"Supabase cache expired for: {keyword}")
+                return None
 
-        artists = []
-        for a in (artists_result.data or []):
-            artists.append({
-                "browseId": a.get("browse_id"),
-                "artist": a.get("name"),
-                "name": a.get("name"),
-                "thumbnails": json.loads(a.get("thumbnails") or "[]"),
-                "description": a.get("description"),
-                "subscribers": a.get("subscribers")
-            })
+        # 검색 카운트 증가 (비동기로 처리해도 됨)
+        try:
+            supabase_client.table("music_search_cache").update({
+                "search_count": cache_entry.get("search_count", 0) + 1,
+                "last_searched": datetime.now(timezone.utc).isoformat()
+            }).eq("id", cache_entry.get("id")).execute()
+        except:
+            pass  # 카운트 업데이트 실패해도 무시
 
-        # 아티스트별 앨범 및 트랙 조회
-        albums_data = []
-        for artist in artists:
-            browse_id = artist.get("browseId")
-            if not browse_id:
-                continue
-
-            # 앨범 조회
-            albums_result = supabase_client.table("music_albums").select("*").eq(
-                "artist_browse_id", browse_id
-            ).order("year", desc=True).limit(30).execute()
-
-            for album in (albums_result.data or []):
-                album_browse_id = album.get("browse_id")
-
-                # 앨범의 트랙 조회
-                tracks_result = supabase_client.table("music_tracks").select("*").eq(
-                    "album_browse_id", album_browse_id
-                ).execute()
-
-                tracks = []
-                for t in (tracks_result.data or []):
-                    tracks.append({
-                        "videoId": t.get("video_id"),
-                        "title": t.get("title"),
-                        "artists": [{"name": t.get("artist_name"), "id": t.get("artist_browse_id")}],
-                        "album": {"name": t.get("album_title"), "id": t.get("album_browse_id")},
-                        "duration": t.get("duration"),
-                        "thumbnails": json.loads(t.get("thumbnails") or "[]"),
-                        "isExplicit": t.get("is_explicit")
-                    })
-
-                albums_data.append({
-                    "browseId": album_browse_id,
-                    "title": album.get("title"),
-                    "type": album.get("album_type"),
-                    "year": album.get("year"),
-                    "thumbnails": json.loads(album.get("thumbnails") or "[]"),
-                    "artist_bid": browse_id,
-                    "tracks": tracks
-                })
-
-        # 검색 카운트 증가
-        supabase_client.table("music_search_cache").update({
-            "search_count": cache_entry.get("search_count", 0) + 1,
-            "last_searched": datetime.now(timezone.utc).isoformat()
-        }).eq("id", cache_entry.get("id")).execute()
-
-        return {
-            "keyword": keyword,
-            "country": country,
-            "artists": artists,
-            "songs": [],  # 개별 곡 검색은 ytmusicapi에서
-            "albums": [],
-            "albums2": albums_data,
-            "source": "database"
-        }
+        # JSON 결과 직접 반환
+        result_json["source"] = "supabase"
+        logger.info(f"Supabase cache hit: {keyword}")
+        return result_json
 
     except Exception as e:
         logger.warning(f"DB get cached search error: {e}")
         return None
+
+
+def db_save_cached_search_fast(keyword: str, country: str, result_data: dict, ttl_hours: int = 24):
+    """검색 결과를 JSON으로 저장 (단순화된 버전)"""
+    if not supabase_client:
+        return
+
+    try:
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).isoformat()
+
+        data = {
+            "keyword": keyword,
+            "keyword_normalized": keyword.lower(),
+            "country": country,
+            "result_json": result_data,
+            "result_count": len(result_data.get("artists", [])),
+            "expires_at": expires_at,
+            "last_searched": datetime.now(timezone.utc).isoformat()
+        }
+
+        supabase_client.table("music_search_cache").upsert(
+            data, on_conflict="keyword_normalized,country"
+        ).execute()
+
+        logger.info(f"Supabase cache saved: {keyword}")
+
+    except Exception as e:
+        logger.warning(f"DB save cached search error: {e}")
 
 def db_get_existing_video_ids(artist_browse_id: str) -> set:
     """아티스트의 기존 video_id 목록 조회 (중복 방지용)"""
@@ -596,21 +566,24 @@ async def search_summary(
 
     cache_key = f"summary:{country}:{q}"
 
-    # 1. Redis 캐시 확인 (가장 빠름)
-    if not force_refresh:
-        cached = cache_get(cache_key)
-        if cached:
-            logger.info(f"Redis cache hit: {cache_key}")
-            cached["source"] = "redis"
-            return cached
+    # ==========================================================================
+    # 캐시 순서: Supabase (영구) → Redis (임시) → ytmusicapi (API)
+    # ==========================================================================
 
-        # 2. Supabase DB 확인 (24시간 이내 데이터)
-        db_cached = db_get_cached_search(q, country)
+    if not force_refresh:
+        # 1. Supabase DB 확인 (영구 저장소 - 모든 인스턴스 공유)
+        db_cached = db_get_cached_search_fast(q, country)
         if db_cached:
-            logger.info(f"DB cache hit: {q}")
-            # Redis에도 캐시 (다음 요청 빠르게)
+            # Redis에도 캐시 (같은 인스턴스에서 빠르게)
             cache_set(cache_key, db_cached, ttl=1800)
             return db_cached
+
+        # 2. Redis/메모리 캐시 확인 (임시 저장소)
+        cached = cache_get(cache_key)
+        if cached:
+            logger.info(f"Redis/memory cache hit: {cache_key}")
+            cached["source"] = "redis"
+            return cached
 
     logger.info(f"Fetching from ytmusicapi: {q}")
 
@@ -790,80 +763,28 @@ async def search_summary(
             "source": "ytmusicapi"
         }
 
-        # Cache for 30 minutes (Redis)
+        # =======================================================================
+        # 캐시 저장 (2단계)
+        # =======================================================================
+
+        # 1. Redis/메모리 캐시 저장 (30분 TTL)
         cache_set(cache_key, result, ttl=1800)
 
-        # Save to Supabase DB (incremental - only NEW items)
+        # 2. Supabase에 JSON 결과 저장 (24시간 TTL) - 빠른 조회용
+        db_save_cached_search_fast(q, country, result, ttl_hours=24)
+
+        # 3. (선택) 메타데이터 테이블에 저장 - 장기 보관용 (백그라운드 처리 권장)
+        # 현재는 비활성화 - 검색 속도 우선
+        # TODO: 별도 백그라운드 작업으로 이동
+        """
         if supabase_client and artists_data:
             try:
-                saved_artist_ids = []
-                new_albums_count = 0
-                new_tracks_count = 0
-                skipped_albums = 0
-                skipped_tracks = 0
-
                 for artist in artists_data:
-                    browse_id = artist.get("browseId")
-                    if not browse_id:
-                        continue
-
-                    # 아티스트 저장 (upsert - 기본 정보만 업데이트)
-                    artist_db_id = db_save_artist(artist)
-                    if artist_db_id:
-                        saved_artist_ids.append(artist_db_id)
-
-                    # 유사 아티스트 저장
-                    related_artists = artist.get("related") or []
-                    if related_artists:
-                        db_save_related_artists(browse_id, related_artists)
-
-                    # 기존 앨범/트랙 ID 가져오기 (중복 방지)
-                    existing_album_ids = db_get_existing_album_ids(browse_id)
-                    existing_video_ids = db_get_existing_video_ids(browse_id)
-
-                    # 이 아티스트의 앨범만 필터링
-                    artist_albums = [a for a in albums_data if a.get("artist_bid") == browse_id]
-
-                    for album in artist_albums:
-                        album_browse_id = album.get("browseId")
-                        if not album_browse_id:
-                            continue
-
-                        # 새 앨범만 저장
-                        if album_browse_id in existing_album_ids:
-                            skipped_albums += 1
-                            continue
-
-                        album_db_id = db_save_album(album)
-                        new_albums_count += 1
-
-                        # 새 트랙만 저장
-                        tracks = album.get("tracks") or []
-                        for track in tracks:
-                            if not isinstance(track, dict):
-                                continue
-                            video_id = track.get("videoId")
-                            if not video_id:
-                                continue
-
-                            if video_id in existing_video_ids:
-                                skipped_tracks += 1
-                                continue
-
-                            db_save_track(track, album_id=album_db_id)
-                            existing_video_ids.add(video_id)  # 중복 방지
-                            new_tracks_count += 1
-
-                # 검색 캐시 저장
-                if saved_artist_ids:
-                    db_save_search_cache(q, country, saved_artist_ids)
-
-                logger.info(f"DB save complete: {q} | "
-                           f"New: {new_albums_count} albums, {new_tracks_count} tracks | "
-                           f"Skipped: {skipped_albums} albums, {skipped_tracks} tracks")
-
+                    db_save_artist(artist)
+                    # ... 앨범, 트랙 저장 로직
             except Exception as db_err:
-                logger.warning(f"DB save error (non-blocking): {db_err}")
+                logger.warning(f"DB metadata save error: {db_err}")
+        """
 
         return result
 
