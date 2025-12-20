@@ -173,7 +173,7 @@ export default function ProfilePage() {
   const country = useCountry();
 
   const [activeTab, setActiveTab] = useState<'playlists' | 'liked' | 'discover' | 'private'>(
-    'playlists'
+    'discover'
   );
   const [profile, setProfile] = useState<Profile | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
