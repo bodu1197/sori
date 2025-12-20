@@ -1,9 +1,26 @@
 // @ts-nocheck
-import React, { useEffect, useState } from 'react';
-import { Grid, Heart, Lock, Play, LogOut, Search, Music, Shuffle, Trash2, X } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  Grid,
+  Heart,
+  Lock,
+  Play,
+  LogOut,
+  Search,
+  Music,
+  Shuffle,
+  Trash2,
+  X,
+  Loader2,
+  Plus,
+} from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
+
+// Cloud Run 백엔드 API (ytmusicapi 사용)
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
 function StatItem({ count, label }) {
   return (
@@ -110,9 +127,12 @@ export default function ProfilePage() {
   const [likedSongs, setLikedSongs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Search State
+  // External Search State (Cloud Run API - ytmusicapi)
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -164,23 +184,45 @@ export default function ProfilePage() {
     fetchProfileData();
   }, [user]);
 
-  // Search Logic
+  // Real Music Search via Cloud Run API (ytmusicapi)
   useEffect(() => {
-    if (activeTab === 'search' && searchQuery.length > 1) {
-      const timer = setTimeout(async () => {
-        const { data } = await supabase
-          .from('playlists')
-          .select('*, profiles:user_id(username)')
-          .ilike('title', `%${searchQuery}%`)
-          .limit(20);
+    if (searchQuery.length > 1) {
+      setSearchLoading(true);
+      setShowSearchPanel(true);
 
-        if (data) setSearchResults(data);
-      }, 500);
+      const timer = setTimeout(async () => {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=songs&limit=15`
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            setSearchResults(data.results || []);
+          }
+        } catch (error) {
+          console.error('Search error:', error);
+          setSearchResults([]);
+        } finally {
+          setSearchLoading(false);
+        }
+      }, 400);
+
       return () => clearTimeout(timer);
     } else {
       setSearchResults([]);
+      if (searchQuery.length === 0) {
+        setShowSearchPanel(false);
+      }
     }
-  }, [activeTab, searchQuery]);
+  }, [searchQuery]);
+
+  // Close search panel
+  const closeSearchPanel = () => {
+    setShowSearchPanel(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
 
   // Play a single playlist
   const handlePlayPlaylist = (playlist) => {
@@ -248,19 +290,49 @@ export default function ProfilePage() {
     }
   };
 
-  // Play search result
+  // Play search result from Cloud Run API (ytmusicapi)
   const handlePlaySearchResult = (item) => {
-    if (!item.video_id) return;
+    if (!item.videoId) return;
 
     const track = {
-      videoId: item.video_id,
+      videoId: item.videoId,
       title: item.title,
-      artist: item.profiles?.username || 'Unknown',
-      thumbnail: item.cover_url,
-      cover: item.cover_url,
+      artist: item.artists?.[0]?.name || 'Unknown Artist',
+      thumbnail: item.thumbnails?.[0]?.url || item.thumbnail,
+      cover: item.thumbnails?.[0]?.url || item.thumbnail,
     };
 
     setTrack(track);
+    closeSearchPanel();
+  };
+
+  // Add song to liked (save to Supabase)
+  const handleAddToLiked = async (item) => {
+    if (!item.videoId || !user) return;
+
+    try {
+      const { error } = await supabase.from('playlists').insert({
+        user_id: user.id,
+        title: item.title,
+        video_id: item.videoId,
+        cover_url: item.thumbnails?.[0]?.url || item.thumbnail,
+        is_public: true,
+      });
+
+      if (error) throw error;
+
+      // Refresh liked songs
+      const newLikedSong = {
+        videoId: item.videoId,
+        title: item.title,
+        artist: item.artists?.[0]?.name || 'Unknown Artist',
+        thumbnail: item.thumbnails?.[0]?.url || item.thumbnail,
+        cover: item.thumbnails?.[0]?.url || item.thumbnail,
+      };
+      setLikedSongs((prev) => [newLikedSong, ...prev]);
+    } catch (error) {
+      console.error('Error adding to liked:', error);
+    }
   };
 
   if (loading) {
@@ -305,7 +377,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4">
           <button className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">
             Edit profile
           </button>
@@ -315,6 +387,154 @@ export default function ProfilePage() {
           >
             <LogOut size={16} /> Sign Out
           </button>
+        </div>
+
+        {/* External Search Box - Always Visible */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search music on YouTube Music..."
+            className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              onClick={closeSearchPanel}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search Results Slide-Up Panel */}
+      <div
+        className={`fixed inset-x-0 bottom-[110px] bg-white dark:bg-[#121212] rounded-t-2xl shadow-2xl z-50 transition-all duration-300 ease-out ${
+          showSearchPanel
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full opacity-0 pointer-events-none'
+        }`}
+        style={{ maxHeight: '60vh' }}
+      >
+        {/* Panel Header */}
+        <div className="sticky top-0 bg-white dark:bg-[#121212] px-4 py-3 border-b border-gray-100 dark:border-gray-800 rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Music size={18} className="text-black dark:text-white" />
+              <span className="font-semibold text-black dark:text-white">
+                {searchLoading ? 'Searching...' : `Results for "${searchQuery}"`}
+              </span>
+            </div>
+            <button
+              onClick={closeSearchPanel}
+              className="p-1 text-gray-500 hover:text-black dark:hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          {/* Drag Handle */}
+          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+        </div>
+
+        {/* Search Results List */}
+        <div className="overflow-y-auto px-4 py-2" style={{ maxHeight: 'calc(60vh - 56px)' }}>
+          {searchLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={24} className="animate-spin text-gray-400" />
+            </div>
+          ) : searchResults.length > 0 ? (
+            <div className="space-y-1">
+              {searchResults.map((item, idx) => {
+                const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail;
+                const artist = item.artists?.[0]?.name || 'Unknown Artist';
+                const isCurrentlyPlaying = currentTrack?.videoId === item.videoId && isPlaying;
+
+                return (
+                  <div
+                    key={item.videoId || idx}
+                    className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg cursor-pointer group"
+                  >
+                    {/* Thumbnail */}
+                    <div
+                      className="relative w-12 h-12 flex-shrink-0"
+                      onClick={() => handlePlaySearchResult(item)}
+                    >
+                      <img
+                        src={thumbnail}
+                        alt={item.title}
+                        className="w-full h-full rounded object-cover bg-gray-200"
+                        onError={(e) => {
+                          e.target.src =
+                            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+                        }}
+                      />
+                      {isCurrentlyPlaying ? (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
+                          <div className="flex gap-0.5">
+                            <div
+                              className="w-0.5 h-3 bg-white animate-bounce"
+                              style={{ animationDelay: '0ms' }}
+                            />
+                            <div
+                              className="w-0.5 h-3 bg-white animate-bounce"
+                              style={{ animationDelay: '150ms' }}
+                            />
+                            <div
+                              className="w-0.5 h-3 bg-white animate-bounce"
+                              style={{ animationDelay: '300ms' }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Play size={16} fill="white" className="text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Track Info */}
+                    <div className="flex-1 min-w-0" onClick={() => handlePlaySearchResult(item)}>
+                      <div className="font-medium text-sm truncate text-black dark:text-white">
+                        {item.title}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">{artist}</div>
+                    </div>
+
+                    {/* Add to Liked Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToLiked(item);
+                      }}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                      title="Add to Your Music"
+                    >
+                      <Heart size={18} />
+                    </button>
+
+                    {/* Play Button */}
+                    <button
+                      onClick={() => handlePlaySearchResult(item)}
+                      className="p-2 text-gray-500 hover:text-black dark:hover:text-white"
+                    >
+                      <Play size={18} fill="currentColor" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            searchQuery.length > 1 && (
+              <div className="text-center text-gray-500 py-8">
+                <Search size={32} className="mx-auto mb-2 opacity-50" />
+                <p>No results found</p>
+              </div>
+            )
+          )}
         </div>
       </div>
 
@@ -331,12 +551,6 @@ export default function ProfilePage() {
           className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'liked' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
         >
           <Heart size={24} />
-        </button>
-        <button
-          onClick={() => setActiveTab('search')}
-          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'search' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-        >
-          <Search size={24} />
         </button>
         <button
           onClick={() => setActiveTab('private')}
@@ -387,72 +601,6 @@ export default function ProfilePage() {
                 <p>No liked songs yet.</p>
                 <p className="text-sm mt-1">Your favorite music will appear here.</p>
               </div>
-            )}
-          </div>
-        </div>
-      ) : activeTab === 'search' ? (
-        // Search Tab
-        <div className="p-4">
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search music..."
-              className="w-full bg-gray-100 dark:bg-gray-900 text-black dark:text-white rounded-xl py-2 pl-10 pr-4 focus:outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            {searchResults.map((item) => {
-              const isCurrentlyPlaying = currentTrack?.videoId === item.video_id && isPlaying;
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => handlePlaySearchResult(item)}
-                  className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg cursor-pointer"
-                >
-                  <div className="relative w-12 h-12">
-                    <img
-                      src={item.cover_url}
-                      className="w-full h-full rounded bg-gray-200 object-cover"
-                      alt={item.title}
-                      onError={(e) => {
-                        e.target.src =
-                          'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
-                      }}
-                    />
-                    {isCurrentlyPlaying && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
-                        <div className="flex gap-0.5">
-                          <div
-                            className="w-0.5 h-3 bg-white animate-bounce"
-                            style={{ animationDelay: '0ms' }}
-                          ></div>
-                          <div
-                            className="w-0.5 h-3 bg-white animate-bounce"
-                            style={{ animationDelay: '150ms' }}
-                          ></div>
-                          <div
-                            className="w-0.5 h-3 bg-white animate-bounce"
-                            style={{ animationDelay: '300ms' }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm truncate">{item.title}</div>
-                    <div className="text-xs text-gray-500 truncate">
-                      {item.profiles?.username || 'Unknown'}
-                    </div>
-                  </div>
-                  <Play size={18} className="text-gray-400" fill="currentColor" />
-                </div>
-              );
-            })}
-            {searchQuery && searchResults.length === 0 && (
-              <div className="text-center text-gray-500 py-4 text-sm">No results found</div>
             )}
           </div>
         </div>
