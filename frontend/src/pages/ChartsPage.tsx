@@ -1,6 +1,6 @@
 import { useEffect, useState, SyntheticEvent } from 'react';
 import useCountry from '../hooks/useCountry';
-import usePlayerStore from '../stores/usePlayerStore';
+import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { Play, Loader2 } from 'lucide-react';
 
 const API_BASE_URL =
@@ -23,7 +23,7 @@ interface ChartTrack {
 
 export default function ChartsPage() {
   const country = useCountry();
-  const { setTrack, currentTrack, isPlaying } = usePlayerStore();
+  const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [chartData, setChartData] = useState<ChartTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,16 +52,37 @@ export default function ChartsPage() {
     fetchCharts();
   }, [country.code]);
 
-  const handlePlay = (track: ChartTrack) => {
+  const handlePlay = (track: ChartTrack, index: number) => {
     if (!track.videoId && !track.video_id) return;
 
-    setTrack({
-      videoId: (track.videoId || track.video_id) as string,
-      title: track.title,
-      artist: track.artist || track.artists?.[0]?.name || 'Unknown Artist',
-      thumbnail: track.thumbnail || track.cover,
-      cover: track.cover || track.thumbnail,
+    // Open popup with chart tracks
+    const panelTracks: PlaylistTrackData[] = chartData
+      .filter((t) => t.videoId || t.video_id)
+      .map((t) => ({
+        videoId: (t.videoId || t.video_id) as string,
+        title: t.title,
+        artists: t.artists || (t.artist ? [{ name: t.artist }] : [{ name: 'Unknown Artist' }]),
+        thumbnails:
+          t.thumbnail || t.cover ? [{ url: (t.thumbnail || t.cover) as string }] : undefined,
+      }));
+    openTrackPanel({
+      title: `Top 100 Charts - ${country.name}`,
+      author: { name: `${chartData.length} tracks` },
+      tracks: panelTracks,
+      trackCount: chartData.length,
     });
+
+    // Start playback
+    const tracks = chartData
+      .filter((t) => t.videoId || t.video_id)
+      .map((t) => ({
+        videoId: (t.videoId || t.video_id) as string,
+        title: t.title,
+        artist: t.artist || t.artists?.[0]?.name || 'Unknown Artist',
+        thumbnail: t.thumbnail || t.cover,
+        cover: t.cover || t.thumbnail,
+      }));
+    startPlayback(tracks, index);
   };
 
   if (loading) {
@@ -115,7 +136,7 @@ export default function ChartsPage() {
             return (
               <div
                 key={track.videoId || track.video_id || index}
-                onClick={() => handlePlay(track)}
+                onClick={() => handlePlay(track, index)}
                 className="flex items-center gap-4 group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg p-2 transition"
               >
                 <span

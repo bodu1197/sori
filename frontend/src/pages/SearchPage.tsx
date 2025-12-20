@@ -2,9 +2,8 @@ import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Play, Shuffle, Heart, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
-import usePlayerStore from '../stores/usePlayerStore';
+import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
-import TrackListPanel, { PlaylistTrack, PlaylistData } from '../components/player/TrackListPanel';
 
 // Cloud Run Backend API (ytmusicapi)
 const API_BASE_URL =
@@ -72,7 +71,8 @@ interface AlbumTrack {
 export default function SearchPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { startPlayback, currentTrack, isPlaying } = usePlayerStore();
+  const { startPlayback, currentTrack, isPlaying, openTrackPanel, setTrackPanelLoading } =
+    usePlayerStore();
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,11 +87,6 @@ export default function SearchPage() {
   const [albumTracks, setAlbumTracks] = useState<Record<string, AlbumTrack[]>>({});
   const [loadingAlbums, setLoadingAlbums] = useState<Set<string>>(new Set());
   const [showAllSongs, setShowAllSongs] = useState(false);
-
-  // Track List Panel State
-  const [trackPanelOpen, setTrackPanelOpen] = useState(false);
-  const [trackPanelData, setTrackPanelData] = useState<PlaylistData | null>(null);
-  const [trackPanelLoading, setTrackPanelLoading] = useState(false);
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
@@ -247,22 +242,56 @@ export default function SearchPage() {
     setShowAllSongs(false);
   };
 
-  // Play a single track from search
-  const handlePlayTrackFromSearch = (track: SearchSong) => {
-    const playlist = [
-      {
-        videoId: track.videoId,
-        title: track.title,
-        artist: track.artists?.[0]?.name || 'Unknown',
-        thumbnail: getBestThumbnail(track.thumbnails),
-      },
-    ];
-    startPlayback(playlist, 0);
+  // Play a single track from search - opens popup with all songs
+  const handlePlayTrackFromSearch = (track: SearchSong, index: number) => {
+    // Open popup with all search songs
+    const panelTracks: PlaylistTrackData[] = searchSongs.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artists: song.artists,
+      thumbnails: song.thumbnails,
+      duration: song.duration,
+      album: song.album,
+    }));
+    openTrackPanel({
+      title: searchArtist?.artist || t('search.topTracks'),
+      author: { name: `${searchSongs.length} ${t('search.tracks')}` },
+      thumbnails: searchArtist?.thumbnails,
+      tracks: panelTracks,
+      trackCount: searchSongs.length,
+    });
+
+    // Start playback from clicked index
+    const playlist = searchSongs.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artist: song.artists?.[0]?.name || 'Unknown',
+      thumbnail: getBestThumbnail(song.thumbnails),
+    }));
+    startPlayback(playlist, index);
   };
 
-  // Play all songs from search
+  // Play all songs from search - opens popup
   const handlePlayAllSongs = () => {
     if (searchSongs.length === 0) return;
+
+    // Open popup
+    const panelTracks: PlaylistTrackData[] = searchSongs.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artists: song.artists,
+      thumbnails: song.thumbnails,
+      duration: song.duration,
+      album: song.album,
+    }));
+    openTrackPanel({
+      title: searchArtist?.artist || t('search.topTracks'),
+      author: { name: `${searchSongs.length} ${t('search.tracks')}` },
+      thumbnails: searchArtist?.thumbnails,
+      tracks: panelTracks,
+      trackCount: searchSongs.length,
+    });
+
     const playlist = searchSongs.map((song) => ({
       videoId: song.videoId,
       title: song.title,
@@ -272,9 +301,27 @@ export default function SearchPage() {
     startPlayback(playlist, 0);
   };
 
-  // Shuffle songs from search
+  // Shuffle songs from search - opens popup
   const handleShuffleSearchSongs = () => {
     if (searchSongs.length === 0) return;
+
+    // Open popup
+    const panelTracks: PlaylistTrackData[] = searchSongs.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artists: song.artists,
+      thumbnails: song.thumbnails,
+      duration: song.duration,
+      album: song.album,
+    }));
+    openTrackPanel({
+      title: searchArtist?.artist || t('search.topTracks'),
+      author: { name: `${searchSongs.length} ${t('search.tracks')}` },
+      thumbnails: searchArtist?.thumbnails,
+      tracks: panelTracks,
+      trackCount: searchSongs.length,
+    });
+
     const playlist = searchSongs.map((song) => ({
       videoId: song.videoId,
       title: song.title,
@@ -294,16 +341,21 @@ export default function SearchPage() {
   const handleShowAlbumPanel = async (album: SearchAlbum) => {
     if (!album.browseId) return;
 
-    setTrackPanelOpen(true);
     setTrackPanelLoading(true);
-    setTrackPanelData(null);
+    openTrackPanel({
+      title: album.title,
+      author: { name: album.type || 'Album' },
+      thumbnails: album.thumbnails,
+      tracks: [],
+      trackCount: 0,
+    });
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/album/${album.browseId}`);
       if (response.ok) {
         const data = await response.json();
         const albumData = data.album;
-        setTrackPanelData({
+        openTrackPanel({
           title: albumData.title || album.title,
           description: albumData.description,
           author: {
@@ -318,87 +370,6 @@ export default function SearchPage() {
       // Error fetching album
     } finally {
       setTrackPanelLoading(false);
-    }
-  };
-
-  // Show all search songs in panel
-  const handleShowSongsPanel = () => {
-    if (searchSongs.length === 0) return;
-
-    const tracks: PlaylistTrack[] = searchSongs.map((song) => ({
-      videoId: song.videoId,
-      title: song.title,
-      artists: song.artists,
-      thumbnails: song.thumbnails,
-      duration: song.duration,
-      album: song.album,
-    }));
-
-    setTrackPanelData({
-      title: searchArtist?.artist || t('search.topTracks'),
-      author: { name: `${searchSongs.length} ${t('search.tracks')}` },
-      thumbnails: searchArtist?.thumbnails,
-      tracks,
-      trackCount: searchSongs.length,
-    });
-    setTrackPanelOpen(true);
-  };
-
-  // Play a track from panel
-  const handlePlayPanelTrack = (
-    track: PlaylistTrack,
-    index: number,
-    allTracks: PlaylistTrack[]
-  ) => {
-    const tracks = allTracks
-      .filter((t) => t.videoId)
-      .map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
-        thumbnail: getBestThumbnail(t.thumbnails),
-      }));
-
-    const trackIndex = tracks.findIndex((t) => t.videoId === track.videoId);
-    if (trackIndex !== -1 && tracks.length > 0) {
-      startPlayback(tracks, trackIndex);
-    }
-  };
-
-  // Play all tracks from panel
-  const handlePlayAllPanelTracks = () => {
-    if (!trackPanelData || trackPanelData.tracks.length === 0) return;
-
-    const tracks = trackPanelData.tracks
-      .filter((t) => t.videoId)
-      .map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
-        thumbnail: getBestThumbnail(t.thumbnails),
-      }));
-
-    if (tracks.length > 0) {
-      startPlayback(tracks, 0);
-    }
-  };
-
-  // Shuffle all tracks from panel
-  const handleShuffleAllPanelTracks = () => {
-    if (!trackPanelData || trackPanelData.tracks.length === 0) return;
-
-    const tracks = trackPanelData.tracks
-      .filter((t) => t.videoId)
-      .map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
-        thumbnail: getBestThumbnail(t.thumbnails),
-      }));
-
-    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-    if (shuffled.length > 0) {
-      startPlayback(shuffled, 0);
     }
   };
 
@@ -512,7 +483,7 @@ export default function SearchPage() {
                   {(showAllSongs ? searchSongs : searchSongs.slice(0, 10)).map((song, i) => (
                     <div
                       key={song.videoId || i}
-                      onClick={() => handlePlayTrackFromSearch(song)}
+                      onClick={() => handlePlayTrackFromSearch(song, i)}
                       className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                     >
                       <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
@@ -750,19 +721,6 @@ export default function SearchPage() {
           </div>
         )}
       </div>
-
-      {/* Track List Panel */}
-      <TrackListPanel
-        isOpen={trackPanelOpen}
-        onClose={() => setTrackPanelOpen(false)}
-        playlist={trackPanelData}
-        loading={trackPanelLoading}
-        onPlayTrack={handlePlayPanelTrack}
-        onPlayAll={handlePlayAllPanelTracks}
-        onShuffleAll={handleShuffleAllPanelTracks}
-        currentVideoId={currentTrack?.videoId}
-        isPlaying={isPlaying}
-      />
     </div>
   );
 }

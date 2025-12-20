@@ -1,7 +1,7 @@
 import { useEffect, useState, SyntheticEvent } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import usePlayerStore from '../stores/usePlayerStore';
+import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
 
 const API_BASE_URL =
@@ -43,7 +43,7 @@ interface PlaylistPost {
  */
 function ForYouSection() {
   const context = useContextRecommendation();
-  const { setTrack, currentTrack, isPlaying } = usePlayerStore();
+  const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(true);
 
@@ -71,14 +71,30 @@ function ForYouSection() {
     fetchRecommendations();
   }, [context.loading, context.recommendation]);
 
-  const handlePlay = (track: RecommendationTrack) => {
-    setTrack({
-      videoId: track.videoId,
-      title: track.title,
-      artist: track.artists?.[0]?.name || track.artist || 'Unknown',
-      thumbnail: track.thumbnail,
-      cover: track.thumbnail,
+  const handlePlay = (track: RecommendationTrack, index: number) => {
+    // Open popup with all recommendations
+    const panelTracks: PlaylistTrackData[] = recommendations.map((r) => ({
+      videoId: r.videoId,
+      title: r.title,
+      artists: r.artists || (r.artist ? [{ name: r.artist }] : [{ name: 'Unknown' }]),
+      thumbnails: r.thumbnail ? [{ url: r.thumbnail }] : undefined,
+    }));
+    openTrackPanel({
+      title: context.recommendation?.genre || 'For You',
+      author: { name: context.recommendation?.message || '' },
+      tracks: panelTracks,
+      trackCount: recommendations.length,
     });
+
+    // Start playback
+    const tracks = recommendations.map((r) => ({
+      videoId: r.videoId,
+      title: r.title,
+      artist: r.artists?.[0]?.name || r.artist || 'Unknown',
+      thumbnail: r.thumbnail,
+      cover: r.thumbnail,
+    }));
+    startPlayback(tracks, index);
   };
 
   if (context.loading) {
@@ -132,7 +148,7 @@ function ForYouSection() {
             return (
               <div
                 key={track.videoId || idx}
-                onClick={() => handlePlay(track)}
+                onClick={() => handlePlay(track, idx)}
                 className="flex-shrink-0 w-32 cursor-pointer group"
               >
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md">
@@ -234,10 +250,25 @@ interface PlaylistPostProps {
 
 function PlaylistPostComponent({ post }: PlaylistPostProps) {
   const user = post.profiles;
-  const { setTrack, currentTrack, isPlaying } = usePlayerStore();
+  const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
 
   const handlePlayClick = () => {
     if (!post.video_id) return;
+
+    // Open popup with the post track
+    const panelTrack: PlaylistTrackData = {
+      videoId: post.video_id,
+      title: post.title || 'Unknown Playlist',
+      artists: [{ name: user?.username || 'Unknown Artist' }],
+      thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
+    };
+    openTrackPanel({
+      title: post.title || 'Playlist',
+      author: { name: user?.username || 'Unknown Artist' },
+      thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
+      tracks: [panelTrack],
+      trackCount: 1,
+    });
 
     const track = {
       videoId: post.video_id,

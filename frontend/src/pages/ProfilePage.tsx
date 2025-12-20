@@ -2,10 +2,9 @@ import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Grid, Heart, Lock, Play, LogOut, Music, Shuffle, Trash2, Disc } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
-import usePlayerStore from '../stores/usePlayerStore';
+import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useCountry from '../hooks/useCountry';
 import { supabase } from '../lib/supabase';
-import TrackListPanel, { PlaylistTrack, PlaylistData } from '../components/player/TrackListPanel';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
@@ -169,7 +168,8 @@ interface HomeData {
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, signOut } = useAuthStore();
-  const { setTrack, startPlayback, currentTrack, isPlaying } = usePlayerStore();
+  const { setTrack, startPlayback, currentTrack, isPlaying, openTrackPanel, setTrackPanelLoading } =
+    usePlayerStore();
   const country = useCountry();
 
   const [activeTab, setActiveTab] = useState<'playlists' | 'liked' | 'discover' | 'private'>(
@@ -181,11 +181,6 @@ export default function ProfilePage() {
   const [homeData, setHomeData] = useState<HomeData | null>(null);
   const [homeLoading, setHomeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  // Playlist Panel State
-  const [playlistPanelOpen, setPlaylistPanelOpen] = useState(false);
-  const [playlistData, setPlaylistData] = useState<PlaylistData | null>(null);
-  const [playlistLoading, setPlaylistLoading] = useState(false);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -268,9 +263,12 @@ export default function ProfilePage() {
 
   // Fetch playlist data and show panel
   const fetchAndShowPlaylist = async (playlistId: string) => {
-    setPlaylistPanelOpen(true);
-    setPlaylistLoading(true);
-    setPlaylistData(null);
+    setTrackPanelLoading(true);
+    openTrackPanel({
+      title: 'Loading...',
+      tracks: [],
+      trackCount: 0,
+    });
 
     try {
       const response = await fetch(
@@ -279,7 +277,7 @@ export default function ProfilePage() {
       if (response.ok) {
         const data = await response.json();
         const playlist = data.playlist;
-        setPlaylistData({
+        openTrackPanel({
           title: playlist.title || 'Playlist',
           description: playlist.description,
           author: playlist.author,
@@ -291,22 +289,25 @@ export default function ProfilePage() {
     } catch {
       // Error fetching playlist
     } finally {
-      setPlaylistLoading(false);
+      setTrackPanelLoading(false);
     }
   };
 
   // Fetch album data and show panel
   const fetchAndShowAlbum = async (browseId: string) => {
-    setPlaylistPanelOpen(true);
-    setPlaylistLoading(true);
-    setPlaylistData(null);
+    setTrackPanelLoading(true);
+    openTrackPanel({
+      title: 'Loading...',
+      tracks: [],
+      trackCount: 0,
+    });
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/album/${browseId}?country=${country.code}`);
       if (response.ok) {
         const data = await response.json();
         const album = data.album;
-        setPlaylistData({
+        openTrackPanel({
           title: album.title || 'Album',
           description: album.description,
           author: { name: album.artists?.map((a: { name: string }) => a.name).join(', ') || '' },
@@ -318,14 +319,29 @@ export default function ProfilePage() {
     } catch {
       // Error fetching album
     } finally {
-      setPlaylistLoading(false);
+      setTrackPanelLoading(false);
     }
   };
 
-  // Play a home content item (song, playlist, or album)
+  // Play a home content item (song, playlist, or album) - opens popup
   const handlePlayHomeItem = (item: HomeContentItem) => {
-    // If it's a direct video, play it
+    // If it's a direct video, open popup with single track
     if (item.videoId) {
+      const panelTrack: PlaylistTrackData = {
+        videoId: item.videoId,
+        title: item.title,
+        artists:
+          item.artists || (item.subtitle ? [{ name: item.subtitle }] : [{ name: 'Unknown' }]),
+        thumbnails: item.thumbnails,
+      };
+      openTrackPanel({
+        title: item.title,
+        author: { name: item.artists?.map((a) => a.name).join(', ') || item.subtitle || '' },
+        thumbnails: item.thumbnails,
+        tracks: [panelTrack],
+        trackCount: 1,
+      });
+
       const track = {
         videoId: item.videoId,
         title: item.title,
@@ -349,67 +365,23 @@ export default function ProfilePage() {
     }
   };
 
-  // Play a track from playlist panel
-  const handlePlayPanelTrack = (
-    track: PlaylistTrack,
-    index: number,
-    allTracks: PlaylistTrack[]
-  ) => {
-    const tracks = allTracks
-      .filter((t) => t.videoId)
-      .map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
-        thumbnail: getBestThumbnail(t.thumbnails) || undefined,
-      }));
-
-    const trackIndex = tracks.findIndex((t) => t.videoId === track.videoId);
-    if (trackIndex !== -1 && tracks.length > 0) {
-      startPlayback(tracks, trackIndex);
-    }
-  };
-
-  // Play all tracks from playlist panel
-  const handlePlayAllPanelTracks = () => {
-    if (!playlistData || playlistData.tracks.length === 0) return;
-
-    const tracks = playlistData.tracks
-      .filter((t) => t.videoId)
-      .map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
-        thumbnail: getBestThumbnail(t.thumbnails) || undefined,
-      }));
-
-    if (tracks.length > 0) {
-      startPlayback(tracks, 0);
-    }
-  };
-
-  // Shuffle all tracks from playlist panel
-  const handleShuffleAllPanelTracks = () => {
-    if (!playlistData || playlistData.tracks.length === 0) return;
-
-    const tracks = playlistData.tracks
-      .filter((t) => t.videoId)
-      .map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
-        thumbnail: getBestThumbnail(t.thumbnails) || undefined,
-      }));
-
-    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-    if (shuffled.length > 0) {
-      startPlayback(shuffled, 0);
-    }
-  };
-
-  // Play a single playlist
+  // Play a single playlist - opens popup
   const handlePlayPlaylist = (playlist: Playlist) => {
     if (!playlist.video_id) return;
+
+    const panelTrack: PlaylistTrackData = {
+      videoId: playlist.video_id,
+      title: playlist.title || 'Unknown Playlist',
+      artists: [{ name: profile?.username || 'You' }],
+      thumbnails: playlist.cover_url ? [{ url: playlist.cover_url }] : undefined,
+    };
+    openTrackPanel({
+      title: playlist.title || 'Playlist',
+      author: { name: profile?.username || 'You' },
+      thumbnails: playlist.cover_url ? [{ url: playlist.cover_url }] : undefined,
+      tracks: [panelTrack],
+      trackCount: 1,
+    });
 
     const track = {
       videoId: playlist.video_id,
@@ -422,9 +394,24 @@ export default function ProfilePage() {
     setTrack(track);
   };
 
-  // Play a track from liked songs
+  // Play a track from liked songs - opens popup
   const handlePlayTrack = (track: LikedTrack, index: number) => {
     if (likedSongs.length > 0) {
+      // Open popup with liked songs list
+      const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
+        videoId: s.videoId,
+        title: s.title,
+        artists: [{ name: s.artist || 'Unknown Artist' }],
+        thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
+      }));
+      openTrackPanel({
+        title: t('profile.yourMusic'),
+        author: { name: `${likedSongs.length} ${t('profile.songs')}` },
+        tracks: panelTracks,
+        trackCount: likedSongs.length,
+      });
+
+      // Start playback
       const tracks = likedSongs.map((s) => ({
         videoId: s.videoId,
         title: s.title,
@@ -438,10 +425,25 @@ export default function ProfilePage() {
     }
   };
 
-  // Shuffle play all liked songs
+  // Shuffle play all liked songs - opens popup
   const handleShufflePlay = () => {
     if (likedSongs.length === 0) return;
 
+    // Open popup with liked songs list
+    const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
+      videoId: s.videoId,
+      title: s.title,
+      artists: [{ name: s.artist || 'Unknown Artist' }],
+      thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
+    }));
+    openTrackPanel({
+      title: t('profile.yourMusic'),
+      author: { name: `${likedSongs.length} ${t('profile.songs')}` },
+      tracks: panelTracks,
+      trackCount: likedSongs.length,
+    });
+
+    // Start shuffled playback
     const tracks = likedSongs.map((s) => ({
       videoId: s.videoId,
       title: s.title,
@@ -449,7 +451,6 @@ export default function ProfilePage() {
       thumbnail: s.thumbnail,
       cover: s.cover,
     }));
-
     const shuffled = [...tracks].sort(() => Math.random() - 0.5);
     startPlayback(shuffled, 0);
   };
@@ -749,19 +750,6 @@ export default function ProfilePage() {
           <p>{t('profile.private')}</p>
         </div>
       )}
-
-      {/* Track List Panel */}
-      <TrackListPanel
-        isOpen={playlistPanelOpen}
-        onClose={() => setPlaylistPanelOpen(false)}
-        playlist={playlistData}
-        loading={playlistLoading}
-        onPlayTrack={handlePlayPanelTrack}
-        onPlayAll={handlePlayAllPanelTracks}
-        onShuffleAll={handleShuffleAllPanelTracks}
-        currentVideoId={currentTrack?.videoId}
-        isPlaying={isPlaying}
-      />
     </div>
   );
 }

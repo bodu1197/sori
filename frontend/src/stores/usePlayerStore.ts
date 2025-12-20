@@ -9,6 +9,27 @@ export interface Track {
   duration?: string;
 }
 
+export interface PlaylistTrackData {
+  videoId: string;
+  title: string;
+  artists?: Array<{ name: string; id?: string }>;
+  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
+  thumbnail?: string;
+  duration?: string;
+  album?: { name?: string; id?: string };
+  isAvailable?: boolean;
+}
+
+export interface TrackPanelPlaylist {
+  title: string;
+  description?: string;
+  author?: { name: string };
+  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
+  thumbnail?: string;
+  tracks: PlaylistTrackData[];
+  trackCount?: number;
+}
+
 export type RepeatMode = 'none' | 'all' | 'one';
 
 interface YouTubePlayer {
@@ -46,6 +67,11 @@ interface PlayerState {
   // YouTube Player Reference
   playerRef: YouTubePlayer | null;
 
+  // Track Panel State
+  trackPanelOpen: boolean;
+  trackPanelPlaylist: TrackPanelPlaylist | null;
+  trackPanelLoading: boolean;
+
   // Actions
   setPlayerRef: (ref: YouTubePlayer | null) => void;
   setReady: (ready: boolean) => void;
@@ -67,6 +93,11 @@ interface PlayerState {
   removeFromPlaylist: (videoId: string) => void;
   clearPlaylist: () => void;
   onTrackEnd: () => void;
+
+  // Track Panel Actions
+  openTrackPanel: (playlist: TrackPanelPlaylist) => void;
+  closeTrackPanel: () => void;
+  setTrackPanelLoading: (loading: boolean) => void;
 }
 
 const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -96,6 +127,11 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
 
   // YouTube Player Reference
   playerRef: null,
+
+  // Track Panel State
+  trackPanelOpen: false,
+  trackPanelPlaylist: null,
+  trackPanelLoading: false,
 
   // Actions
   setPlayerRef: (ref) => set({ playerRef: ref }),
@@ -317,6 +353,11 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
       get().playNext();
     }
   },
+
+  // Track Panel Actions
+  openTrackPanel: (playlist) => set({ trackPanelOpen: true, trackPanelPlaylist: playlist }),
+  closeTrackPanel: () => set({ trackPanelOpen: false }),
+  setTrackPanelLoading: (loading) => set({ trackPanelLoading: loading }),
 }));
 
 export default usePlayerStore;
