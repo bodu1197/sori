@@ -33,6 +33,7 @@ export default function MiniPlayer() {
     isMuted,
     shuffleMode,
     repeatMode,
+    playlist,
     togglePlay,
     playNext,
     playPrev,
@@ -41,6 +42,7 @@ export default function MiniPlayer() {
     toggleMute,
     toggleShuffle,
     toggleRepeat,
+    openTrackPanel,
   } = usePlayerStore();
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -66,6 +68,23 @@ export default function MiniPlayer() {
     currentTrack?.thumbnail ||
     'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=100&h=100&fit=crop';
 
+  // Open popup with current playlist
+  const handleOpenPlaylist = () => {
+    if (playlist.length === 0) return;
+
+    openTrackPanel({
+      title: 'Now Playing',
+      author: { name: `${playlist.length} tracks` },
+      tracks: playlist.map((t) => ({
+        videoId: t.videoId,
+        title: t.title,
+        artists: t.artist ? [{ name: t.artist }] : [{ name: 'Unknown Artist' }],
+        thumbnails: t.thumbnail ? [{ url: t.thumbnail }] : undefined,
+      })),
+      trackCount: playlist.length,
+    });
+  };
+
   const getRepeatIcon = () => {
     if (repeatMode === 'one') {
       return <Repeat1 size={18} className="text-black dark:text-white" />;
@@ -87,7 +106,11 @@ export default function MiniPlayer() {
       }`}
     >
       <div className="h-[60px] flex items-center px-4 justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Clickable area to open playlist popup */}
+        <div
+          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+          onClick={handleOpenPlaylist}
+        >
           <img
             src={thumbnailUrl}
             alt="Album Art"
