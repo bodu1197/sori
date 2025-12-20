@@ -6,6 +6,7 @@ const ACCESS_TOKEN = 'sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296'; // PAT
 const SQL = `
 alter table playlists add column if not exists description text;
 alter table playlists add column if not exists audio_url text;
+alter table playlists add column if not exists video_id text;
 `;
 
 function runMigration() {
