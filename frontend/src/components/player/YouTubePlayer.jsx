@@ -124,8 +124,8 @@ export default function YouTubePlayer() {
     if (!containerRef.current || playerRef.current) return;
 
     playerRef.current = new window.YT.Player(containerRef.current, {
-      height: '0',
-      width: '0',
+      height: '200',
+      width: '200',
       playerVars: {
         playsinline: 1,
         controls: 0,
@@ -230,16 +230,21 @@ export default function YouTubePlayer() {
     }
   }, [isMuted]);
 
+  // YouTube Terms of Service requires player to be visible with minimum size
+  // Using 200x200 minimum with opacity:0 to hide visually while remaining valid
   return (
     <div
       ref={containerRef}
       id="youtube-player-container"
       style={{
-        position: 'absolute',
-        width: 0,
-        height: 0,
-        overflow: 'hidden',
+        position: 'fixed',
+        bottom: 0,
+        right: 0,
+        width: 200,
+        height: 200,
+        opacity: 0,
         pointerEvents: 'none',
+        zIndex: -1,
       }}
     />
   );

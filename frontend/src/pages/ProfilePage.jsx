@@ -184,7 +184,7 @@ export default function ProfilePage() {
     fetchProfileData();
   }, [user]);
 
-  // Real Music Search via Cloud Run API (ytmusicapi)
+  // Real Music Search via Cloud Run API (ytmusicapi) - Songs + Albums
   useEffect(() => {
     if (searchQuery.length > 1) {
       setSearchLoading(true);
@@ -192,14 +192,31 @@ export default function ProfilePage() {
 
       const timer = setTimeout(async () => {
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=songs&limit=15`
-          );
+          // Fetch songs and albums in parallel
+          const [songsRes, albumsRes] = await Promise.all([
+            fetch(
+              `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=songs&limit=30`
+            ),
+            fetch(
+              `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=albums&limit=10`
+            ),
+          ]);
 
-          if (response.ok) {
-            const data = await response.json();
-            setSearchResults(data.results || []);
+          let allResults = [];
+
+          if (songsRes.ok) {
+            const songsData = await songsRes.json();
+            const songs = (songsData.results || []).map((s) => ({ ...s, resultType: 'song' }));
+            allResults = [...allResults, ...songs];
           }
+
+          if (albumsRes.ok) {
+            const albumsData = await albumsRes.json();
+            const albums = (albumsData.results || []).map((a) => ({ ...a, resultType: 'album' }));
+            allResults = [...allResults, ...albums];
+          }
+
+          setSearchResults(allResults);
         } catch (error) {
           console.error('Search error:', error);
           setSearchResults([]);
@@ -411,132 +428,141 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Search Results Slide-Up Panel */}
-      <div
-        className={`fixed inset-x-0 bottom-[110px] bg-white dark:bg-[#121212] rounded-t-2xl shadow-2xl z-50 transition-all duration-300 ease-out ${
-          showSearchPanel
-            ? 'translate-y-0 opacity-100'
-            : 'translate-y-full opacity-0 pointer-events-none'
-        }`}
-        style={{ maxHeight: '60vh' }}
-      >
-        {/* Panel Header */}
-        <div className="sticky top-0 bg-white dark:bg-[#121212] px-4 py-3 border-b border-gray-100 dark:border-gray-800 rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Music size={18} className="text-black dark:text-white" />
-              <span className="font-semibold text-black dark:text-white">
-                {searchLoading ? 'Searching...' : `Results for "${searchQuery}"`}
-              </span>
+      {/* Search Results Panel - Inline, not fixed */}
+      {showSearchPanel && (
+        <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+          {/* Panel Header */}
+          <div className="px-4 py-3 bg-white dark:bg-[#121212] border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Music size={18} className="text-black dark:text-white" />
+                <span className="font-semibold text-sm text-black dark:text-white">
+                  {searchLoading ? 'Searching...' : `${searchResults.length} results`}
+                </span>
+              </div>
+              <button
+                onClick={closeSearchPanel}
+                className="p-1 text-gray-500 hover:text-black dark:hover:text-white"
+              >
+                <X size={20} />
+              </button>
             </div>
-            <button
-              onClick={closeSearchPanel}
-              className="p-1 text-gray-500 hover:text-black dark:hover:text-white"
-            >
-              <X size={20} />
-            </button>
           </div>
-          {/* Drag Handle */}
-          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
-        </div>
 
-        {/* Search Results List */}
-        <div className="overflow-y-auto px-4 py-2" style={{ maxHeight: 'calc(60vh - 56px)' }}>
-          {searchLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 size={24} className="animate-spin text-gray-400" />
-            </div>
-          ) : searchResults.length > 0 ? (
-            <div className="space-y-1">
-              {searchResults.map((item, idx) => {
-                const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail;
-                const artist = item.artists?.[0]?.name || 'Unknown Artist';
-                const isCurrentlyPlaying = currentTrack?.videoId === item.videoId && isPlaying;
+          {/* Search Results List */}
+          <div className="overflow-y-auto px-4 py-2 max-h-[50vh]">
+            {searchLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={24} className="animate-spin text-gray-400" />
+              </div>
+            ) : searchResults.length > 0 ? (
+              <div className="space-y-1">
+                {searchResults.map((item, idx) => {
+                  const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail;
+                  const artist = item.artists?.[0]?.name || item.artist || 'Unknown Artist';
+                  const isAlbum = item.resultType === 'album';
+                  const itemId = item.videoId || item.browseId || idx;
+                  const isCurrentlyPlaying = currentTrack?.videoId === item.videoId && isPlaying;
 
-                return (
-                  <div
-                    key={item.videoId || idx}
-                    className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg cursor-pointer group"
-                  >
-                    {/* Thumbnail */}
+                  return (
                     <div
-                      className="relative w-12 h-12 flex-shrink-0"
-                      onClick={() => handlePlaySearchResult(item)}
+                      key={itemId}
+                      className="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer group"
                     >
-                      <img
-                        src={thumbnail}
-                        alt={item.title}
-                        className="w-full h-full rounded object-cover bg-gray-200"
-                        onError={(e) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
-                        }}
-                      />
-                      {isCurrentlyPlaying ? (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
-                          <div className="flex gap-0.5">
-                            <div
-                              className="w-0.5 h-3 bg-white animate-bounce"
-                              style={{ animationDelay: '0ms' }}
-                            />
-                            <div
-                              className="w-0.5 h-3 bg-white animate-bounce"
-                              style={{ animationDelay: '150ms' }}
-                            />
-                            <div
-                              className="w-0.5 h-3 bg-white animate-bounce"
-                              style={{ animationDelay: '300ms' }}
-                            />
+                      {/* Thumbnail */}
+                      <div
+                        className="relative w-12 h-12 flex-shrink-0"
+                        onClick={() => !isAlbum && handlePlaySearchResult(item)}
+                      >
+                        <img
+                          src={thumbnail}
+                          alt={item.title}
+                          className={`w-full h-full object-cover bg-gray-200 ${isAlbum ? 'rounded' : 'rounded'}`}
+                          onError={(e) => {
+                            e.target.src =
+                              'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+                          }}
+                        />
+                        {/* Album Badge */}
+                        {isAlbum && (
+                          <div className="absolute bottom-0 right-0 bg-black/70 text-white text-[9px] px-1 rounded">
+                            ALBUM
                           </div>
+                        )}
+                        {!isAlbum && isCurrentlyPlaying ? (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
+                            <div className="flex gap-0.5">
+                              <div
+                                className="w-0.5 h-3 bg-white animate-bounce"
+                                style={{ animationDelay: '0ms' }}
+                              />
+                              <div
+                                className="w-0.5 h-3 bg-white animate-bounce"
+                                style={{ animationDelay: '150ms' }}
+                              />
+                              <div
+                                className="w-0.5 h-3 bg-white animate-bounce"
+                                style={{ animationDelay: '300ms' }}
+                              />
+                            </div>
+                          </div>
+                        ) : !isAlbum ? (
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Play size={16} fill="white" className="text-white" />
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Track/Album Info */}
+                      <div
+                        className="flex-1 min-w-0"
+                        onClick={() => !isAlbum && handlePlaySearchResult(item)}
+                      >
+                        <div className="font-medium text-sm truncate text-black dark:text-white">
+                          {item.title}
                         </div>
-                      ) : (
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Play size={16} fill="white" className="text-white" />
+                        <div className="text-xs text-gray-500 truncate">
+                          {isAlbum ? `Album - ${artist}` : artist}
+                          {item.year && ` (${item.year})`}
                         </div>
+                      </div>
+
+                      {/* Add to Liked Button (only for songs) */}
+                      {!isAlbum && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToLiked(item);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                          title="Add to Your Music"
+                        >
+                          <Heart size={18} />
+                        </button>
+                      )}
+
+                      {/* Play Button (only for songs) */}
+                      {!isAlbum && (
+                        <button
+                          onClick={() => handlePlaySearchResult(item)}
+                          className="p-2 text-gray-500 hover:text-black dark:hover:text-white"
+                        >
+                          <Play size={18} fill="currentColor" />
+                        </button>
                       )}
                     </div>
-
-                    {/* Track Info */}
-                    <div className="flex-1 min-w-0" onClick={() => handlePlaySearchResult(item)}>
-                      <div className="font-medium text-sm truncate text-black dark:text-white">
-                        {item.title}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">{artist}</div>
-                    </div>
-
-                    {/* Add to Liked Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToLiked(item);
-                      }}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                      title="Add to Your Music"
-                    >
-                      <Heart size={18} />
-                    </button>
-
-                    {/* Play Button */}
-                    <button
-                      onClick={() => handlePlaySearchResult(item)}
-                      className="p-2 text-gray-500 hover:text-black dark:hover:text-white"
-                    >
-                      <Play size={18} fill="currentColor" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            searchQuery.length > 1 && (
+                  );
+                })}
+              </div>
+            ) : searchQuery.length > 1 ? (
               <div className="text-center text-gray-500 py-8">
                 <Search size={32} className="mx-auto mb-2 opacity-50" />
                 <p>No results found</p>
               </div>
-            )
-          )}
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-t border-gray-100 dark:border-gray-800">
