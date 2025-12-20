@@ -23,6 +23,26 @@ const API_BASE_URL =
 
 const INITIAL_TRACKS_SHOW = 10;
 
+// Placeholder image as data URL (no external dependency)
+const PLACEHOLDER_MUSIC =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120'/%3E%3Ccircle cx='60' cy='60' r='30' fill='none' stroke='%236B7280' stroke-width='3'/%3E%3Ccircle cx='60' cy='60' r='8' fill='%236B7280'/%3E%3C/svg%3E";
+const PLACEHOLDER_ARTIST =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
+
+// Helper to get best thumbnail URL
+const getBestThumbnail = (thumbnails, preferredSize = 120) => {
+  if (!thumbnails || !Array.isArray(thumbnails) || thumbnails.length === 0) {
+    return null;
+  }
+  // Find thumbnail closest to preferred size
+  const sorted = [...thumbnails].sort((a, b) => {
+    const aDiff = Math.abs((a.width || 0) - preferredSize);
+    const bDiff = Math.abs((b.width || 0) - preferredSize);
+    return aDiff - bDiff;
+  });
+  return sorted[0]?.url || thumbnails[0]?.url;
+};
+
 export default function SearchPage() {
   const { startPlayback, currentTrack, isPlaying } = usePlayerStore();
   const { user } = useAuthStore();
@@ -125,8 +145,7 @@ export default function SearchPage() {
         // It's an album or single
         const albumTracks = [];
         item.tracks.forEach((track) => {
-          if (track.videoId && !seenVideoIds.has(track.videoId)) {
-            seenVideoIds.add(track.videoId);
+          if (track.videoId) {
             const processedTrack = {
               ...track,
               album: item.title,
@@ -135,8 +154,13 @@ export default function SearchPage() {
               artist: track.artists?.[0]?.name || item.artists?.[0]?.name || 'Unknown Artist',
               thumbnail: track.thumbnails?.[0]?.url || item.thumbnails?.[0]?.url,
             };
-            tracks.push(processedTrack);
+            // Always add to album tracks (for album view)
             albumTracks.push(processedTrack);
+            // Only add to main tracks list if not seen
+            if (!seenVideoIds.has(track.videoId)) {
+              seenVideoIds.add(track.videoId);
+              tracks.push(processedTrack);
+            }
           }
         });
 
@@ -296,14 +320,14 @@ export default function SearchPage() {
                 >
                   {/* Artist Header */}
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
                       <img
-                        src={artist.thumbnails?.[0]?.url || artist.thumbnails?.[1]?.url}
+                        src={getBestThumbnail(artist.thumbnails, 120) || PLACEHOLDER_ARTIST}
                         alt={artist.artist}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=300&h=300&fit=crop';
+                          e.target.onerror = null;
+                          e.target.src = PLACEHOLDER_ARTIST;
                         }}
                       />
                     </div>
@@ -418,12 +442,12 @@ export default function SearchPage() {
                           {/* Thumbnail */}
                           <div className="relative w-10 h-10 flex-shrink-0">
                             <img
-                              src={track.thumbnail}
+                              src={track.thumbnail || PLACEHOLDER_MUSIC}
                               alt={track.title}
-                              className="w-full h-full rounded object-cover bg-gray-200"
+                              className="w-full h-full rounded object-cover bg-gray-700"
                               onError={(e) => {
-                                e.target.src =
-                                  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+                                e.target.onerror = null;
+                                e.target.src = PLACEHOLDER_MUSIC;
                               }}
                             />
                           </div>
@@ -504,12 +528,12 @@ export default function SearchPage() {
                             {/* Album Header */}
                             <div className="flex items-center gap-3 p-3">
                               <img
-                                src={album.thumbnails?.[0]?.url}
+                                src={getBestThumbnail(album.thumbnails, 120) || PLACEHOLDER_MUSIC}
                                 alt={album.title}
-                                className="w-16 h-16 rounded object-cover bg-gray-200"
+                                className="w-16 h-16 rounded object-cover bg-gray-700"
                                 onError={(e) => {
-                                  e.target.src =
-                                    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+                                  e.target.onerror = null;
+                                  e.target.src = PLACEHOLDER_MUSIC;
                                 }}
                               />
                               <div className="flex-1 min-w-0">
@@ -621,12 +645,12 @@ export default function SearchPage() {
                               className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden cursor-pointer hover:opacity-80 transition"
                             >
                               <img
-                                src={single.thumbnails?.[0]?.url}
+                                src={getBestThumbnail(single.thumbnails, 226) || PLACEHOLDER_MUSIC}
                                 alt={single.title}
-                                className="w-full aspect-square object-cover bg-gray-200"
+                                className="w-full aspect-square object-cover bg-gray-700"
                                 onError={(e) => {
-                                  e.target.src =
-                                    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+                                  e.target.onerror = null;
+                                  e.target.src = PLACEHOLDER_MUSIC;
                                 }}
                               />
                               <div className="p-2">
@@ -664,14 +688,14 @@ export default function SearchPage() {
                     }}
                     className="flex-shrink-0 w-28 cursor-pointer hover:opacity-80 transition"
                   >
-                    <div className="w-28 h-28 rounded-full overflow-hidden bg-gray-200 mb-2">
+                    <div className="w-28 h-28 rounded-full overflow-hidden bg-gray-700 mb-2">
                       <img
-                        src={artist.thumbnails?.[0]?.url || artist.thumbnails?.[1]?.url}
+                        src={getBestThumbnail(artist.thumbnails, 226) || PLACEHOLDER_ARTIST}
                         alt={artist.artist || artist.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.src =
-                            'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=300&h=300&fit=crop';
+                          e.target.onerror = null;
+                          e.target.src = PLACEHOLDER_ARTIST;
                         }}
                       />
                     </div>

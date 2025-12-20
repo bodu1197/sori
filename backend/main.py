@@ -570,10 +570,12 @@ async def search_summary(
                     continue
 
                 # Extract artist details
+                # Use search result thumbnails (square) instead of get_artist thumbnails (banner)
+                search_thumbnails = artist.get("thumbnails") or []
                 artist_entry = {
                     "artist": artist_info.get("name") or artist.get("artist") or "",
                     "browseId": artist_id,
-                    "thumbnails": artist_info.get("thumbnails") or [],
+                    "thumbnails": search_thumbnails if search_thumbnails else artist_info.get("thumbnails") or [],
                     "description": artist_info.get("description") or "",
                     "subscribers": artist_info.get("subscribers") or ""
                 }
