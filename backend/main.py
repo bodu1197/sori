@@ -1015,36 +1015,83 @@ async def clear_search_cache(secret: str = None):
         logger.error(f"Cache clear error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/cache/unused-tables")
-async def drop_unused_tables(secret: str = None):
-    """사용하지 않는 빈 테이블 삭제"""
+@app.post("/api/admin/fix-advisor")
+async def fix_advisor_warnings(secret: str = None, access_token: str = None):
+    """Supabase Advisor 경고 수정 - Management API로 SQL 실행"""
+    import httpx
+
     admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
     if secret != admin_secret:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    if not supabase_client:
-        raise HTTPException(status_code=500, detail="Supabase not configured")
+    # Supabase Management API 토큰 (환경변수 또는 파라미터)
+    mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
+    if not mgmt_token:
+        raise HTTPException(status_code=400, detail="access_token required")
 
-    try:
-        # 사용하지 않는 테이블 데이터 삭제 (테이블 자체는 유지)
-        tables = ["music_tracks", "music_albums", "music_artists", "artist_relations"]
-        results = {}
+    project_ref = "nrtkbulkzhhlstaomvas"
 
-        for table in tables:
+    # SQL 명령어들 (하나씩 실행)
+    sql_commands = [
+        "DROP TABLE IF EXISTS music_tracks CASCADE",
+        "DROP TABLE IF EXISTS music_albums CASCADE",
+        "DROP TABLE IF EXISTS music_artists CASCADE",
+        "DROP TABLE IF EXISTS artist_relations CASCADE",
+        "DROP FUNCTION IF EXISTS search_music_artists(text, integer)",
+        "DROP FUNCTION IF EXISTS get_artist_full_data(text)",
+        "DROP FUNCTION IF EXISTS normalize_music_text() CASCADE",
+        'DROP POLICY IF EXISTS "Users can insert their own profile." ON profiles',
+        'DROP POLICY IF EXISTS "Users can update own profile." ON profiles',
+        'CREATE POLICY "Users can insert their own profile." ON profiles FOR INSERT WITH CHECK ((select auth.uid()) = id)',
+        'CREATE POLICY "Users can update own profile." ON profiles FOR UPDATE USING ((select auth.uid()) = id)',
+        'DROP POLICY IF EXISTS "Users can insert their own playlists." ON playlists',
+        'DROP POLICY IF EXISTS "Users can update their own playlists." ON playlists',
+        'CREATE POLICY "Users can insert their own playlists." ON playlists FOR INSERT WITH CHECK ((select auth.uid()) = user_id)',
+        'CREATE POLICY "Users can update their own playlists." ON playlists FOR UPDATE USING ((select auth.uid()) = user_id)',
+        'DROP POLICY IF EXISTS "Search cache is viewable by everyone" ON music_search_cache',
+        'DROP POLICY IF EXISTS "Service role can manage music_search_cache" ON music_search_cache',
+        'CREATE POLICY "Public read access" ON music_search_cache FOR SELECT USING (true)',
+        "CREATE SCHEMA IF NOT EXISTS extensions",
+        "DROP EXTENSION IF EXISTS pg_trgm",
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA extensions",
+        """CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, avatar_url)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
+  RETURN new;
+END;
+$$"""
+    ]
+
+    results = []
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for sql in sql_commands:
             try:
-                result = supabase_client.table(table).delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
-                results[table] = len(result.data) if result.data else 0
-            except Exception as e:
-                results[table] = f"error: {str(e)}"
+                response = await client.post(
+                    f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
+                    headers={
+                        "Authorization": f"Bearer {mgmt_token}",
+                        "Content-Type": "application/json"
+                    },
+                    json={"query": sql}
+                )
 
-        return {
-            "status": "success",
-            "message": "Unused tables cleared",
-            "results": results
-        }
-    except Exception as e:
-        logger.error(f"Drop unused tables error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+                if response.status_code == 201 or response.status_code == 200:
+                    results.append({"sql": sql[:50] + "...", "status": "success"})
+                else:
+                    results.append({"sql": sql[:50] + "...", "status": "error", "code": response.status_code, "error": response.text})
+
+            except Exception as e:
+                results.append({"sql": sql[:50] + "...", "status": "error", "error": str(e)})
+
+    success_count = len([r for r in results if r["status"] == "success"])
+    return {
+        "status": "completed",
+        "message": f"{success_count}/{len(sql_commands)} commands executed",
+        "results": results
+    }
 
 # =============================================================================
 # 엔트리 포인트
