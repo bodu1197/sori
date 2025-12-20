@@ -323,32 +323,35 @@ export default function ProfilePage() {
     }
   };
 
-  // Play a home content item (song, playlist, or album) - opens popup
-  const handlePlayHomeItem = (item: HomeContentItem) => {
-    // If it's a direct video, open popup with single track
+  // Play a home content item (song, playlist, or album) - opens popup with section tracks
+  const handlePlayHomeItem = (item: HomeContentItem, section: HomeSection, itemIndex: number) => {
+    // If it's a direct video, open popup with ALL video tracks from the section
     if (item.videoId) {
-      const panelTrack: PlaylistTrackData = {
-        videoId: item.videoId,
-        title: item.title,
-        artists:
-          item.artists || (item.subtitle ? [{ name: item.subtitle }] : [{ name: 'Unknown' }]),
-        thumbnails: item.thumbnails,
-      };
+      // Get all video tracks from this section
+      const sectionVideoTracks = section.contents.filter((c) => c.videoId);
+      const panelTracks: PlaylistTrackData[] = sectionVideoTracks.map((c) => ({
+        videoId: c.videoId as string,
+        title: c.title,
+        artists: c.artists || (c.subtitle ? [{ name: c.subtitle }] : [{ name: 'Unknown' }]),
+        thumbnails: c.thumbnails,
+      }));
+
       openTrackPanel({
-        title: item.title,
-        author: { name: item.artists?.map((a) => a.name).join(', ') || item.subtitle || '' },
-        thumbnails: item.thumbnails,
-        tracks: [panelTrack],
-        trackCount: 1,
+        title: section.title,
+        author: { name: `${sectionVideoTracks.length} tracks` },
+        tracks: panelTracks,
+        trackCount: sectionVideoTracks.length,
       });
 
-      const track = {
-        videoId: item.videoId,
-        title: item.title,
-        artist: item.artists?.map((a) => a.name).join(', ') || item.subtitle || 'Unknown',
-        thumbnail: getBestThumbnail(item.thumbnails) || undefined,
-      };
-      setTrack(track);
+      // Find the correct index in filtered video tracks
+      const videoTrackIndex = sectionVideoTracks.findIndex((c) => c.videoId === item.videoId);
+      const tracks = sectionVideoTracks.map((c) => ({
+        videoId: c.videoId as string,
+        title: c.title,
+        artist: c.artists?.map((a) => a.name).join(', ') || c.subtitle || 'Unknown',
+        thumbnail: getBestThumbnail(c.thumbnails) || undefined,
+      }));
+      startPlayback(tracks, videoTrackIndex >= 0 ? videoTrackIndex : 0);
       return;
     }
 
@@ -690,7 +693,7 @@ export default function ProfilePage() {
                   {section.contents.slice(0, 12).map((item, itemIndex) => (
                     <div
                       key={item.videoId || item.playlistId || itemIndex}
-                      onClick={() => handlePlayHomeItem(item)}
+                      onClick={() => handlePlayHomeItem(item, section, itemIndex)}
                       className="flex-shrink-0 w-36 cursor-pointer group"
                     >
                       {/* Thumbnail */}
