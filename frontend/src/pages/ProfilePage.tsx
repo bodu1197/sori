@@ -317,7 +317,7 @@ function PlaylistPanel({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
             </div>
           ) : playlist && playlist.tracks.length > 0 ? (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 pb-[120px]">
               {playlist.tracks.map((track, index) => {
                 const isCurrentTrack = currentVideoId === track.videoId;
                 const isTrackPlaying = isCurrentTrack && isPlaying;

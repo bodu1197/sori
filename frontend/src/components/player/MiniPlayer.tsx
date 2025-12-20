@@ -83,7 +83,7 @@ export default function MiniPlayer() {
       <YouTubePlayer />
 
       <div
-        className={`bg-white dark:bg-[#121212] border-t border-gray-100 dark:border-gray-800 sticky bottom-[50px] z-40 shadow-lg transition-all duration-300 ${
+        className={`bg-white dark:bg-[#121212] border-t border-gray-100 dark:border-gray-800 sticky bottom-[50px] z-[60] shadow-lg transition-all duration-300 ${
           isExpanded ? 'h-[120px]' : 'h-[60px]'
         }`}
       >
