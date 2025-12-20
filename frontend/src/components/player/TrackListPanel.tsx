@@ -341,9 +341,10 @@ export default function TrackListPanel({
   }, [isMuted]);
 
   // Always render but use visibility to hide
+  // Position above BottomNav (50px) so nav remains clickable
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-x-0 top-0 bottom-[50px] z-50 flex items-end justify-center"
       style={{ visibility: isOpen ? 'visible' : 'hidden' }}
     >
       {/* Backdrop */}
@@ -353,9 +354,9 @@ export default function TrackListPanel({
         style={{ opacity: isOpen ? 1 : 0, transition: 'opacity 0.3s' }}
       />
 
-      {/* Panel */}
+      {/* Panel - slides up from bottom */}
       <div
-        className="relative w-full max-w-[430px] bg-white dark:bg-gray-900 rounded-t-2xl h-[calc(100dvh-50px)] overflow-hidden flex flex-col"
+        className="relative w-full max-w-[430px] bg-white dark:bg-gray-900 rounded-t-2xl h-full overflow-hidden flex flex-col"
         style={{
           transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s ease-out',
