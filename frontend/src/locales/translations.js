@@ -1,3 +1,4 @@
+// @ts-nocheck
 // All translations for global support
 // Fallback to English for unsupported languages
 
