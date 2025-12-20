@@ -157,12 +157,12 @@
 
 | 구분 | 기술 |
 |------|------|
-| Frontend | React 19 + Vite 7 + Tailwind CSS 4 + Zustand |
+| Frontend | React 19 + TypeScript + Vite 7 + Tailwind CSS 4 + Zustand |
 | Backend | FastAPI + Python + ytmusicapi |
 | Database | Supabase (PostgreSQL + Auth + Storage) |
 | Cache | Upstash Redis |
 | Hosting | Cloud Run (Backend), Vercel (Frontend) |
-| i18n | react-i18next (예정) |
+| i18n | react-i18next |
 | Weather API | OpenWeatherMap (예정) |
 
 ---

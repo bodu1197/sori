@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Play, Shuffle, Heart, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
@@ -10,7 +9,64 @@ import { supabase } from '../lib/supabase';
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
-export default function SearchPage() {
+interface Thumbnail {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+interface Artist {
+  name: string;
+  id?: string;
+}
+
+interface Album {
+  name?: string;
+  id?: string;
+}
+
+interface SearchArtist {
+  artist: string;
+  browseId?: string;
+  subscribers?: string;
+  thumbnails?: Thumbnail[];
+  related?: RelatedArtist[];
+}
+
+interface RelatedArtist {
+  title: string;
+  browseId?: string;
+  subscribers?: string;
+  thumbnails?: Thumbnail[];
+}
+
+interface SearchSong {
+  videoId: string;
+  title: string;
+  artists?: Artist[];
+  album?: Album;
+  thumbnails?: Thumbnail[];
+  duration?: string;
+}
+
+interface SearchAlbum {
+  browseId?: string;
+  title: string;
+  type?: string;
+  year?: string;
+  thumbnails?: Thumbnail[];
+  tracks?: AlbumTrack[];
+}
+
+interface AlbumTrack {
+  videoId: string;
+  title: string;
+  artists?: Artist[];
+  thumbnails?: Thumbnail[];
+  duration?: string;
+}
+
+export default function SearchPage(): JSX.Element {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const { startPlayback } = usePlayerStore();
@@ -18,15 +74,15 @@ export default function SearchPage() {
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
-  const searchInputRef = useRef(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Artist search data
-  const [searchArtist, setSearchArtist] = useState(null);
-  const [searchAlbums, setSearchAlbums] = useState([]);
-  const [searchSongs, setSearchSongs] = useState([]);
-  const [expandedAlbums, setExpandedAlbums] = useState(new Set());
-  const [albumTracks, setAlbumTracks] = useState({});
-  const [loadingAlbums, setLoadingAlbums] = useState(new Set());
+  const [searchArtist, setSearchArtist] = useState<SearchArtist | null>(null);
+  const [searchAlbums, setSearchAlbums] = useState<SearchAlbum[]>([]);
+  const [searchSongs, setSearchSongs] = useState<SearchSong[]>([]);
+  const [expandedAlbums, setExpandedAlbums] = useState<Set<string>>(new Set());
+  const [albumTracks, setAlbumTracks] = useState<Record<string, AlbumTrack[]>>({});
+  const [loadingAlbums, setLoadingAlbums] = useState<Set<string>>(new Set());
   const [showAllSongs, setShowAllSongs] = useState(false);
 
   // Placeholder image for artist/album
@@ -34,7 +90,7 @@ export default function SearchPage() {
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
 
   // Helper to get best (largest) thumbnail
-  const getBestThumbnail = (thumbnails) => {
+  const getBestThumbnail = (thumbnails?: Thumbnail[]): string => {
     if (!thumbnails || !Array.isArray(thumbnails) || thumbnails.length === 0) {
       return PLACEHOLDER;
     }
@@ -42,7 +98,7 @@ export default function SearchPage() {
   };
 
   // Toggle album expansion and fetch tracks if needed
-  const toggleAlbumExpand = async (album) => {
+  const toggleAlbumExpand = async (album: SearchAlbum) => {
     const albumId = album.browseId || `album-${album.title}`;
 
     setExpandedAlbums((prev) => {
@@ -55,7 +111,10 @@ export default function SearchPage() {
       return next;
     });
 
-    if (album.tracks?.length > 0 || albumTracks[albumId]) {
+    if (album.tracks && album.tracks.length > 0) {
+      return;
+    }
+    if (albumTracks[albumId]) {
       return;
     }
 
@@ -69,8 +128,8 @@ export default function SearchPage() {
             setAlbumTracks((prev) => ({ ...prev, [albumId]: data.tracks }));
           }
         }
-      } catch (error) {
-        console.error('Error fetching album tracks:', error);
+      } catch {
+        // Error fetching album tracks
       } finally {
         setLoadingAlbums((prev) => {
           const next = new Set(prev);
@@ -82,13 +141,13 @@ export default function SearchPage() {
   };
 
   // Get tracks for an album (from album data or cache)
-  const getAlbumTracks = (album) => {
+  const getAlbumTracks = (album: SearchAlbum): AlbumTrack[] => {
     const albumId = album.browseId || `album-${album.title}`;
-    return album.tracks?.length > 0 ? album.tracks : albumTracks[albumId] || [];
+    return album.tracks && album.tracks.length > 0 ? album.tracks : albumTracks[albumId] || [];
   };
 
   // Play album tracks
-  const handlePlayAlbum = (album) => {
+  const handlePlayAlbum = (album: SearchAlbum) => {
     const tracks = getAlbumTracks(album);
     if (tracks.length === 0) return;
     const playlist = tracks.map((t) => ({
@@ -101,7 +160,7 @@ export default function SearchPage() {
   };
 
   // Shuffle album tracks
-  const handleShuffleAlbum = (album) => {
+  const handleShuffleAlbum = (album: SearchAlbum) => {
     const tracks = getAlbumTracks(album);
     if (tracks.length === 0) return;
     const playlist = tracks.map((t) => ({
@@ -115,7 +174,7 @@ export default function SearchPage() {
   };
 
   // Play a track from album
-  const handlePlayAlbumTrack = (album, trackIndex) => {
+  const handlePlayAlbumTrack = (album: SearchAlbum, trackIndex: number) => {
     const tracks = getAlbumTracks(album);
     if (tracks.length === 0) return;
     const playlist = tracks.map((t) => ({
@@ -149,8 +208,7 @@ export default function SearchPage() {
             setSearchAlbums([]);
             setSearchSongs([]);
           }
-        } catch (error) {
-          console.error('Search error:', error);
+        } catch {
           setSearchArtist(null);
           setSearchAlbums([]);
           setSearchSongs([]);
@@ -180,7 +238,7 @@ export default function SearchPage() {
   };
 
   // Play a single track from search
-  const handlePlayTrackFromSearch = (track) => {
+  const handlePlayTrackFromSearch = (track: SearchSong) => {
     const playlist = [
       {
         videoId: track.videoId,
@@ -218,26 +276,27 @@ export default function SearchPage() {
   };
 
   // Search for similar artist
-  const handleSearchSimilarArtist = (artistName) => {
+  const handleSearchSimilarArtist = (artistName: string) => {
     setSearchQuery(artistName);
   };
 
   // Add song to liked (save to Supabase)
-  const handleAddToLiked = async (item) => {
+  const handleAddToLiked = async (item: SearchSong | AlbumTrack, albumThumbnails?: Thumbnail[]) => {
     if (!item.videoId || !user) return;
 
     try {
+      const thumbnails = item.thumbnails || albumThumbnails;
       const { error } = await supabase.from('playlists').insert({
         user_id: user.id,
         title: item.title,
         video_id: item.videoId,
-        cover_url: getBestThumbnail(item.thumbnails),
+        cover_url: getBestThumbnail(thumbnails),
         is_public: true,
       });
 
       if (error) throw error;
-    } catch (error) {
-      console.error('Error adding to liked:', error);
+    } catch {
+      // Error adding to liked
     }
   };
 
@@ -249,7 +308,7 @@ export default function SearchPage() {
       <div className="sticky top-0 z-10 bg-white dark:bg-black px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
         <h1 className="text-xl font-bold mb-3 text-black dark:text-white">{t('search.title')}</h1>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400\" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             ref={searchInputRef}
             type="text"
@@ -287,8 +346,8 @@ export default function SearchPage() {
                       src={getBestThumbnail(searchArtist.thumbnails)}
                       alt={searchArtist.artist}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = PLACEHOLDER;
+                      onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                        e.currentTarget.src = PLACEHOLDER;
                       }}
                     />
                   </div>
@@ -351,7 +410,7 @@ export default function SearchPage() {
                       </div>
                       <span className="text-xs text-gray-400">{song.duration}</span>
                       <button
-                        onClick={(e) => {
+                        onClick={(e: MouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           handleAddToLiked(song);
                         }}
@@ -442,7 +501,7 @@ export default function SearchPage() {
                           <div className="border-t border-gray-200 dark:border-gray-700">
                             <div className="flex gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
                               <button
-                                onClick={(e) => {
+                                onClick={(e: MouseEvent<HTMLButtonElement>) => {
                                   e.stopPropagation();
                                   handlePlayAlbum(album);
                                 }}
@@ -451,7 +510,7 @@ export default function SearchPage() {
                                 <Play size={12} fill="currentColor" /> {t('player.playAll')}
                               </button>
                               <button
-                                onClick={(e) => {
+                                onClick={(e: MouseEvent<HTMLButtonElement>) => {
                                   e.stopPropagation();
                                   handleShuffleAlbum(album);
                                 }}
@@ -464,7 +523,7 @@ export default function SearchPage() {
                               {tracks.map((track, trackIdx) => (
                                 <div
                                   key={track.videoId || trackIdx}
-                                  onClick={(e) => {
+                                  onClick={(e: MouseEvent<HTMLDivElement>) => {
                                     e.stopPropagation();
                                     handlePlayAlbumTrack(album, trackIdx);
                                   }}
@@ -482,12 +541,9 @@ export default function SearchPage() {
                                     {track.duration || ''}
                                   </span>
                                   <button
-                                    onClick={(e) => {
+                                    onClick={(e: MouseEvent<HTMLButtonElement>) => {
                                       e.stopPropagation();
-                                      handleAddToLiked({
-                                        ...track,
-                                        thumbnails: track.thumbnails || album.thumbnails,
-                                      });
+                                      handleAddToLiked(track, album.thumbnails);
                                     }}
                                     className="p-1 text-gray-400 hover:text-red-500"
                                   >
@@ -538,8 +594,8 @@ export default function SearchPage() {
                           src={getBestThumbnail(artist.thumbnails)}
                           alt={artist.title}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = PLACEHOLDER;
+                          onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                            e.currentTarget.src = PLACEHOLDER;
                           }}
                         />
                       </div>

@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { useEffect } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MobileLayout from './components/layout/MobileLayout';
 import FeedPage from './pages/FeedPage';
@@ -9,8 +8,12 @@ import ChartsPage from './pages/ChartsPage';
 import AuthPage from './pages/AuthPage';
 import useAuthStore from './stores/useAuthStore';
 
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element => {
   const { session, loading } = useAuthStore();
   const location = useLocation();
 
@@ -26,10 +29,10 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  return children;
+  return <>{children}</>;
 };
 
-function App() {
+function App(): JSX.Element {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
   useEffect(() => {

@@ -1,15 +1,75 @@
-// @ts-nocheck
 import { useEffect, useRef, useCallback } from 'react';
 import usePlayerStore from '../../stores/usePlayerStore';
 
-/**
- * Hidden YouTube IFrame Player Component
- * Handles actual YouTube video playback behind the scenes
- */
-export default function YouTubePlayer() {
-  const playerRef = useRef(null);
-  const containerRef = useRef(null);
-  const progressIntervalRef = useRef(null);
+declare global {
+  interface Window {
+    YT: {
+      Player: new (element: HTMLElement | string, options: YTPlayerOptions) => YTPlayer;
+      PlayerState: {
+        UNSTARTED: number;
+        ENDED: number;
+        PLAYING: number;
+        PAUSED: number;
+        BUFFERING: number;
+        CUED: number;
+      };
+    };
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
+interface YTPlayerOptions {
+  height?: string;
+  width?: string;
+  videoId?: string;
+  playerVars?: {
+    playsinline?: number;
+    controls?: number;
+    disablekb?: number;
+    fs?: number;
+    iv_load_policy?: number;
+    modestbranding?: number;
+    rel?: number;
+    origin?: string;
+  };
+  events?: {
+    onReady?: (event: YTPlayerEvent) => void;
+    onStateChange?: (event: YTStateChangeEvent) => void;
+    onError?: (event: YTErrorEvent) => void;
+  };
+}
+
+interface YTPlayer {
+  loadVideoById: (videoId: string, startSeconds?: number) => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
+  setVolume: (volume: number) => void;
+  mute: () => void;
+  unMute: () => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  destroy: () => void;
+}
+
+interface YTPlayerEvent {
+  target: YTPlayer;
+}
+
+interface YTStateChangeEvent {
+  data: number;
+  target: YTPlayer;
+}
+
+interface YTErrorEvent {
+  data: number;
+  target: YTPlayer;
+}
+
+export default function YouTubePlayer(): JSX.Element {
+  const playerRef = useRef<YTPlayer | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
     currentTrack,
@@ -23,7 +83,6 @@ export default function YouTubePlayer() {
     onTrackEnd,
   } = usePlayerStore();
 
-  // Define helper functions first (before they're used)
   const stopProgressUpdater = useCallback(() => {
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
@@ -44,8 +103,8 @@ export default function YouTubePlayer() {
           if (duration > 0) {
             setProgress(currentTime, duration);
           }
-        } catch (e) {
-          console.error('[YouTubePlayer] Progress update error:', e);
+        } catch {
+          // Progress update error
         }
       }
     }, 1000);
@@ -55,7 +114,6 @@ export default function YouTubePlayer() {
     const { repeatMode } = usePlayerStore.getState();
 
     if (repeatMode === 'one') {
-      // Replay current track
       if (playerRef.current) {
         playerRef.current.seekTo(0, true);
         playerRef.current.playVideo();
@@ -65,14 +123,11 @@ export default function YouTubePlayer() {
     }
   }, [onTrackEnd]);
 
-  // Now define handlers that use the above functions
   const handlePlayerReady = useCallback(
-    (event) => {
-      console.log('[YouTubePlayer] Player ready');
-      setPlayerRef(event.target);
+    (event: YTPlayerEvent) => {
+      setPlayerRef(event.target as unknown as Parameters<typeof setPlayerRef>[0]);
       setReady(true);
 
-      // Apply initial volume
       if (event.target) {
         event.target.setVolume(volume);
         if (isMuted) {
@@ -84,7 +139,7 @@ export default function YouTubePlayer() {
   );
 
   const handleStateChange = useCallback(
-    (event) => {
+    (event: YTStateChangeEvent) => {
       const state = event.data;
 
       switch (state) {
@@ -111,10 +166,8 @@ export default function YouTubePlayer() {
   );
 
   const handlePlayerError = useCallback(
-    (event) => {
-      console.error('[YouTubePlayer] Error:', event.data);
+    (_event: YTErrorEvent) => {
       setLoading(false);
-      // Try next track on error
       usePlayerStore.getState().playNext();
     },
     [setLoading]
@@ -144,26 +197,22 @@ export default function YouTubePlayer() {
     });
   }, [handlePlayerReady, handleStateChange, handlePlayerError]);
 
-  // Load YouTube IFrame API
   useEffect(() => {
     if (window.YT && window.YT.Player) {
       initializePlayer();
       return;
     }
 
-    // Check if script is already loading
     if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      // Wait for it to load
       window.onYouTubeIframeAPIReady = initializePlayer;
       return;
     }
 
-    // Load the API
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
     tag.async = true;
     const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
 
     window.onYouTubeIframeAPIReady = initializePlayer;
 
@@ -174,22 +223,18 @@ export default function YouTubePlayer() {
     };
   }, [initializePlayer]);
 
-  // Handle track changes
   useEffect(() => {
     if (!playerRef.current || !currentTrack?.videoId) return;
 
-    console.log('[YouTubePlayer] Loading track:', currentTrack?.title);
     setLoading(true);
 
     try {
       playerRef.current.loadVideoById(currentTrack.videoId, 0);
-    } catch (e) {
-      console.error('[YouTubePlayer] Error loading video:', e);
+    } catch {
       setLoading(false);
     }
-  }, [currentTrack?.videoId, currentTrack?.title, setLoading]);
+  }, [currentTrack?.videoId, setLoading]);
 
-  // Handle play/pause state
   useEffect(() => {
     if (!playerRef.current) return;
 
@@ -199,23 +244,21 @@ export default function YouTubePlayer() {
       } else {
         playerRef.current.pauseVideo();
       }
-    } catch (e) {
-      console.error('[YouTubePlayer] Play/pause error:', e);
+    } catch {
+      // Play/pause error
     }
   }, [isPlaying]);
 
-  // Handle volume changes
   useEffect(() => {
     if (!playerRef.current) return;
 
     try {
       playerRef.current.setVolume(volume);
-    } catch (e) {
-      console.error('[YouTubePlayer] Volume error:', e);
+    } catch {
+      // Volume error
     }
   }, [volume]);
 
-  // Handle mute changes
   useEffect(() => {
     if (!playerRef.current) return;
 
@@ -225,13 +268,11 @@ export default function YouTubePlayer() {
       } else {
         playerRef.current.unMute();
       }
-    } catch (e) {
-      console.error('[YouTubePlayer] Mute error:', e);
+    } catch {
+      // Mute error
     }
   }, [isMuted]);
 
-  // YouTube Terms of Service requires player to be visible with minimum size
-  // Using 200x200 minimum with opacity:0 to hide visually while remaining valid
   return (
     <div
       ref={containerRef}

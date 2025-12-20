@@ -1,33 +1,35 @@
-// @ts-nocheck
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import { translations } from './locales/translations';
+import { translations, SupportedLanguage } from './locales/translations';
 
-// Convert translations object to i18next resources format
-const resources = {};
-Object.keys(translations).forEach((lang) => {
+interface Resources {
+  [key: string]: {
+    translation: typeof translations.en;
+  };
+}
+
+const resources: Resources = {};
+(Object.keys(translations) as SupportedLanguage[]).forEach((lang) => {
   resources[lang] = { translation: translations[lang] };
 });
 
 i18n
-  .use(LanguageDetector) // Auto-detect browser/device language
+  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en', // Default to English for unsupported languages
+    fallbackLng: 'en',
     debug: false,
 
     detection: {
-      // Order of language detection (like Instagram)
       order: ['navigator', 'querystring', 'localStorage', 'htmlTag'],
-      // Cache user language preference
       caches: ['localStorage'],
       lookupQuerystring: 'lang',
     },
 
     interpolation: {
-      escapeValue: false, // React already escapes
+      escapeValue: false,
     },
   });
 

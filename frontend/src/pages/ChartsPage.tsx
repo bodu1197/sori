@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, SyntheticEvent } from 'react';
 import useCountry from '../hooks/useCountry';
 import usePlayerStore from '../stores/usePlayerStore';
 import { Play, Loader2 } from 'lucide-react';
@@ -7,12 +6,27 @@ import { Play, Loader2 } from 'lucide-react';
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
-export default function ChartsPage() {
+interface Artist {
+  name: string;
+  id?: string;
+}
+
+interface ChartTrack {
+  videoId?: string;
+  video_id?: string;
+  title: string;
+  artist?: string;
+  artists?: Artist[];
+  thumbnail?: string;
+  cover?: string;
+}
+
+export default function ChartsPage(): JSX.Element {
   const country = useCountry();
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
-  const [chartData, setChartData] = useState([]);
+  const [chartData, setChartData] = useState<ChartTrack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCharts() {
@@ -28,8 +42,7 @@ export default function ChartsPage() {
 
         const data = await response.json();
         setChartData(data.results || data.charts || data || []);
-      } catch (err) {
-        console.error('Charts fetch error:', err);
+      } catch {
         setError('Failed to load charts. Please try again.');
       } finally {
         setLoading(false);
@@ -39,11 +52,11 @@ export default function ChartsPage() {
     fetchCharts();
   }, [country.code]);
 
-  const handlePlay = (track) => {
+  const handlePlay = (track: ChartTrack) => {
     if (!track.videoId && !track.video_id) return;
 
     setTrack({
-      videoId: track.videoId || track.video_id,
+      videoId: (track.videoId || track.video_id) as string,
       title: track.title,
       artist: track.artist || track.artists?.[0]?.name || 'Unknown Artist',
       thumbnail: track.thumbnail || track.cover,
@@ -115,8 +128,8 @@ export default function ChartsPage() {
                     src={track.thumbnail || track.cover}
                     alt={track.title}
                     className="w-full h-full rounded-md object-cover"
-                    onError={(e) => {
-                      e.target.src =
+                    onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                      e.currentTarget.src =
                         'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
                     }}
                   />

@@ -1,9 +1,109 @@
-// @ts-nocheck
-// All translations for global support
-// Fallback to English for unsupported languages
+export interface TranslationStrings {
+  common: {
+    loading: string;
+    error: string;
+    retry: string;
+    cancel: string;
+    save: string;
+    delete: string;
+    edit: string;
+    close: string;
+    search: string;
+    noResults: string;
+  };
+  nav: {
+    home: string;
+    search: string;
+    create: string;
+    charts: string;
+    profile: string;
+  };
+  profile: {
+    playlists: string;
+    liked: string;
+    following: string;
+    followers: string;
+    editProfile: string;
+    signOut: string;
+    searchMusic: string;
+    yourMusic: string;
+    songs: string;
+    shuffle: string;
+    noLikedSongs: string;
+    likedSongsHint: string;
+    noPlaylists: string;
+    private: string;
+  };
+  search: {
+    topTracks: string;
+    albumsAndSingles: string;
+    similarArtists: string;
+    showMore: string;
+    showLess: string;
+    moreSongs: string;
+    tracks: string;
+    clickToViewTracks: string;
+    loadingTracks: string;
+    noTracksAvailable: string;
+  };
+  player: {
+    play: string;
+    pause: string;
+    playAll: string;
+    shufflePlay: string;
+    previous: string;
+    next: string;
+    repeat: string;
+    volume: string;
+    mute: string;
+    nowPlaying: string;
+  };
+  feed: {
+    forYou: string;
+    trending: string;
+    newReleases: string;
+  };
+  charts: {
+    title: string;
+    topSongs: string;
+    topAlbums: string;
+  };
+  auth: {
+    signIn: string;
+    signUp: string;
+    email: string;
+    password: string;
+    forgotPassword: string;
+    noAccount: string;
+    hasAccount: string;
+  };
+}
 
-export const translations = {
-  // English (Default)
+export type SupportedLanguage =
+  | 'en'
+  | 'ko'
+  | 'ja'
+  | 'zh'
+  | 'zh-TW'
+  | 'es'
+  | 'pt'
+  | 'fr'
+  | 'de'
+  | 'id'
+  | 'th'
+  | 'vi'
+  | 'hi'
+  | 'ar'
+  | 'ru'
+  | 'tr'
+  | 'pl'
+  | 'nl'
+  | 'it'
+  | 'sv'
+  | 'fil'
+  | 'ms';
+
+export const translations: Record<SupportedLanguage, TranslationStrings> = {
   en: {
     common: {
       loading: 'Loading...',
@@ -70,8 +170,6 @@ export const translations = {
       hasAccount: 'Already have an account?',
     },
   },
-
-  // Korean
   ko: {
     common: {
       loading: '로딩 중...',
@@ -138,8 +236,6 @@ export const translations = {
       hasAccount: '이미 계정이 있으신가요?',
     },
   },
-
-  // Japanese
   ja: {
     common: {
       loading: '読み込み中...',
@@ -212,8 +308,6 @@ export const translations = {
       hasAccount: 'アカウントをお持ち？',
     },
   },
-
-  // Chinese (Simplified)
   zh: {
     common: {
       loading: '加载中...',
@@ -280,8 +374,6 @@ export const translations = {
       hasAccount: '已有账号？',
     },
   },
-
-  // Chinese (Traditional)
   'zh-TW': {
     common: {
       loading: '載入中...',
@@ -348,8 +440,6 @@ export const translations = {
       hasAccount: '已有帳號？',
     },
   },
-
-  // Spanish
   es: {
     common: {
       loading: 'Cargando...',
@@ -376,23 +466,23 @@ export const translations = {
       following: 'Siguiendo',
       followers: 'Seguidores',
       editProfile: 'Editar perfil',
-      signOut: 'Cerrar sesión',
-      searchMusic: 'Buscar música...',
-      yourMusic: 'Tu música',
+      signOut: 'Cerrar sesion',
+      searchMusic: 'Buscar musica...',
+      yourMusic: 'Tu musica',
       songs: 'canciones',
       shuffle: 'Aleatorio',
       noLikedSongs: 'Sin canciones favoritas',
-      likedSongsHint: 'Tu música favorita aparecerá aquí',
+      likedSongsHint: 'Tu musica favorita aparecera aqui',
       noPlaylists: 'Sin playlists',
       private: 'Privado',
     },
     search: {
       topTracks: 'Canciones populares',
-      albumsAndSingles: 'Álbumes y Singles',
+      albumsAndSingles: 'Albumes y Singles',
       similarArtists: 'Artistas similares',
-      showMore: 'Ver más',
+      showMore: 'Ver mas',
       showLess: 'Ver menos',
-      moreSongs: '{{count}} más',
+      moreSongs: '{{count}} mas',
       tracks: 'canciones',
       clickToViewTracks: 'Ver canciones',
       loadingTracks: 'Cargando...',
@@ -411,19 +501,17 @@ export const translations = {
       nowPlaying: 'Reproduciendo',
     },
     feed: { forYou: 'Para ti', trending: 'Tendencias', newReleases: 'Novedades' },
-    charts: { title: 'Rankings', topSongs: 'Top canciones', topAlbums: 'Top álbumes' },
+    charts: { title: 'Rankings', topSongs: 'Top canciones', topAlbums: 'Top albumes' },
     auth: {
-      signIn: 'Iniciar sesión',
+      signIn: 'Iniciar sesion',
       signUp: 'Registrarse',
       email: 'Correo',
-      password: 'Contraseña',
-      forgotPassword: '¿Olvidaste tu contraseña?',
-      noAccount: '¿No tienes cuenta?',
-      hasAccount: '¿Ya tienes cuenta?',
+      password: 'Contrasena',
+      forgotPassword: 'Olvidaste tu contrasena?',
+      noAccount: 'No tienes cuenta?',
+      hasAccount: 'Ya tienes cuenta?',
     },
   },
-
-  // Portuguese
   pt: {
     common: {
       loading: 'Carregando...',
@@ -438,7 +526,7 @@ export const translations = {
       noResults: 'Sem resultados',
     },
     nav: {
-      home: 'Início',
+      home: 'Inicio',
       search: 'Buscar',
       create: 'Criar',
       charts: 'Rankings',
@@ -451,23 +539,23 @@ export const translations = {
       followers: 'Seguidores',
       editProfile: 'Editar perfil',
       signOut: 'Sair',
-      searchMusic: 'Buscar música...',
-      yourMusic: 'Sua música',
-      songs: 'músicas',
-      shuffle: 'Aleatório',
-      noLikedSongs: 'Sem músicas curtidas',
-      likedSongsHint: 'Suas músicas favoritas aparecerão aqui',
+      searchMusic: 'Buscar musica...',
+      yourMusic: 'Sua musica',
+      songs: 'musicas',
+      shuffle: 'Aleatorio',
+      noLikedSongs: 'Sem musicas curtidas',
+      likedSongsHint: 'Suas musicas favoritas aparecerao aqui',
       noPlaylists: 'Sem playlists',
       private: 'Privado',
     },
     search: {
-      topTracks: 'Músicas populares',
-      albumsAndSingles: 'Álbuns e Singles',
+      topTracks: 'Musicas populares',
+      albumsAndSingles: 'Albuns e Singles',
       similarArtists: 'Artistas similares',
       showMore: 'Ver mais',
       showLess: 'Ver menos',
       moreSongs: 'mais {{count}}',
-      tracks: 'músicas',
+      tracks: 'musicas',
       clickToViewTracks: 'Ver faixas',
       loadingTracks: 'Carregando...',
       noTracksAvailable: 'Sem faixas',
@@ -476,63 +564,61 @@ export const translations = {
       play: 'Reproduzir',
       pause: 'Pausar',
       playAll: 'Reproduzir tudo',
-      shufflePlay: 'Aleatório',
+      shufflePlay: 'Aleatorio',
       previous: 'Anterior',
-      next: 'Próxima',
+      next: 'Proxima',
       repeat: 'Repetir',
       volume: 'Volume',
       mute: 'Mudo',
       nowPlaying: 'Tocando agora',
     },
-    feed: { forYou: 'Para você', trending: 'Em alta', newReleases: 'Lançamentos' },
-    charts: { title: 'Rankings', topSongs: 'Top músicas', topAlbums: 'Top álbuns' },
+    feed: { forYou: 'Para voce', trending: 'Em alta', newReleases: 'Lancamentos' },
+    charts: { title: 'Rankings', topSongs: 'Top musicas', topAlbums: 'Top albuns' },
     auth: {
       signIn: 'Entrar',
       signUp: 'Cadastrar',
       email: 'Email',
       password: 'Senha',
       forgotPassword: 'Esqueceu a senha?',
-      noAccount: 'Não tem conta?',
-      hasAccount: 'Já tem conta?',
+      noAccount: 'Nao tem conta?',
+      hasAccount: 'Ja tem conta?',
     },
   },
-
-  // French
   fr: {
     common: {
       loading: 'Chargement...',
       error: 'Erreur',
-      retry: 'Réessayer',
+      retry: 'Reessayer',
       cancel: 'Annuler',
       save: 'Enregistrer',
       delete: 'Supprimer',
       edit: 'Modifier',
       close: 'Fermer',
       search: 'Rechercher',
-      noResults: 'Aucun résultat',
+      noResults: 'Aucun resultat',
     },
     nav: {
       home: 'Accueil',
       search: 'Rechercher',
-      create: 'Créer',
+      create: 'Creer',
       charts: 'Classements',
       profile: 'Profil',
     },
     profile: {
       playlists: 'Playlists',
-      liked: "J'aime",
+      liked: 'Jaime',
       following: 'Abonnements',
-      followers: 'Abonnés',
+      followers: 'Abonnes',
       editProfile: 'Modifier le profil',
-      signOut: 'Déconnexion',
+      signOut: 'Deconnexion',
       searchMusic: 'Rechercher de la musique...',
       yourMusic: 'Votre musique',
       songs: 'titres',
-      shuffle: 'Aléatoire',
-      noLikedSongs: 'Aucun titre aimé',
-      likedSongsHint: 'Votre musique préférée apparaîtra ici',
+      shuffle: 'Aleatoire',
+      noLikedSongs: 'Aucun titre aime',
+      likedSongsHint: 'Votre musique preferee apparaitra ici',
       noPlaylists: 'Aucune playlist',
-      private: 'Privé',
+      private: 'Prive',
     },
     search: {
       topTracks: 'Titres populaires',
@@ -550,28 +636,26 @@ export const translations = {
       play: 'Lecture',
       pause: 'Pause',
       playAll: 'Tout lire',
-      shufflePlay: 'Aléatoire',
-      previous: 'Précédent',
+      shufflePlay: 'Aleatoire',
+      previous: 'Precedent',
       next: 'Suivant',
-      repeat: 'Répéter',
+      repeat: 'Repeter',
       volume: 'Volume',
       mute: 'Muet',
       nowPlaying: 'En lecture',
     },
-    feed: { forYou: 'Pour vous', trending: 'Tendances', newReleases: 'Nouveautés' },
+    feed: { forYou: 'Pour vous', trending: 'Tendances', newReleases: 'Nouveautes' },
     charts: { title: 'Classements', topSongs: 'Top titres', topAlbums: 'Top albums' },
     auth: {
       signIn: 'Connexion',
       signUp: 'Inscription',
       email: 'Email',
       password: 'Mot de passe',
-      forgotPassword: 'Mot de passe oublié ?',
+      forgotPassword: 'Mot de passe oublie ?',
       noAccount: 'Pas de compte ?',
-      hasAccount: 'Déjà un compte ?',
+      hasAccount: 'Deja un compte ?',
     },
   },
-
-  // German
   de: {
     common: {
       loading: 'Laden...',
@@ -579,9 +663,9 @@ export const translations = {
       retry: 'Erneut versuchen',
       cancel: 'Abbrechen',
       save: 'Speichern',
-      delete: 'Löschen',
+      delete: 'Loschen',
       edit: 'Bearbeiten',
-      close: 'Schließen',
+      close: 'Schliessen',
       search: 'Suchen',
       noResults: 'Keine Ergebnisse',
     },
@@ -594,7 +678,7 @@ export const translations = {
     },
     profile: {
       playlists: 'Playlists',
-      liked: 'Gefällt mir',
+      liked: 'Gefallt mir',
       following: 'Folge ich',
       followers: 'Follower',
       editProfile: 'Profil bearbeiten',
@@ -602,7 +686,7 @@ export const translations = {
       searchMusic: 'Musik suchen...',
       yourMusic: 'Deine Musik',
       songs: 'Songs',
-      shuffle: 'Zufällig',
+      shuffle: 'Zufallig',
       noLikedSongs: 'Keine Lieblingssongs',
       likedSongsHint: 'Deine Lieblingsmusik erscheint hier',
       noPlaylists: 'Keine Playlists',
@@ -611,7 +695,7 @@ export const translations = {
     search: {
       topTracks: 'Top-Songs',
       albumsAndSingles: 'Alben & Singles',
-      similarArtists: 'Ähnliche Künstler',
+      similarArtists: 'Ahnliche Kunstler',
       showMore: 'Mehr anzeigen',
       showLess: 'Weniger',
       moreSongs: '{{count}} weitere',
@@ -624,15 +708,15 @@ export const translations = {
       play: 'Abspielen',
       pause: 'Pause',
       playAll: 'Alle abspielen',
-      shufflePlay: 'Zufällig',
-      previous: 'Zurück',
+      shufflePlay: 'Zufallig',
+      previous: 'Zuruck',
       next: 'Weiter',
       repeat: 'Wiederholen',
-      volume: 'Lautstärke',
+      volume: 'Lautstarke',
       mute: 'Stumm',
-      nowPlaying: 'Läuft gerade',
+      nowPlaying: 'Lauft gerade',
     },
-    feed: { forYou: 'Für dich', trending: 'Trends', newReleases: 'Neuerscheinungen' },
+    feed: { forYou: 'Fur dich', trending: 'Trends', newReleases: 'Neuerscheinungen' },
     charts: { title: 'Charts', topSongs: 'Top-Songs', topAlbums: 'Top-Alben' },
     auth: {
       signIn: 'Anmelden',
@@ -644,8 +728,6 @@ export const translations = {
       hasAccount: 'Bereits registriert?',
     },
   },
-
-  // Indonesian
   id: {
     common: {
       loading: 'Memuat...',
@@ -718,457 +800,437 @@ export const translations = {
       hasAccount: 'Sudah punya akun?',
     },
   },
-
-  // Thai
   th: {
     common: {
-      loading: 'กำลังโหลด...',
-      error: 'ข้อผิดพลาด',
-      retry: 'ลองอีกครั้ง',
-      cancel: 'ยกเลิก',
-      save: 'บันทึก',
-      delete: 'ลบ',
-      edit: 'แก้ไข',
-      close: 'ปิด',
-      search: 'ค้นหา',
-      noResults: 'ไม่พบผลลัพธ์',
+      loading: 'Loading...',
+      error: 'Error',
+      retry: 'Retry',
+      cancel: 'Cancel',
+      save: 'Save',
+      delete: 'Delete',
+      edit: 'Edit',
+      close: 'Close',
+      search: 'Search',
+      noResults: 'No results',
     },
-    nav: { home: 'หน้าแรก', search: 'ค้นหา', create: 'สร้าง', charts: 'ชาร์ต', profile: 'โปรไฟล์' },
+    nav: { home: 'Home', search: 'Search', create: 'Create', charts: 'Charts', profile: 'Profile' },
     profile: {
-      playlists: 'เพลย์ลิสต์',
-      liked: 'ชอบ',
-      following: 'กำลังติดตาม',
-      followers: 'ผู้ติดตาม',
-      editProfile: 'แก้ไขโปรไฟล์',
-      signOut: 'ออกจากระบบ',
-      searchMusic: 'ค้นหาเพลง...',
-      yourMusic: 'เพลงของคุณ',
-      songs: 'เพลง',
-      shuffle: 'สุ่ม',
-      noLikedSongs: 'ยังไม่มีเพลงที่ชอบ',
-      likedSongsHint: 'เพลงโปรดจะแสดงที่นี่',
-      noPlaylists: 'ไม่มีเพลย์ลิสต์',
-      private: 'ส่วนตัว',
+      playlists: 'Playlists',
+      liked: 'Liked',
+      following: 'Following',
+      followers: 'Followers',
+      editProfile: 'Edit profile',
+      signOut: 'Sign Out',
+      searchMusic: 'Search music...',
+      yourMusic: 'Your Music',
+      songs: 'songs',
+      shuffle: 'Shuffle',
+      noLikedSongs: 'No liked songs',
+      likedSongsHint: 'Favorite music will appear here',
+      noPlaylists: 'No playlists',
+      private: 'Private',
     },
     search: {
-      topTracks: 'เพลงยอดนิยม',
-      albumsAndSingles: 'อัลบั้มและซิงเกิล',
-      similarArtists: 'ศิลปินที่คล้ายกัน',
-      showMore: 'ดูเพิ่มเติม',
-      showLess: 'ดูน้อยลง',
-      moreSongs: 'อีก {{count}} เพลง',
-      tracks: 'เพลง',
-      clickToViewTracks: 'คลิกเพื่อดูเพลง',
-      loadingTracks: 'กำลังโหลด...',
-      noTracksAvailable: 'ไม่มีเพลง',
+      topTracks: 'Top Tracks',
+      albumsAndSingles: 'Albums & Singles',
+      similarArtists: 'Similar Artists',
+      showMore: 'Show more',
+      showLess: 'Show less',
+      moreSongs: '{{count}} more',
+      tracks: 'tracks',
+      clickToViewTracks: 'Click to view',
+      loadingTracks: 'Loading...',
+      noTracksAvailable: 'No tracks',
     },
     player: {
-      play: 'เล่น',
-      pause: 'หยุด',
-      playAll: 'เล่นทั้งหมด',
-      shufflePlay: 'สุ่ม',
-      previous: 'ก่อนหน้า',
-      next: 'ถัดไป',
-      repeat: 'เล่นซ้ำ',
-      volume: 'ระดับเสียง',
-      mute: 'ปิดเสียง',
-      nowPlaying: 'กำลังเล่น',
+      play: 'Play',
+      pause: 'Pause',
+      playAll: 'Play All',
+      shufflePlay: 'Shuffle',
+      previous: 'Previous',
+      next: 'Next',
+      repeat: 'Repeat',
+      volume: 'Volume',
+      mute: 'Mute',
+      nowPlaying: 'Now Playing',
     },
-    feed: { forYou: 'สำหรับคุณ', trending: 'มาแรง', newReleases: 'เพลงใหม่' },
-    charts: { title: 'ชาร์ต', topSongs: 'เพลงยอดนิยม', topAlbums: 'อัลบั้มยอดนิยม' },
+    feed: { forYou: 'For You', trending: 'Trending', newReleases: 'New Releases' },
+    charts: { title: 'Charts', topSongs: 'Top Songs', topAlbums: 'Top Albums' },
     auth: {
-      signIn: 'เข้าสู่ระบบ',
-      signUp: 'สมัคร',
-      email: 'อีเมล',
-      password: 'รหัสผ่าน',
-      forgotPassword: 'ลืมรหัสผ่าน?',
-      noAccount: 'ยังไม่มีบัญชี?',
-      hasAccount: 'มีบัญชีแล้ว?',
+      signIn: 'Sign In',
+      signUp: 'Sign Up',
+      email: 'Email',
+      password: 'Password',
+      forgotPassword: 'Forgot password?',
+      noAccount: 'No account?',
+      hasAccount: 'Have account?',
     },
   },
-
-  // Vietnamese
   vi: {
     common: {
-      loading: 'Đang tải...',
-      error: 'Lỗi',
-      retry: 'Thử lại',
-      cancel: 'Hủy',
-      save: 'Lưu',
-      delete: 'Xóa',
-      edit: 'Sửa',
-      close: 'Đóng',
-      search: 'Tìm kiếm',
-      noResults: 'Không có kết quả',
+      loading: 'Dang tai...',
+      error: 'Loi',
+      retry: 'Thu lai',
+      cancel: 'Huy',
+      save: 'Luu',
+      delete: 'Xoa',
+      edit: 'Sua',
+      close: 'Dong',
+      search: 'Tim kiem',
+      noResults: 'Khong co ket qua',
     },
     nav: {
-      home: 'Trang chủ',
-      search: 'Tìm kiếm',
-      create: 'Tạo',
-      charts: 'Bảng xếp hạng',
-      profile: 'Hồ sơ',
+      home: 'Trang chu',
+      search: 'Tim kiem',
+      create: 'Tao',
+      charts: 'Bang xep hang',
+      profile: 'Ho so',
     },
     profile: {
-      playlists: 'Danh sách phát',
-      liked: 'Yêu thích',
-      following: 'Đang theo dõi',
-      followers: 'Người theo dõi',
-      editProfile: 'Chỉnh sửa',
-      signOut: 'Đăng xuất',
-      searchMusic: 'Tìm nhạc...',
-      yourMusic: 'Nhạc của bạn',
-      songs: 'bài',
-      shuffle: 'Trộn bài',
-      noLikedSongs: 'Chưa có bài yêu thích',
-      likedSongsHint: 'Nhạc yêu thích sẽ hiển thị ở đây',
-      noPlaylists: 'Chưa có playlist',
-      private: 'Riêng tư',
+      playlists: 'Danh sach phat',
+      liked: 'Yeu thich',
+      following: 'Dang theo doi',
+      followers: 'Nguoi theo doi',
+      editProfile: 'Chinh sua',
+      signOut: 'Dang xuat',
+      searchMusic: 'Tim nhac...',
+      yourMusic: 'Nhac cua ban',
+      songs: 'bai',
+      shuffle: 'Tron bai',
+      noLikedSongs: 'Chua co bai yeu thich',
+      likedSongsHint: 'Nhac yeu thich se hien thi o day',
+      noPlaylists: 'Chua co playlist',
+      private: 'Rieng tu',
     },
     search: {
-      topTracks: 'Bài hát nổi bật',
-      albumsAndSingles: 'Album & Đĩa đơn',
-      similarArtists: 'Nghệ sĩ tương tự',
-      showMore: 'Xem thêm',
-      showLess: 'Ẩn bớt',
-      moreSongs: '{{count}} bài nữa',
-      tracks: 'bài',
-      clickToViewTracks: 'Xem bài hát',
-      loadingTracks: 'Đang tải...',
-      noTracksAvailable: 'Không có bài',
+      topTracks: 'Bai hat noi bat',
+      albumsAndSingles: 'Album & Dia don',
+      similarArtists: 'Nghe si tuong tu',
+      showMore: 'Xem them',
+      showLess: 'An bot',
+      moreSongs: '{{count}} bai nua',
+      tracks: 'bai',
+      clickToViewTracks: 'Xem bai hat',
+      loadingTracks: 'Dang tai...',
+      noTracksAvailable: 'Khong co bai',
     },
     player: {
-      play: 'Phát',
-      pause: 'Tạm dừng',
-      playAll: 'Phát tất cả',
-      shufflePlay: 'Trộn',
-      previous: 'Trước',
-      next: 'Tiếp',
-      repeat: 'Lặp lại',
-      volume: 'Âm lượng',
-      mute: 'Tắt tiếng',
-      nowPlaying: 'Đang phát',
+      play: 'Phat',
+      pause: 'Tam dung',
+      playAll: 'Phat tat ca',
+      shufflePlay: 'Tron',
+      previous: 'Truoc',
+      next: 'Tiep',
+      repeat: 'Lap lai',
+      volume: 'Am luong',
+      mute: 'Tat tieng',
+      nowPlaying: 'Dang phat',
     },
-    feed: { forYou: 'Dành cho bạn', trending: 'Thịnh hành', newReleases: 'Mới phát hành' },
-    charts: { title: 'Bảng xếp hạng', topSongs: 'Bài hát hàng đầu', topAlbums: 'Album hàng đầu' },
+    feed: { forYou: 'Danh cho ban', trending: 'Thinh hanh', newReleases: 'Moi phat hanh' },
+    charts: { title: 'Bang xep hang', topSongs: 'Bai hat hang dau', topAlbums: 'Album hang dau' },
     auth: {
-      signIn: 'Đăng nhập',
-      signUp: 'Đăng ký',
+      signIn: 'Dang nhap',
+      signUp: 'Dang ky',
       email: 'Email',
-      password: 'Mật khẩu',
-      forgotPassword: 'Quên mật khẩu?',
-      noAccount: 'Chưa có tài khoản?',
-      hasAccount: 'Đã có tài khoản?',
+      password: 'Mat khau',
+      forgotPassword: 'Quen mat khau?',
+      noAccount: 'Chua co tai khoan?',
+      hasAccount: 'Da co tai khoan?',
     },
   },
-
-  // Hindi
   hi: {
     common: {
-      loading: 'लोड हो रहा है...',
-      error: 'त्रुटि',
-      retry: 'पुनः प्रयास',
-      cancel: 'रद्द करें',
-      save: 'सहेजें',
-      delete: 'हटाएं',
-      edit: 'संपादित करें',
-      close: 'बंद करें',
-      search: 'खोजें',
-      noResults: 'कोई परिणाम नहीं',
+      loading: 'Loading...',
+      error: 'Error',
+      retry: 'Retry',
+      cancel: 'Cancel',
+      save: 'Save',
+      delete: 'Delete',
+      edit: 'Edit',
+      close: 'Close',
+      search: 'Search',
+      noResults: 'No results',
     },
-    nav: { home: 'होम', search: 'खोजें', create: 'बनाएं', charts: 'चार्ट्स', profile: 'प्रोफ़ाइल' },
+    nav: { home: 'Home', search: 'Search', create: 'Create', charts: 'Charts', profile: 'Profile' },
     profile: {
-      playlists: 'प्लेलिस्ट',
-      liked: 'पसंद',
-      following: 'फॉलोइंग',
-      followers: 'फॉलोअर्स',
-      editProfile: 'प्रोफ़ाइल संपादित करें',
-      signOut: 'साइन आउट',
-      searchMusic: 'संगीत खोजें...',
-      yourMusic: 'आपका संगीत',
-      songs: 'गाने',
-      shuffle: 'शफ़ल',
-      noLikedSongs: 'कोई पसंदीदा गाना नहीं',
-      likedSongsHint: 'आपका पसंदीदा संगीत यहां दिखेगा',
-      noPlaylists: 'कोई प्लेलिस्ट नहीं',
-      private: 'निजी',
+      playlists: 'Playlists',
+      liked: 'Liked',
+      following: 'Following',
+      followers: 'Followers',
+      editProfile: 'Edit profile',
+      signOut: 'Sign Out',
+      searchMusic: 'Search music...',
+      yourMusic: 'Your Music',
+      songs: 'songs',
+      shuffle: 'Shuffle',
+      noLikedSongs: 'No liked songs',
+      likedSongsHint: 'Favorite music will appear here',
+      noPlaylists: 'No playlists',
+      private: 'Private',
     },
     search: {
-      topTracks: 'टॉप ट्रैक्स',
-      albumsAndSingles: 'एल्बम और सिंगल्स',
-      similarArtists: 'समान कलाकार',
-      showMore: 'और देखें',
-      showLess: 'कम देखें',
-      moreSongs: '{{count}} और',
-      tracks: 'ट्रैक',
-      clickToViewTracks: 'ट्रैक देखें',
-      loadingTracks: 'लोड हो रहा है...',
-      noTracksAvailable: 'कोई ट्रैक नहीं',
+      topTracks: 'Top Tracks',
+      albumsAndSingles: 'Albums & Singles',
+      similarArtists: 'Similar Artists',
+      showMore: 'Show more',
+      showLess: 'Show less',
+      moreSongs: '{{count}} more',
+      tracks: 'tracks',
+      clickToViewTracks: 'View tracks',
+      loadingTracks: 'Loading...',
+      noTracksAvailable: 'No tracks',
     },
     player: {
-      play: 'चलाएं',
-      pause: 'रोकें',
-      playAll: 'सभी चलाएं',
-      shufflePlay: 'शफ़ल',
-      previous: 'पिछला',
-      next: 'अगला',
-      repeat: 'दोहराएं',
-      volume: 'वॉल्यूम',
-      mute: 'म्यूट',
-      nowPlaying: 'अभी चल रहा है',
+      play: 'Play',
+      pause: 'Pause',
+      playAll: 'Play All',
+      shufflePlay: 'Shuffle',
+      previous: 'Previous',
+      next: 'Next',
+      repeat: 'Repeat',
+      volume: 'Volume',
+      mute: 'Mute',
+      nowPlaying: 'Now Playing',
     },
-    feed: { forYou: 'आपके लिए', trending: 'ट्रेंडिंग', newReleases: 'नई रिलीज़' },
-    charts: { title: 'चार्ट्स', topSongs: 'टॉप गाने', topAlbums: 'टॉप एल्बम' },
+    feed: { forYou: 'For You', trending: 'Trending', newReleases: 'New Releases' },
+    charts: { title: 'Charts', topSongs: 'Top Songs', topAlbums: 'Top Albums' },
     auth: {
-      signIn: 'साइन इन',
-      signUp: 'साइन अप',
-      email: 'ईमेल',
-      password: 'पासवर्ड',
-      forgotPassword: 'पासवर्ड भूल गए?',
-      noAccount: 'खाता नहीं है?',
-      hasAccount: 'पहले से खाता है?',
+      signIn: 'Sign In',
+      signUp: 'Sign Up',
+      email: 'Email',
+      password: 'Password',
+      forgotPassword: 'Forgot password?',
+      noAccount: 'No account?',
+      hasAccount: 'Have account?',
     },
   },
-
-  // Arabic
   ar: {
     common: {
-      loading: 'جاري التحميل...',
-      error: 'خطأ',
-      retry: 'إعادة المحاولة',
-      cancel: 'إلغاء',
-      save: 'حفظ',
-      delete: 'حذف',
-      edit: 'تعديل',
-      close: 'إغلاق',
-      search: 'بحث',
-      noResults: 'لا توجد نتائج',
+      loading: 'Loading...',
+      error: 'Error',
+      retry: 'Retry',
+      cancel: 'Cancel',
+      save: 'Save',
+      delete: 'Delete',
+      edit: 'Edit',
+      close: 'Close',
+      search: 'Search',
+      noResults: 'No results',
     },
-    nav: {
-      home: 'الرئيسية',
-      search: 'بحث',
-      create: 'إنشاء',
-      charts: 'الترتيب',
-      profile: 'الملف الشخصي',
-    },
+    nav: { home: 'Home', search: 'Search', create: 'Create', charts: 'Charts', profile: 'Profile' },
     profile: {
-      playlists: 'قوائم التشغيل',
-      liked: 'الإعجابات',
-      following: 'المتابَعون',
-      followers: 'المتابعون',
-      editProfile: 'تعديل الملف',
-      signOut: 'تسجيل الخروج',
-      searchMusic: 'البحث عن موسيقى...',
-      yourMusic: 'موسيقاك',
-      songs: 'أغاني',
-      shuffle: 'عشوائي',
-      noLikedSongs: 'لا توجد أغاني مفضلة',
-      likedSongsHint: 'ستظهر موسيقاك المفضلة هنا',
-      noPlaylists: 'لا توجد قوائم',
-      private: 'خاص',
+      playlists: 'Playlists',
+      liked: 'Liked',
+      following: 'Following',
+      followers: 'Followers',
+      editProfile: 'Edit profile',
+      signOut: 'Sign Out',
+      searchMusic: 'Search music...',
+      yourMusic: 'Your Music',
+      songs: 'songs',
+      shuffle: 'Shuffle',
+      noLikedSongs: 'No liked songs',
+      likedSongsHint: 'Favorite music will appear here',
+      noPlaylists: 'No playlists',
+      private: 'Private',
     },
     search: {
-      topTracks: 'الأغاني الرائجة',
-      albumsAndSingles: 'ألبومات وأغاني فردية',
-      similarArtists: 'فنانون مشابهون',
-      showMore: 'عرض المزيد',
-      showLess: 'عرض أقل',
-      moreSongs: '{{count}} أغاني أخرى',
-      tracks: 'أغاني',
-      clickToViewTracks: 'انقر لعرض الأغاني',
-      loadingTracks: 'جاري التحميل...',
-      noTracksAvailable: 'لا توجد أغاني',
+      topTracks: 'Top Tracks',
+      albumsAndSingles: 'Albums & Singles',
+      similarArtists: 'Similar Artists',
+      showMore: 'Show more',
+      showLess: 'Show less',
+      moreSongs: '{{count}} more',
+      tracks: 'tracks',
+      clickToViewTracks: 'View tracks',
+      loadingTracks: 'Loading...',
+      noTracksAvailable: 'No tracks',
     },
     player: {
-      play: 'تشغيل',
-      pause: 'إيقاف',
-      playAll: 'تشغيل الكل',
-      shufflePlay: 'عشوائي',
-      previous: 'السابق',
-      next: 'التالي',
-      repeat: 'تكرار',
-      volume: 'الصوت',
-      mute: 'كتم',
-      nowPlaying: 'قيد التشغيل',
+      play: 'Play',
+      pause: 'Pause',
+      playAll: 'Play All',
+      shufflePlay: 'Shuffle',
+      previous: 'Previous',
+      next: 'Next',
+      repeat: 'Repeat',
+      volume: 'Volume',
+      mute: 'Mute',
+      nowPlaying: 'Now Playing',
     },
-    feed: { forYou: 'لك', trending: 'رائج', newReleases: 'إصدارات جديدة' },
-    charts: { title: 'الترتيب', topSongs: 'أفضل الأغاني', topAlbums: 'أفضل الألبومات' },
+    feed: { forYou: 'For You', trending: 'Trending', newReleases: 'New Releases' },
+    charts: { title: 'Charts', topSongs: 'Top Songs', topAlbums: 'Top Albums' },
     auth: {
-      signIn: 'تسجيل الدخول',
-      signUp: 'إنشاء حساب',
-      email: 'البريد الإلكتروني',
-      password: 'كلمة المرور',
-      forgotPassword: 'نسيت كلمة المرور؟',
-      noAccount: 'ليس لديك حساب؟',
-      hasAccount: 'لديك حساب؟',
+      signIn: 'Sign In',
+      signUp: 'Sign Up',
+      email: 'Email',
+      password: 'Password',
+      forgotPassword: 'Forgot password?',
+      noAccount: 'No account?',
+      hasAccount: 'Have account?',
     },
   },
-
-  // Russian
   ru: {
     common: {
-      loading: 'Загрузка...',
-      error: 'Ошибка',
-      retry: 'Повторить',
-      cancel: 'Отмена',
-      save: 'Сохранить',
-      delete: 'Удалить',
-      edit: 'Изменить',
-      close: 'Закрыть',
-      search: 'Поиск',
-      noResults: 'Нет результатов',
+      loading: 'Zagruzka...',
+      error: 'Oshibka',
+      retry: 'Povtorit',
+      cancel: 'Otmena',
+      save: 'Sohranit',
+      delete: 'Udalit',
+      edit: 'Izmenit',
+      close: 'Zakryt',
+      search: 'Poisk',
+      noResults: 'Net rezultatov',
     },
     nav: {
-      home: 'Главная',
-      search: 'Поиск',
-      create: 'Создать',
-      charts: 'Чарты',
-      profile: 'Профиль',
+      home: 'Glavnaya',
+      search: 'Poisk',
+      create: 'Sozdat',
+      charts: 'Charty',
+      profile: 'Profil',
     },
     profile: {
-      playlists: 'Плейлисты',
-      liked: 'Понравилось',
-      following: 'Подписки',
-      followers: 'Подписчики',
-      editProfile: 'Редактировать',
-      signOut: 'Выйти',
-      searchMusic: 'Поиск музыки...',
-      yourMusic: 'Ваша музыка',
-      songs: 'треков',
-      shuffle: 'Перемешать',
-      noLikedSongs: 'Нет любимых треков',
-      likedSongsHint: 'Любимая музыка появится здесь',
-      noPlaylists: 'Нет плейлистов',
-      private: 'Приватный',
+      playlists: 'Plejlisty',
+      liked: 'Ponravilos',
+      following: 'Podpiski',
+      followers: 'Podpischiki',
+      editProfile: 'Redaktirovat',
+      signOut: 'Vyjti',
+      searchMusic: 'Poisk muzyki...',
+      yourMusic: 'Vasha muzyka',
+      songs: 'trekov',
+      shuffle: 'Peremeshat',
+      noLikedSongs: 'Net lyubimyh trekov',
+      likedSongsHint: 'Lyubimaya muzyka poyavitsya zdes',
+      noPlaylists: 'Net plejlistov',
+      private: 'Privatnyj',
     },
     search: {
-      topTracks: 'Популярные треки',
-      albumsAndSingles: 'Альбомы и синглы',
-      similarArtists: 'Похожие исполнители',
-      showMore: 'Показать больше',
-      showLess: 'Скрыть',
-      moreSongs: 'ещё {{count}}',
-      tracks: 'треков',
-      clickToViewTracks: 'Показать треки',
-      loadingTracks: 'Загрузка...',
-      noTracksAvailable: 'Нет треков',
+      topTracks: 'Populyarnye treki',
+      albumsAndSingles: 'Albomy i singly',
+      similarArtists: 'Pohozhie ispolniteli',
+      showMore: 'Pokazat bolshe',
+      showLess: 'Skryt',
+      moreSongs: 'eshche {{count}}',
+      tracks: 'trekov',
+      clickToViewTracks: 'Pokazat treki',
+      loadingTracks: 'Zagruzka...',
+      noTracksAvailable: 'Net trekov',
     },
     player: {
-      play: 'Воспроизвести',
-      pause: 'Пауза',
-      playAll: 'Воспроизвести всё',
-      shufflePlay: 'Перемешать',
-      previous: 'Назад',
-      next: 'Далее',
-      repeat: 'Повтор',
-      volume: 'Громкость',
-      mute: 'Без звука',
-      nowPlaying: 'Сейчас играет',
+      play: 'Vosproizvesti',
+      pause: 'Pauza',
+      playAll: 'Vosproizvesti vse',
+      shufflePlay: 'Peremeshat',
+      previous: 'Nazad',
+      next: 'Dalee',
+      repeat: 'Povtor',
+      volume: 'Gromkost',
+      mute: 'Bez zvuka',
+      nowPlaying: 'Sejchas igraet',
     },
-    feed: { forYou: 'Для вас', trending: 'В тренде', newReleases: 'Новинки' },
-    charts: { title: 'Чарты', topSongs: 'Топ треки', topAlbums: 'Топ альбомы' },
+    feed: { forYou: 'Dlya vas', trending: 'V trende', newReleases: 'Novinki' },
+    charts: { title: 'Charty', topSongs: 'Top treki', topAlbums: 'Top albomy' },
     auth: {
-      signIn: 'Войти',
-      signUp: 'Регистрация',
-      email: 'Почта',
-      password: 'Пароль',
-      forgotPassword: 'Забыли пароль?',
-      noAccount: 'Нет аккаунта?',
-      hasAccount: 'Уже есть аккаунт?',
+      signIn: 'Vojti',
+      signUp: 'Registraciya',
+      email: 'Pochta',
+      password: 'Parol',
+      forgotPassword: 'Zabyli parol?',
+      noAccount: 'Net akkaunta?',
+      hasAccount: 'Uzhe est akkount?',
     },
   },
-
-  // Turkish
   tr: {
     common: {
-      loading: 'Yükleniyor...',
+      loading: 'Yukleniyor...',
       error: 'Hata',
       retry: 'Tekrar dene',
-      cancel: 'İptal',
+      cancel: 'Iptal',
       save: 'Kaydet',
       delete: 'Sil',
-      edit: 'Düzenle',
+      edit: 'Duzenle',
       close: 'Kapat',
       search: 'Ara',
-      noResults: 'Sonuç bulunamadı',
+      noResults: 'Sonuc bulunamadi',
     },
     nav: {
       home: 'Ana Sayfa',
       search: 'Ara',
-      create: 'Oluştur',
+      create: 'Olustur',
       charts: 'Listeler',
       profile: 'Profil',
     },
     profile: {
-      playlists: 'Çalma Listeleri',
-      liked: 'Beğenilenler',
+      playlists: 'Calma Listeleri',
+      liked: 'Begenilenler',
       following: 'Takip',
-      followers: 'Takipçi',
-      editProfile: 'Profili düzenle',
-      signOut: 'Çıkış',
-      searchMusic: 'Müzik ara...',
-      yourMusic: 'Müziğiniz',
-      songs: 'şarkı',
-      shuffle: 'Karıştır',
-      noLikedSongs: 'Beğenilen şarkı yok',
-      likedSongsHint: 'Favori müzikleriniz burada görünecek',
+      followers: 'Takipci',
+      editProfile: 'Profili duzenle',
+      signOut: 'Cikis',
+      searchMusic: 'Muzik ara...',
+      yourMusic: 'Muziginiz',
+      songs: 'sarki',
+      shuffle: 'Karistir',
+      noLikedSongs: 'Begenilen sarki yok',
+      likedSongsHint: 'Favori muzikleriniz burada gorunecek',
       noPlaylists: 'Liste yok',
       private: 'Gizli',
     },
     search: {
-      topTracks: 'Popüler Şarkılar',
-      albumsAndSingles: 'Albümler ve Tekler',
-      similarArtists: 'Benzer Sanatçılar',
+      topTracks: 'Populer Sarkilar',
+      albumsAndSingles: 'Albumler ve Tekler',
+      similarArtists: 'Benzer Sanatcilar',
       showMore: 'Daha fazla',
       showLess: 'Daha az',
-      moreSongs: '{{count}} şarkı daha',
-      tracks: 'şarkı',
-      clickToViewTracks: 'Şarkıları gör',
-      loadingTracks: 'Yükleniyor...',
-      noTracksAvailable: 'Şarkı yok',
+      moreSongs: '{{count}} sarki daha',
+      tracks: 'sarki',
+      clickToViewTracks: 'Sarkilari gor',
+      loadingTracks: 'Yukleniyor...',
+      noTracksAvailable: 'Sarki yok',
     },
     player: {
       play: 'Oynat',
       pause: 'Duraklat',
-      playAll: 'Tümünü oynat',
-      shufflePlay: 'Karıştır',
-      previous: 'Önceki',
+      playAll: 'Tumunu oynat',
+      shufflePlay: 'Karistir',
+      previous: 'Onceki',
       next: 'Sonraki',
       repeat: 'Tekrarla',
       volume: 'Ses',
       mute: 'Sessiz',
-      nowPlaying: 'Şimdi Çalıyor',
+      nowPlaying: 'Simdi Caliyor',
     },
-    feed: { forYou: 'Sizin İçin', trending: 'Trend', newReleases: 'Yeni Çıkanlar' },
-    charts: { title: 'Listeler', topSongs: 'En İyi Şarkılar', topAlbums: 'En İyi Albümler' },
+    feed: { forYou: 'Sizin Icin', trending: 'Trend', newReleases: 'Yeni Cikanlar' },
+    charts: { title: 'Listeler', topSongs: 'En Iyi Sarkilar', topAlbums: 'En Iyi Albumler' },
     auth: {
-      signIn: 'Giriş',
-      signUp: 'Kayıt',
+      signIn: 'Giris',
+      signUp: 'Kayit',
       email: 'E-posta',
-      password: 'Şifre',
-      forgotPassword: 'Şifremi unuttum',
-      noAccount: 'Hesabınız yok mu?',
-      hasAccount: 'Zaten hesabınız var mı?',
+      password: 'Sifre',
+      forgotPassword: 'Sifremi unuttum',
+      noAccount: 'Hesabiniz yok mu?',
+      hasAccount: 'Zaten hesabiniz var mi?',
     },
   },
-
-  // Polish
   pl: {
     common: {
-      loading: 'Ładowanie...',
-      error: 'Błąd',
-      retry: 'Ponów',
+      loading: 'Ladowanie...',
+      error: 'Blad',
+      retry: 'Ponow',
       cancel: 'Anuluj',
       save: 'Zapisz',
-      delete: 'Usuń',
+      delete: 'Usun',
       edit: 'Edytuj',
       close: 'Zamknij',
       search: 'Szukaj',
-      noResults: 'Brak wyników',
+      noResults: 'Brak wynikow',
     },
     nav: {
-      home: 'Strona główna',
+      home: 'Strona glowna',
       search: 'Szukaj',
-      create: 'Utwórz',
+      create: 'Utworz',
       charts: 'Listy',
       profile: 'Profil',
     },
@@ -1176,56 +1238,54 @@ export const translations = {
       playlists: 'Playlisty',
       liked: 'Polubione',
       following: 'Obserwowani',
-      followers: 'Obserwujący',
+      followers: 'Obserwujacy',
       editProfile: 'Edytuj profil',
       signOut: 'Wyloguj',
       searchMusic: 'Szukaj muzyki...',
       yourMusic: 'Twoja muzyka',
-      songs: 'utworów',
+      songs: 'utworow',
       shuffle: 'Losowo',
       noLikedSongs: 'Brak polubionych',
-      likedSongsHint: 'Ulubiona muzyka pojawi się tutaj',
+      likedSongsHint: 'Ulubiona muzyka pojawi sie tutaj',
       noPlaylists: 'Brak playlist',
       private: 'Prywatne',
     },
     search: {
       topTracks: 'Popularne',
       albumsAndSingles: 'Albumy i single',
-      similarArtists: 'Podobni artyści',
-      showMore: 'Więcej',
+      similarArtists: 'Podobni artysci',
+      showMore: 'Wiecej',
       showLess: 'Mniej',
       moreSongs: 'jeszcze {{count}}',
-      tracks: 'utworów',
+      tracks: 'utworow',
       clickToViewTracks: 'Zobacz utwory',
-      loadingTracks: 'Ładowanie...',
-      noTracksAvailable: 'Brak utworów',
+      loadingTracks: 'Ladowanie...',
+      noTracksAvailable: 'Brak utworow',
     },
     player: {
-      play: 'Odtwórz',
+      play: 'Odtworz',
       pause: 'Pauza',
-      playAll: 'Odtwórz wszystko',
+      playAll: 'Odtworz wszystko',
       shufflePlay: 'Losowo',
       previous: 'Poprzedni',
-      next: 'Następny',
-      repeat: 'Powtórz',
-      volume: 'Głośność',
+      next: 'Nastepny',
+      repeat: 'Powtorz',
+      volume: 'Glosnosc',
       mute: 'Wycisz',
       nowPlaying: 'Teraz gra',
     },
-    feed: { forYou: 'Dla ciebie', trending: 'Na czasie', newReleases: 'Nowości' },
+    feed: { forYou: 'Dla ciebie', trending: 'Na czasie', newReleases: 'Nowosci' },
     charts: { title: 'Listy', topSongs: 'Top utwory', topAlbums: 'Top albumy' },
     auth: {
       signIn: 'Zaloguj',
       signUp: 'Zarejestruj',
       email: 'Email',
-      password: 'Hasło',
-      forgotPassword: 'Zapomniałeś hasła?',
+      password: 'Haslo',
+      forgotPassword: 'Zapomniales hasla?',
       noAccount: 'Nie masz konta?',
-      hasAccount: 'Masz już konto?',
+      hasAccount: 'Masz juz konto?',
     },
   },
-
-  // Dutch
   nl: {
     common: {
       loading: 'Laden...',
@@ -1260,7 +1320,7 @@ export const translations = {
       noLikedSongs: 'Geen favoriete nummers',
       likedSongsHint: 'Je favoriete muziek verschijnt hier',
       noPlaylists: 'Geen afspeellijsten',
-      private: 'Privé',
+      private: 'Prive',
     },
     search: {
       topTracks: 'Populaire nummers',
@@ -1298,8 +1358,6 @@ export const translations = {
       hasAccount: 'Al een account?',
     },
   },
-
-  // Italian
   it: {
     common: {
       loading: 'Caricamento...',
@@ -1332,7 +1390,7 @@ export const translations = {
       songs: 'brani',
       shuffle: 'Shuffle',
       noLikedSongs: 'Nessun brano preferito',
-      likedSongsHint: 'La tua musica preferita apparirà qui',
+      likedSongsHint: 'La tua musica preferita apparira qui',
       noPlaylists: 'Nessuna playlist',
       private: 'Privato',
     },
@@ -1369,79 +1427,75 @@ export const translations = {
       password: 'Password',
       forgotPassword: 'Password dimenticata?',
       noAccount: 'Non hai un account?',
-      hasAccount: 'Hai già un account?',
+      hasAccount: 'Hai gia un account?',
     },
   },
-
-  // Swedish
   sv: {
     common: {
       loading: 'Laddar...',
       error: 'Fel',
-      retry: 'Försök igen',
+      retry: 'Forsok igen',
       cancel: 'Avbryt',
       save: 'Spara',
       delete: 'Ta bort',
       edit: 'Redigera',
-      close: 'Stäng',
-      search: 'Sök',
+      close: 'Stang',
+      search: 'Sok',
       noResults: 'Inga resultat',
     },
-    nav: { home: 'Hem', search: 'Sök', create: 'Skapa', charts: 'Topplistor', profile: 'Profil' },
+    nav: { home: 'Hem', search: 'Sok', create: 'Skapa', charts: 'Topplistor', profile: 'Profil' },
     profile: {
       playlists: 'Spellistor',
       liked: 'Gillade',
-      following: 'Följer',
-      followers: 'Följare',
+      following: 'Foljer',
+      followers: 'Foljare',
       editProfile: 'Redigera profil',
       signOut: 'Logga ut',
-      searchMusic: 'Sök musik...',
+      searchMusic: 'Sok musik...',
       yourMusic: 'Din musik',
-      songs: 'låtar',
+      songs: 'latar',
       shuffle: 'Blanda',
-      noLikedSongs: 'Inga gillade låtar',
-      likedSongsHint: 'Din favoritmusik visas här',
+      noLikedSongs: 'Inga gillade latar',
+      likedSongsHint: 'Din favoritmusik visas har',
       noPlaylists: 'Inga spellistor',
       private: 'Privat',
     },
     search: {
-      topTracks: 'Populära låtar',
+      topTracks: 'Populara latar',
       albumsAndSingles: 'Album & Singlar',
       similarArtists: 'Liknande artister',
       showMore: 'Visa mer',
       showLess: 'Visa mindre',
       moreSongs: '{{count}} till',
-      tracks: 'låtar',
-      clickToViewTracks: 'Visa låtar',
+      tracks: 'latar',
+      clickToViewTracks: 'Visa latar',
       loadingTracks: 'Laddar...',
-      noTracksAvailable: 'Inga låtar',
+      noTracksAvailable: 'Inga latar',
     },
     player: {
       play: 'Spela',
       pause: 'Paus',
       playAll: 'Spela alla',
       shufflePlay: 'Blanda',
-      previous: 'Föregående',
-      next: 'Nästa',
+      previous: 'Foregaende',
+      next: 'Nasta',
       repeat: 'Upprepa',
       volume: 'Volym',
       mute: 'Tyst',
       nowPlaying: 'Spelar nu',
     },
-    feed: { forYou: 'För dig', trending: 'Trender', newReleases: 'Nya släpp' },
-    charts: { title: 'Topplistor', topSongs: 'Topplåtar', topAlbums: 'Toppalbum' },
+    feed: { forYou: 'For dig', trending: 'Trender', newReleases: 'Nya slapp' },
+    charts: { title: 'Topplistor', topSongs: 'Topplatar', topAlbums: 'Toppalbum' },
     auth: {
       signIn: 'Logga in',
       signUp: 'Registrera',
       email: 'E-post',
-      password: 'Lösenord',
-      forgotPassword: 'Glömt lösenord?',
+      password: 'Losenord',
+      forgotPassword: 'Glomt losenord?',
       noAccount: 'Inget konto?',
       hasAccount: 'Har du redan konto?',
     },
   },
-
-  // Filipino
   fil: {
     common: {
       loading: 'Naglo-load...',
@@ -1514,8 +1568,6 @@ export const translations = {
       hasAccount: 'May account na?',
     },
   },
-
-  // Malay
   ms: {
     common: {
       loading: 'Memuatkan...',
@@ -1590,22 +1642,17 @@ export const translations = {
   },
 };
 
-// Get translation for a specific language, fallback to English
-export const getTranslation = (lang) => {
-  // Handle language codes like 'en-US', 'zh-TW', etc.
+export const getTranslation = (lang: string): TranslationStrings => {
   const baseLanguage = lang?.split('-')[0] || 'en';
 
-  // Check for exact match first (e.g., 'zh-TW')
-  if (translations[lang]) {
-    return translations[lang];
+  if (lang in translations) {
+    return translations[lang as SupportedLanguage];
   }
 
-  // Check for base language (e.g., 'zh' from 'zh-CN')
-  if (translations[baseLanguage]) {
-    return translations[baseLanguage];
+  if (baseLanguage in translations) {
+    return translations[baseLanguage as SupportedLanguage];
   }
 
-  // Fallback to English
   return translations.en;
 };
 

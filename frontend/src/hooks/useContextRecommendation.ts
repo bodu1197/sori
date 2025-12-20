@@ -1,12 +1,53 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 
-/**
- * Context-based music recommendation hook
- * Determines mood based on time of day, weather, and temperature
- */
-export default function useContextRecommendation() {
-  const [context, setContext] = useState({
+type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night' | 'day';
+type WeatherCondition = 'clear' | 'cloudy' | 'foggy' | 'rainy' | 'snowy' | 'stormy' | null;
+type Mood =
+  | 'upbeat'
+  | 'energetic'
+  | 'focused'
+  | 'relaxed'
+  | 'calm'
+  | 'chill'
+  | 'cozy'
+  | 'intense'
+  | 'tropical';
+
+interface Recommendation {
+  genre: string;
+  emoji: string;
+  message: string;
+  searchQuery: string;
+}
+
+interface ContextState {
+  timeOfDay: TimeOfDay;
+  greeting: string;
+  weather: WeatherCondition;
+  temperature: number | null;
+  mood: Mood;
+  recommendation: Recommendation | null;
+  locationName?: string;
+  loading: boolean;
+  error: string | null;
+}
+
+interface GeoResponse {
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  country_name?: string;
+}
+
+interface WeatherResponse {
+  current?: {
+    temperature_2m: number;
+    weather_code: number;
+  };
+}
+
+export default function useContextRecommendation(): ContextState {
+  const [context, setContext] = useState<ContextState>({
     timeOfDay: 'day',
     greeting: 'Hello',
     weather: null,
@@ -20,9 +61,9 @@ export default function useContextRecommendation() {
   useEffect(() => {
     async function fetchContext() {
       try {
-        // 1. Get time of day
         const hour = new Date().getHours();
-        let timeOfDay, greeting;
+        let timeOfDay: TimeOfDay;
+        let greeting: string;
 
         if (hour >= 5 && hour < 12) {
           timeOfDay = 'morning';
@@ -38,31 +79,26 @@ export default function useContextRecommendation() {
           greeting = 'Good Night';
         }
 
-        // 2. Try to get weather (using free IP geolocation + OpenWeatherMap)
-        let weather = null;
-        let temperature = null;
+        let weather: WeatherCondition = null;
+        let temperature: number | null = null;
         let locationName = '';
 
         try {
-          // Get location from IP
           const geoResponse = await fetch('https://ipapi.co/json/');
-          const geoData = await geoResponse.json();
+          const geoData: GeoResponse = await geoResponse.json();
 
           if (geoData.latitude && geoData.longitude) {
             locationName = geoData.city || geoData.country_name || '';
 
-            // Get weather from Open-Meteo (free, no API key needed)
             const weatherResponse = await fetch(
               `https://api.open-meteo.com/v1/forecast?latitude=${geoData.latitude}&longitude=${geoData.longitude}&current=temperature_2m,weather_code`
             );
-            const weatherData = await weatherResponse.json();
+            const weatherData: WeatherResponse = await weatherResponse.json();
 
             if (weatherData.current) {
               temperature = Math.round(weatherData.current.temperature_2m);
               const weatherCode = weatherData.current.weather_code;
 
-              // Map weather codes to conditions
-              // https://open-meteo.com/en/docs (WMO Weather interpretation codes)
               if ([0, 1].includes(weatherCode)) {
                 weather = 'clear';
               } else if ([2, 3].includes(weatherCode)) {
@@ -83,10 +119,9 @@ export default function useContextRecommendation() {
             }
           }
         } catch {
-          console.log('Weather fetch failed, using time-based only');
+          // Weather fetch failed, using time-based only
         }
 
-        // 3. Determine mood and recommendation based on context
         const { mood, recommendation } = getMoodAndRecommendation(
           timeOfDay,
           weather,
@@ -105,8 +140,7 @@ export default function useContextRecommendation() {
           loading: false,
           error: null,
         });
-      } catch (error) {
-        console.error('Context fetch error:', error);
+      } catch {
         setContext((prev) => ({
           ...prev,
           loading: false,
@@ -121,50 +155,50 @@ export default function useContextRecommendation() {
   return context;
 }
 
-/**
- * Determine mood and playlist recommendation based on context
- */
-function getMoodAndRecommendation(timeOfDay, weather, temperature, locationName) {
-  let mood = 'upbeat';
+function getMoodAndRecommendation(
+  timeOfDay: TimeOfDay,
+  weather: WeatherCondition,
+  temperature: number | null,
+  locationName: string
+): { mood: Mood; recommendation: Recommendation } {
+  let mood: Mood = 'upbeat';
   let genre = 'Pop Hits';
-  let emoji = '🎵';
+  let emoji = '';
   let message = '';
 
-  // Time-based defaults
   switch (timeOfDay) {
     case 'morning':
       mood = 'energetic';
       genre = 'Morning Motivation';
-      emoji = '☀️';
+      emoji = '';
       message = 'Start your day with energy!';
       break;
     case 'afternoon':
       mood = 'focused';
       genre = 'Focus & Work';
-      emoji = '💪';
+      emoji = '';
       message = 'Stay productive!';
       break;
     case 'evening':
       mood = 'relaxed';
       genre = 'Evening Chill';
-      emoji = '🌆';
+      emoji = '';
       message = 'Wind down your day.';
       break;
     case 'night':
       mood = 'calm';
       genre = 'Late Night Vibes';
-      emoji = '🌙';
+      emoji = '';
       message = 'Perfect for late nights.';
       break;
   }
 
-  // Weather overrides
   if (weather) {
     switch (weather) {
       case 'rainy':
         mood = 'chill';
         genre = 'Rainy Day Jazz';
-        emoji = '🌧️';
+        emoji = '';
         message = locationName
           ? `Rainy in ${locationName}? Perfect for chill vibes.`
           : 'Rainy day vibes.';
@@ -172,41 +206,40 @@ function getMoodAndRecommendation(timeOfDay, weather, temperature, locationName)
       case 'snowy':
         mood = 'cozy';
         genre = 'Cozy Winter';
-        emoji = '❄️';
+        emoji = '';
         message = 'Stay warm with cozy tunes.';
         break;
       case 'stormy':
         mood = 'intense';
         genre = 'Epic & Cinematic';
-        emoji = '⛈️';
+        emoji = '';
         message = 'Epic music for stormy weather.';
         break;
       case 'clear':
         if (timeOfDay === 'morning') {
           genre = 'Sunny Morning';
-          emoji = '🌅';
+          emoji = '';
           message = 'Beautiful day ahead!';
         } else if (timeOfDay === 'evening') {
           genre = 'Sunset Vibes';
-          emoji = '🌇';
+          emoji = '';
           message = 'Enjoy the sunset.';
         }
         break;
     }
   }
 
-  // Temperature overrides
   if (temperature !== null) {
     if (temperature >= 30) {
       mood = 'tropical';
       genre = 'Summer Hits';
-      emoji = '🔥';
-      message = `It's ${temperature}°C! Cool down with summer jams.`;
+      emoji = '';
+      message = `It's ${temperature}C! Cool down with summer jams.`;
     } else if (temperature <= 5) {
       mood = 'cozy';
       genre = 'Warm & Cozy';
-      emoji = '🧣';
-      message = `Brrr, ${temperature}°C! Stay warm with cozy music.`;
+      emoji = '';
+      message = `Brrr, ${temperature}C! Stay warm with cozy music.`;
     }
   }
 
@@ -216,7 +249,7 @@ function getMoodAndRecommendation(timeOfDay, weather, temperature, locationName)
       genre,
       emoji,
       message,
-      searchQuery: genre, // Used to search for playlists
+      searchQuery: genre,
     },
   };
 }

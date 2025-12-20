@@ -1,9 +1,14 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, PlayCircle, User } from 'lucide-react';
+import { Home, Search, PlayCircle, User, LucideIcon } from 'lucide-react';
 
-export default function BottomNav() {
-  const navItems = [
+interface NavItem {
+  icon: LucideIcon;
+  label: string;
+  path: string;
+}
+
+export default function BottomNav(): JSX.Element {
+  const navItems: NavItem[] = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
     { icon: PlayCircle, label: 'Charts', path: '/charts' },

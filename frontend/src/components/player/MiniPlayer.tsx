@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState, ChangeEvent, MouseEvent } from 'react';
 import {
   Play,
   Pause,
@@ -17,17 +16,14 @@ import {
 import usePlayerStore from '../../stores/usePlayerStore';
 import YouTubePlayer from './YouTubePlayer';
 
-/**
- * Format seconds to mm:ss
- */
-function formatTime(seconds) {
+function formatTime(seconds: number): string {
   if (!seconds || isNaN(seconds)) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export default function MiniPlayer() {
+export default function MiniPlayer(): JSX.Element | null {
   const {
     isPlaying,
     isLoading,
@@ -50,29 +46,24 @@ export default function MiniPlayer() {
 
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Calculate progress percentage
   const progressPercent = useMemo(() => {
     if (!duration || duration === 0) return 0;
     return (currentTime / duration) * 100;
   }, [currentTime, duration]);
 
-  // Handle progress bar click
-  const handleProgressClick = (e) => {
+  const handleProgressClick = (e: MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percent = (clickX / rect.width) * 100;
     seekTo(Math.max(0, Math.min(100, percent)));
   };
 
-  // Handle volume change
-  const handleVolumeChange = (e) => {
+  const handleVolumeChange = (e: ChangeEvent<HTMLInputElement>) => {
     setVolume(parseInt(e.target.value, 10));
   };
 
-  // Get thumbnail URL
   const thumbnailUrl = currentTrack?.cover || currentTrack?.thumbnail || '/default-album.png';
 
-  // Get repeat icon
   const getRepeatIcon = () => {
     if (repeatMode === 'one') {
       return <Repeat1 size={18} className="text-black dark:text-white" />;
@@ -89,18 +80,14 @@ export default function MiniPlayer() {
 
   return (
     <>
-      {/* Hidden YouTube Player */}
       <YouTubePlayer />
 
-      {/* Mini Player UI */}
       <div
         className={`bg-white dark:bg-[#121212] border-t border-gray-100 dark:border-gray-800 sticky bottom-[50px] z-40 shadow-lg transition-all duration-300 ${
           isExpanded ? 'h-[120px]' : 'h-[60px]'
         }`}
       >
-        {/* Main Player Row */}
         <div className="h-[60px] flex items-center px-4 justify-between">
-          {/* Track Info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <img
               src={thumbnailUrl}
@@ -108,7 +95,7 @@ export default function MiniPlayer() {
               className={`w-10 h-10 rounded-md object-cover ${isPlaying ? 'animate-spin-slow' : ''}`}
               style={{ animationDuration: '10s' }}
               onError={(e) => {
-                e.target.src = '/default-album.png';
+                (e.target as HTMLImageElement).src = '/default-album.png';
               }}
             />
             <div className="flex flex-col min-w-0">
@@ -121,16 +108,13 @@ export default function MiniPlayer() {
             </div>
           </div>
 
-          {/* Time Display */}
           <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mx-4">
             <span>{formatTime(currentTime)}</span>
             <span>/</span>
             <span>{formatTime(duration)}</span>
           </div>
 
-          {/* Controls */}
           <div className="flex items-center gap-1">
-            {/* Previous */}
             <button
               onClick={playPrev}
               className="text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-1"
@@ -139,7 +123,6 @@ export default function MiniPlayer() {
               <SkipBack size={20} fill="currentColor" />
             </button>
 
-            {/* Play/Pause */}
             <button
               onClick={togglePlay}
               className="text-black dark:text-white p-1"
@@ -155,7 +138,6 @@ export default function MiniPlayer() {
               )}
             </button>
 
-            {/* Next */}
             <button
               onClick={playNext}
               className="text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-1"
@@ -164,7 +146,6 @@ export default function MiniPlayer() {
               <SkipForward size={24} fill="currentColor" />
             </button>
 
-            {/* Expand/Collapse */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="text-gray-400 hover:text-black dark:hover:text-white p-1 ml-1"
@@ -174,17 +155,14 @@ export default function MiniPlayer() {
             </button>
           </div>
 
-          {/* Progress Bar (Clickable) */}
           <div
             className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-200 dark:bg-gray-800 cursor-pointer group"
             onClick={handleProgressClick}
           >
-            {/* Progress Fill */}
             <div
               className="h-full bg-black dark:bg-white transition-all duration-100"
               style={{ width: `${progressPercent}%` }}
             />
-            {/* Hover Indicator */}
             <div
               className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-black dark:bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ left: `calc(${progressPercent}% - 6px)` }}
@@ -192,12 +170,9 @@ export default function MiniPlayer() {
           </div>
         </div>
 
-        {/* Expanded Controls */}
         {isExpanded && (
           <div className="h-[60px] flex items-center justify-between px-4 border-t border-gray-100 dark:border-gray-800">
-            {/* Left: Shuffle & Repeat */}
             <div className="flex items-center gap-3">
-              {/* Shuffle */}
               <button
                 onClick={toggleShuffle}
                 className={`p-2 rounded-full transition-colors ${
@@ -210,7 +185,6 @@ export default function MiniPlayer() {
                 <Shuffle size={18} />
               </button>
 
-              {/* Repeat */}
               <button
                 onClick={toggleRepeat}
                 className={`p-2 rounded-full transition-colors ${
@@ -224,14 +198,12 @@ export default function MiniPlayer() {
               </button>
             </div>
 
-            {/* Center: Time Display (Mobile) */}
             <div className="flex sm:hidden items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <span>{formatTime(currentTime)}</span>
               <span>/</span>
               <span>{formatTime(duration)}</span>
             </div>
 
-            {/* Right: Volume */}
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleMute}

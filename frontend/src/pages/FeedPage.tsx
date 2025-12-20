@@ -1,5 +1,4 @@
-// @ts-nocheck
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, SyntheticEvent } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore from '../stores/usePlayerStore';
@@ -8,13 +7,44 @@ import useContextRecommendation from '../hooks/useContextRecommendation';
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
+interface Artist {
+  name: string;
+  id?: string;
+}
+
+interface RecommendationTrack {
+  videoId: string;
+  title: string;
+  artist?: string;
+  artists?: Artist[];
+  thumbnail?: string;
+}
+
+interface Profile {
+  id: string;
+  username: string;
+  avatar_url?: string;
+  full_name?: string;
+  location?: string;
+}
+
+interface PlaylistPost {
+  id: string;
+  title?: string;
+  description?: string;
+  cover_url?: string;
+  video_id?: string;
+  created_at: string;
+  profiles?: Profile;
+}
+
 /**
  * For You Section - Context-based recommendations
  */
-function ForYouSection() {
+function ForYouSection(): JSX.Element {
   const context = useContextRecommendation();
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(true);
 
   useEffect(() => {
@@ -31,8 +61,8 @@ function ForYouSection() {
           const data = await response.json();
           setRecommendations(data.results || data || []);
         }
-      } catch (error) {
-        console.error('Failed to fetch recommendations:', error);
+      } catch {
+        // Failed to fetch recommendations
       } finally {
         setLoadingRecs(false);
       }
@@ -41,7 +71,7 @@ function ForYouSection() {
     fetchRecommendations();
   }, [context.loading, context.recommendation]);
 
-  const handlePlay = (track) => {
+  const handlePlay = (track: RecommendationTrack) => {
     setTrack({
       videoId: track.videoId,
       title: track.title,
@@ -110,8 +140,8 @@ function ForYouSection() {
                     src={track.thumbnail}
                     alt={track.title}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src =
+                    onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                      e.currentTarget.src =
                         'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
                     }}
                   />
@@ -161,13 +191,13 @@ function ForYouSection() {
   );
 }
 
-function StoryRail() {
-  const [profiles, setProfiles] = useState([]);
+function StoryRail(): JSX.Element | null {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
     async function fetchStories() {
       const { data } = await supabase.from('profiles').select('*').limit(10);
-      if (data) setProfiles(data);
+      if (data) setProfiles(data as Profile[]);
     }
     fetchStories();
   }, []);
@@ -198,7 +228,11 @@ function StoryRail() {
   );
 }
 
-function PlaylistPost({ post }) {
+interface PlaylistPostProps {
+  post: PlaylistPost;
+}
+
+function PlaylistPostComponent({ post }: PlaylistPostProps): JSX.Element {
   const user = post.profiles;
   const { setTrack, currentTrack, isPlaying } = usePlayerStore();
 
@@ -288,7 +322,7 @@ function PlaylistPost({ post }) {
 
         {/* Playlist Tag */}
         <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2">
-          <span className="text-xs font-medium text-white">🎵 {post.title}</span>
+          <span className="text-xs font-medium text-white">{post.title}</span>
         </div>
       </div>
 
@@ -334,8 +368,8 @@ function PlaylistPost({ post }) {
   );
 }
 
-export default function FeedPage() {
-  const [posts, setPosts] = useState([]);
+export default function FeedPage(): JSX.Element {
+  const [posts, setPosts] = useState<PlaylistPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -355,10 +389,10 @@ export default function FeedPage() {
           )
           .order('created_at', { ascending: false });
 
-        if (error) console.error(error);
-        else setPosts(data || []);
-      } catch (e) {
-        console.error(e);
+        if (error) throw error;
+        setPosts((data as PlaylistPost[]) || []);
+      } catch {
+        // Error fetching posts
       } finally {
         setLoading(false);
       }
@@ -379,7 +413,7 @@ export default function FeedPage() {
       {/* Posts */}
       <div className="space-y-2 mt-2">
         {posts.length > 0 ? (
-          posts.map((post) => <PlaylistPost key={post.id} post={post} />)
+          posts.map((post) => <PlaylistPostComponent key={post.id} post={post} />)
         ) : (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>No posts yet.</p>

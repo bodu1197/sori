@@ -1,12 +1,16 @@
-// @ts-nocheck
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Grid, Heart, Lock, Play, LogOut, Music, Shuffle, Trash2 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
 
-function StatItem({ count, label }) {
+interface StatItemProps {
+  count: number;
+  label: string;
+}
+
+function StatItem({ count, label }: StatItemProps): JSX.Element {
   return (
     <div className="flex flex-col items-center">
       <span className="font-bold text-lg leading-tight">{count}</span>
@@ -15,8 +19,34 @@ function StatItem({ count, label }) {
   );
 }
 
+interface LikedTrack {
+  videoId: string;
+  title: string;
+  artist: string;
+  thumbnail?: string;
+  cover?: string;
+  cover_url?: string;
+  playlistId: string;
+}
+
+interface TrackItemProps {
+  track: LikedTrack;
+  index: number;
+  onPlay: (track: LikedTrack, index: number) => void;
+  onDelete?: (track: LikedTrack) => void;
+  isPlaying: boolean;
+  isCurrentTrack: boolean;
+}
+
 // Track Item Component for Your Music list
-function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }) {
+function TrackItem({
+  track,
+  index,
+  onPlay,
+  onDelete,
+  isPlaying,
+  isCurrentTrack,
+}: TrackItemProps): JSX.Element {
   const [showDelete, setShowDelete] = useState(false);
 
   return (
@@ -34,8 +64,8 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
           src={track.thumbnail || track.cover_url}
           alt={track.title}
           className="w-full h-full rounded object-cover"
-          onError={(e) => {
-            e.target.src =
+          onError={(e: SyntheticEvent<HTMLImageElement>) => {
+            e.currentTarget.src =
               'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
           }}
         />
@@ -72,7 +102,7 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
       {/* Delete Button (on hover) */}
       {showDelete && onDelete && (
         <button
-          onClick={(e) => {
+          onClick={(e: MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onDelete(track);
           }}
@@ -85,7 +115,7 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
 
       {/* Play Button */}
       <button
-        onClick={(e) => {
+        onClick={(e: MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
           onPlay(track, index);
         }}
@@ -101,15 +131,32 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
   );
 }
 
-export default function ProfilePage() {
+interface Profile {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  website?: string;
+}
+
+interface Playlist {
+  id: string;
+  title?: string;
+  video_id?: string;
+  cover_url?: string;
+  is_public?: boolean;
+  created_at: string;
+}
+
+export default function ProfilePage(): JSX.Element {
   const { t } = useTranslation();
   const { user, signOut } = useAuthStore();
   const { setTrack, startPlayback, currentTrack, isPlaying } = usePlayerStore();
 
-  const [activeTab, setActiveTab] = useState('playlists');
-  const [profile, setProfile] = useState(null);
-  const [playlists, setPlaylists] = useState([]);
-  const [likedSongs, setLikedSongs] = useState([]);
+  const [activeTab, setActiveTab] = useState<'playlists' | 'liked' | 'private'>('playlists');
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [likedSongs, setLikedSongs] = useState<LikedTrack[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -127,7 +174,7 @@ export default function ProfilePage() {
           .single();
 
         if (profileError) throw profileError;
-        setProfile(profileData);
+        setProfile(profileData as Profile);
 
         // 2. Fetch User's Playlists
         const { data: playlistData, error: playlistError } = await supabase
@@ -137,22 +184,22 @@ export default function ProfilePage() {
           .order('created_at', { ascending: false });
 
         if (playlistError) throw playlistError;
-        setPlaylists(playlistData || []);
+        setPlaylists((playlistData as Playlist[]) || []);
 
         // 3. Fetch Liked Songs (using playlists with video_id as liked songs for now)
-        const likedData = (playlistData || [])
+        const likedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
           .filter((p) => p.video_id)
           .map((p) => ({
-            videoId: p.video_id,
-            title: p.title,
-            artist: profileData?.username || 'You',
+            videoId: p.video_id as string,
+            title: p.title || 'Unknown',
+            artist: (profileData as Profile)?.username || 'You',
             thumbnail: p.cover_url,
             cover: p.cover_url,
             playlistId: p.id,
           }));
         setLikedSongs(likedData);
-      } catch (error) {
-        console.error('Error fetching profile:', error);
+      } catch {
+        // Error fetching profile
       } finally {
         setLoading(false);
       }
@@ -162,7 +209,7 @@ export default function ProfilePage() {
   }, [user]);
 
   // Play a single playlist
-  const handlePlayPlaylist = (playlist) => {
+  const handlePlayPlaylist = (playlist: Playlist) => {
     if (!playlist.video_id) return;
 
     const track = {
@@ -177,7 +224,7 @@ export default function ProfilePage() {
   };
 
   // Play a track from liked songs
-  const handlePlayTrack = (track, index) => {
+  const handlePlayTrack = (track: LikedTrack, index: number) => {
     if (likedSongs.length > 0) {
       const tracks = likedSongs.map((s) => ({
         videoId: s.videoId,
@@ -209,7 +256,7 @@ export default function ProfilePage() {
   };
 
   // Delete a liked song
-  const handleDeleteSong = async (track) => {
+  const handleDeleteSong = async (track: LikedTrack) => {
     if (!track.playlistId) return;
 
     try {
@@ -219,8 +266,8 @@ export default function ProfilePage() {
 
       setLikedSongs((prev) => prev.filter((s) => s.playlistId !== track.playlistId));
       setPlaylists((prev) => prev.filter((p) => p.id !== track.playlistId));
-    } catch (error) {
-      console.error('Error deleting song:', error);
+    } catch {
+      // Error deleting song
     }
   };
 
@@ -368,8 +415,8 @@ export default function ProfilePage() {
                     }
                     alt="cover"
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src =
+                    onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                      e.currentTarget.src =
                         'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
                     }}
                   />

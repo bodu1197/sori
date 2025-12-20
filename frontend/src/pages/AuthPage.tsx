@@ -1,16 +1,15 @@
-// @ts-nocheck
-import React, { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
-export default function AuthPage() {
+export default function AuthPage(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const navigate = useNavigate();
 
-  const handleAuth = async (e) => {
+  const handleAuth = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     let error;
@@ -84,7 +83,6 @@ export default function AuthPage() {
         <button
           type="button"
           onClick={async () => {
-            // 사용자의 요청대로 무조건 실서버 주소로만 리다이렉트합니다.
             const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
