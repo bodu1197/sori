@@ -4,6 +4,7 @@ import { Search, Play, Shuffle, Heart, X, Loader2, ChevronDown, ChevronUp } from
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
+import TrackListPanel, { PlaylistTrack, PlaylistData } from '../components/player/TrackListPanel';
 
 // Cloud Run Backend API (ytmusicapi)
 const API_BASE_URL =
@@ -71,7 +72,7 @@ interface AlbumTrack {
 export default function SearchPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { startPlayback } = usePlayerStore();
+  const { startPlayback, currentTrack, isPlaying } = usePlayerStore();
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +87,11 @@ export default function SearchPage() {
   const [albumTracks, setAlbumTracks] = useState<Record<string, AlbumTrack[]>>({});
   const [loadingAlbums, setLoadingAlbums] = useState<Set<string>>(new Set());
   const [showAllSongs, setShowAllSongs] = useState(false);
+
+  // Track List Panel State
+  const [trackPanelOpen, setTrackPanelOpen] = useState(false);
+  const [trackPanelData, setTrackPanelData] = useState<PlaylistData | null>(null);
+  const [trackPanelLoading, setTrackPanelLoading] = useState(false);
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
@@ -284,6 +290,118 @@ export default function SearchPage() {
     setSearchQuery(artistName);
   };
 
+  // Fetch album and show in panel
+  const handleShowAlbumPanel = async (album: SearchAlbum) => {
+    if (!album.browseId) return;
+
+    setTrackPanelOpen(true);
+    setTrackPanelLoading(true);
+    setTrackPanelData(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/album/${album.browseId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const albumData = data.album;
+        setTrackPanelData({
+          title: albumData.title || album.title,
+          description: albumData.description,
+          author: {
+            name: albumData.artists?.map((a: { name: string }) => a.name).join(', ') || '',
+          },
+          thumbnails: albumData.thumbnails || album.thumbnails,
+          tracks: albumData.tracks || [],
+          trackCount: albumData.trackCount || albumData.tracks?.length || 0,
+        });
+      }
+    } catch {
+      // Error fetching album
+    } finally {
+      setTrackPanelLoading(false);
+    }
+  };
+
+  // Show all search songs in panel
+  const handleShowSongsPanel = () => {
+    if (searchSongs.length === 0) return;
+
+    const tracks: PlaylistTrack[] = searchSongs.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artists: song.artists,
+      thumbnails: song.thumbnails,
+      duration: song.duration,
+      album: song.album,
+    }));
+
+    setTrackPanelData({
+      title: searchArtist?.artist || t('search.topTracks'),
+      author: { name: `${searchSongs.length} ${t('search.tracks')}` },
+      thumbnails: searchArtist?.thumbnails,
+      tracks,
+      trackCount: searchSongs.length,
+    });
+    setTrackPanelOpen(true);
+  };
+
+  // Play a track from panel
+  const handlePlayPanelTrack = (
+    track: PlaylistTrack,
+    index: number,
+    allTracks: PlaylistTrack[]
+  ) => {
+    const tracks = allTracks
+      .filter((t) => t.videoId)
+      .map((t) => ({
+        videoId: t.videoId,
+        title: t.title,
+        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
+        thumbnail: getBestThumbnail(t.thumbnails),
+      }));
+
+    const trackIndex = tracks.findIndex((t) => t.videoId === track.videoId);
+    if (trackIndex !== -1 && tracks.length > 0) {
+      startPlayback(tracks, trackIndex);
+    }
+  };
+
+  // Play all tracks from panel
+  const handlePlayAllPanelTracks = () => {
+    if (!trackPanelData || trackPanelData.tracks.length === 0) return;
+
+    const tracks = trackPanelData.tracks
+      .filter((t) => t.videoId)
+      .map((t) => ({
+        videoId: t.videoId,
+        title: t.title,
+        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
+        thumbnail: getBestThumbnail(t.thumbnails),
+      }));
+
+    if (tracks.length > 0) {
+      startPlayback(tracks, 0);
+    }
+  };
+
+  // Shuffle all tracks from panel
+  const handleShuffleAllPanelTracks = () => {
+    if (!trackPanelData || trackPanelData.tracks.length === 0) return;
+
+    const tracks = trackPanelData.tracks
+      .filter((t) => t.videoId)
+      .map((t) => ({
+        videoId: t.videoId,
+        title: t.title,
+        artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown',
+        thumbnail: getBestThumbnail(t.thumbnails),
+      }));
+
+    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    if (shuffled.length > 0) {
+      startPlayback(shuffled, 0);
+    }
+  };
+
   // Add song to liked (save to Supabase)
   const handleAddToLiked = async (item: SearchSong | AlbumTrack, albumThumbnails?: Thumbnail[]) => {
     if (!item.videoId || !user) return;
@@ -466,7 +584,7 @@ export default function SearchPage() {
                         className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
                       >
                         <div
-                          onClick={() => toggleAlbumExpand(album)}
+                          onClick={() => handleShowAlbumPanel(album)}
                           className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                         >
                           <img
@@ -632,6 +750,19 @@ export default function SearchPage() {
           </div>
         )}
       </div>
+
+      {/* Track List Panel */}
+      <TrackListPanel
+        isOpen={trackPanelOpen}
+        onClose={() => setTrackPanelOpen(false)}
+        playlist={trackPanelData}
+        loading={trackPanelLoading}
+        onPlayTrack={handlePlayPanelTrack}
+        onPlayAll={handlePlayAllPanelTracks}
+        onShuffleAll={handleShuffleAllPanelTracks}
+        currentVideoId={currentTrack?.videoId}
+        isPlaying={isPlaying}
+      />
     </div>
   );
 }
