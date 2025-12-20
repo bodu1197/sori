@@ -341,10 +341,10 @@ export default function TrackListPanel({
   }, [isMuted]);
 
   // Always render but use visibility to hide
-  // Position above BottomNav (50px) so nav remains clickable
+  // Position above MiniPlayer (60px) + BottomNav (50px) = 110px
   return (
     <div
-      className="fixed inset-x-0 top-0 bottom-[50px] z-50 flex items-end justify-center"
+      className="fixed inset-x-0 top-0 bottom-[110px] z-50 flex items-end justify-center"
       style={{ visibility: isOpen ? 'visible' : 'hidden' }}
     >
       {/* Backdrop */}
