@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import MobileLayout from './components/layout/MobileLayout';
 import FeedPage from './pages/FeedPage';
 import ProfilePage from './pages/ProfilePage';
-import CreatePage from './pages/CreatePage';
+import SearchPage from './pages/SearchPage';
 import ChartsPage from './pages/ChartsPage';
 import AuthPage from './pages/AuthPage';
 import useAuthStore from './stores/useAuthStore';
@@ -49,8 +49,7 @@ function App() {
           }
         >
           <Route path="/" element={<FeedPage />} />
-          <Route path="/search" element={<Navigate to="/profile" replace />} />
-          <Route path="/create" element={<CreatePage />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/charts" element={<ChartsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           {/* Fallback */}
