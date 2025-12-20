@@ -54,8 +54,8 @@ export default function ChartsPage() {
   if (loading) {
     return (
       <div className="pb-20 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-1">Top 100 Charts</h1>
-        <p className="text-gray-500 mb-6 flex items-center">
+        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">Top 100 Charts</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
           Based on {country.name} {country.flag}
         </p>
         <div className="flex justify-center items-center py-20">
@@ -68,8 +68,8 @@ export default function ChartsPage() {
   if (error) {
     return (
       <div className="pb-20 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-1">Top 100 Charts</h1>
-        <p className="text-gray-500 mb-6 flex items-center">
+        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">Top 100 Charts</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
           Based on {country.name} {country.flag}
         </p>
         <div className="text-center py-20">
@@ -87,8 +87,8 @@ export default function ChartsPage() {
 
   return (
     <div className="pb-20 px-4 pt-6">
-      <h1 className="text-2xl font-bold mb-1">Top 100 Charts</h1>
-      <p className="text-gray-500 mb-6 flex items-center">
+      <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">Top 100 Charts</h1>
+      <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
         Based on {country.name} {country.flag}
       </p>
 
@@ -151,7 +151,7 @@ export default function ChartsPage() {
                   <span className="font-semibold truncate text-black dark:text-white">
                     {track.title}
                   </span>
-                  <span className="text-sm text-gray-500 truncate">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {track.artist || track.artists?.[0]?.name || 'Unknown Artist'}
                   </span>
                 </div>
@@ -160,7 +160,7 @@ export default function ChartsPage() {
           })}
         </div>
       ) : (
-        <div className="text-center py-20 text-gray-500">
+        <div className="text-center py-20 text-gray-500 dark:text-gray-400">
           <p>No charts available for this region.</p>
         </div>
       )}

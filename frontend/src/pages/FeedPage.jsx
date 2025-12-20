@@ -239,7 +239,7 @@ function PlaylistPost({ post }) {
             )}
           </div>
         </div>
-        <button className="text-gray-500">
+        <button className="text-gray-500 dark:text-gray-400">
           <MoreHorizontal size={20} />
         </button>
       </div>
@@ -381,7 +381,7 @@ export default function FeedPage() {
         {posts.length > 0 ? (
           posts.map((post) => <PlaylistPost key={post.id} post={post} />)
         ) : (
-          <div className="py-20 text-center text-gray-500">
+          <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>No posts yet.</p>
             <p className="text-sm">Follow some musicians or create a playlist!</p>
           </div>

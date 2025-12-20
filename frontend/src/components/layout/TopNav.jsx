@@ -7,7 +7,10 @@ export default function TopNav() {
       {/* Logo Area */}
       <div className="flex items-center">
         {/* Using text for now, pretend it's the Instagram script logo */}
-        <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'cursive' }}>
+        <h1
+          className="text-2xl font-bold tracking-tight text-black dark:text-white"
+          style={{ fontFamily: 'cursive' }}
+        >
           MusicGram
         </h1>
       </div>

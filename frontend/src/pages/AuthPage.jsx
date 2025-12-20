@@ -52,7 +52,7 @@ export default function AuthPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-gray-400 dark:focus:border-gray-600"
+            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-gray-400 dark:focus:border-gray-600"
             required
           />
           <input
@@ -60,7 +60,7 @@ export default function AuthPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-gray-400 dark:focus:border-gray-600"
+            className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-gray-400 dark:focus:border-gray-600"
             required
           />
 
@@ -75,7 +75,9 @@ export default function AuthPage() {
 
         <div className="flex items-center my-6">
           <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
-          <span className="px-4 text-xs text-gray-500 font-semibold uppercase">OR</span>
+          <span className="px-4 text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">
+            OR
+          </span>
           <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
         </div>
 
@@ -118,7 +120,7 @@ export default function AuthPage() {
           Continue with Google
         </button>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
           {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
           <button onClick={() => setIsLogin(!isLogin)} className="text-blue-500 font-semibold">
             {isLogin ? 'Sign up' : 'Log in'}
