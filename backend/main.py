@@ -567,6 +567,110 @@ async def get_new_albums(request: Request, country: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
+# Mood & Genre API (추천 음악)
+# =============================================================================
+
+@app.get("/api/moods")
+async def get_moods(request: Request, country: str = None):
+    """무드 & 장르 카테고리 목록"""
+    if not country:
+        country = request.headers.get("CF-IPCountry", "US")
+
+    cache_key = f"moods:{country}"
+
+    cached = cache_get(cache_key)
+    if cached:
+        return {"country": country, "source": "cache", "moods": cached}
+
+    try:
+        ytmusic = get_ytmusic(country)
+        moods = ytmusic.get_mood_categories()
+
+        # 6시간 캐시
+        cache_set(cache_key, moods, ttl=21600)
+
+        return {"country": country, "source": "api", "moods": moods}
+    except Exception as e:
+        logger.error(f"Moods error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/mood-playlists")
+async def get_mood_playlists(params: str, country: str = None, request: Request = None):
+    """특정 무드/장르의 플레이리스트 목록"""
+    if not country:
+        country = request.headers.get("CF-IPCountry", "US") if request else "US"
+
+    cache_key = f"mood_playlists:{params}:{country}"
+
+    cached = cache_get(cache_key)
+    if cached:
+        return {"country": country, "source": "cache", "playlists": cached}
+
+    try:
+        ytmusic = get_ytmusic(country)
+        playlists = ytmusic.get_mood_playlists(params)
+
+        # 1시간 캐시
+        cache_set(cache_key, playlists, ttl=3600)
+
+        return {"country": country, "source": "api", "playlists": playlists}
+    except Exception as e:
+        logger.error(f"Mood playlists error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/home")
+async def get_home(request: Request, country: str = None):
+    """홈 화면 추천 콘텐츠 (차트, 신규 앨범, 무드 통합)"""
+    if not country:
+        country = request.headers.get("CF-IPCountry", "US")
+
+    cache_key = f"home:{country}"
+
+    cached = cache_get(cache_key)
+    if cached:
+        return {"country": country, "source": "cache", **cached}
+
+    try:
+        ytmusic = get_ytmusic(country)
+
+        # 병렬로 데이터 수집
+        charts = None
+        new_albums = None
+        moods = None
+
+        try:
+            charts = ytmusic.get_charts(country)
+        except Exception as e:
+            logger.warning(f"Charts fetch failed: {e}")
+
+        try:
+            new_albums = ytmusic.get_new_albums()
+        except Exception as e:
+            logger.warning(f"New albums fetch failed: {e}")
+
+        try:
+            moods = ytmusic.get_mood_categories()
+        except Exception as e:
+            logger.warning(f"Moods fetch failed: {e}")
+
+        result = {
+            "charts": charts,
+            "new_albums": new_albums,
+            "moods": moods
+        }
+
+        # 30분 캐시
+        cache_set(cache_key, result, ttl=1800)
+
+        return {"country": country, "source": "api", **result}
+    except Exception as e:
+        logger.error(f"Home error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # Summary Search API (Sample folder compatible)
 # =============================================================================
 
