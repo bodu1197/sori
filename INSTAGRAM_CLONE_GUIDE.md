@@ -22,10 +22,14 @@
 
 ## 3. Core Design Principles (핵심 디자인 원칙)
 
-### A. Layout & Container
+### A. Layout & Container (모바일 뷰 강제 - PC/Mobile 동일)
 
-- **Mobile-First**: The primary interface is designed for mobile screens.
-- **Max-Width Wrapper**: On desktop, the content should be contained within a phone-sized wrapper (e.g., `max-w-[470px]`) centered on screen, or a responsive layout that matches Instagram Web (Sidebar on left, feed center, suggestions right) depending on specific "Head Project" needs. _If purely mobile app emulation is the goal, restrict max-width._
+- **Universal Mobile Layout**: regardless of the device (PC or Mobile), the app must clearly look like a mobile app.
+- **Desktop Wrapper**:
+  - Background: Light Gray (`bg-[#fafafa]` or `dark:bg-black` with distinct borders).
+  - content Container: **Centered**, Fixed Width (`max-w-[430px]` or `470px`), `min-h-screen`, `bg-white` (or dark mode bg).
+  - Shadow: Drop shadow on desktop to distinguish the app area.
+- **Why**: To provide a native app experience 100% of the time.
 
 ### B. Typography
 
@@ -93,13 +97,39 @@
 - **Step 3**: "Cover & Caption". Upload custom cover art or auto-generate from song covers. Write caption.
 - **Step 4**: Share.
 
-### 7. Profile Page (프로필)
+### 7. Profile Page (프로필 & My Page)
 
 - **Header**: Avatar (Left large), Stats (Playlists, Followers, Following) on right.
 - **Bio**: Name (Bold), Preferred Genres, Bio text, Link.
-- **Action Buttons**: "Edit Profile", "Share Profile" (Gray background, full width or half width).
-- **Highlights**: Horizontal scroll circles below bio.
-- **Tab Bar**: Playlists (Grid), Saved Tracks, Tagged.
+- **Action Buttons**: "Edit Profile", "Share Profile".
+- **Your Music Integration**:
+  - **Liked Songs**: Dedicated tab or prominent playlist for "Liked Songs" (❤️).
+  - **Playback**: One-click play for the entire "Liked" list.
+  - **Library**: Access to created playlists and listening history.
+- **Tab Bar**: Playlists (Grid), Liked Songs (List), Tagged.
+
+## 8. Localization & Global Support (글로벌 지원)
+
+- **Automatic Language Detection**:
+  - Detect user's country via IP or Browser settings (`Intl`).
+  - Set app language (English, Korean, Japanese, etc.) accordingly.
+- **Content Localization**:
+  - **Charts/New Albums**: Fetch data specific to the detected country (e.g., US user sees Billboard, KR user sees Melon/Genie style data).
+  - **Currency/Formats**: Display dates and numbers in local format.
+- **Implementation**:
+  - Use `react-i18next` for UI text.
+  - Pass `countryCode` to backend APIs for filtered content.
+
+## 9. Context-Aware Recommendations (시간/날씨 기반 추천)
+
+- **Concept**: Provide "Right Music at the Right Time".
+- **Data Points**:
+  - **Time**: Detect local time via Browser API (Morning, Afternoon, Evening, Night).
+  - **Weather**: Estimate location via IP -> Fetch weather from OpenWeatherMap (Clear, Rain, Snow, Clouds).
+- **Logic**:
+  - _Morning + Clear_ -> Upbeat/Acoustic.
+  - _Night + Rain_ -> Jazz/Lo-fi/Ballad.
+- **Display**: A special "For You" section at the top of the feed or search page with a personalized greeting (e.g., "Good Evening, raining in Seoul? Listen to this tea time jazz.").
 
 ## 5. Implementation Roadmap (구현 가이드)
 
