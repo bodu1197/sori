@@ -981,6 +981,72 @@ async def get_playlist(playlist_id: str, country: str = "US", limit: int = 100):
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
+# 캐시 관리 API
+# =============================================================================
+
+@app.delete("/api/cache/clear")
+async def clear_search_cache(secret: str = None):
+    """검색 캐시 전체 삭제 (Supabase music_search_cache 테이블)"""
+    # 간단한 보안 체크 (프로덕션에서는 더 강력한 인증 필요)
+    admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
+    if secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        # music_search_cache 테이블 전체 삭제
+        result = supabase_client.table("music_search_cache").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+
+        # 메모리 캐시도 클리어
+        global memory_cache
+        memory_cache = {}
+
+        deleted_count = len(result.data) if result.data else 0
+        logger.info(f"Cleared {deleted_count} cache entries")
+
+        return {
+            "status": "success",
+            "message": f"Cleared {deleted_count} cache entries",
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logger.error(f"Cache clear error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/cache/unused-tables")
+async def drop_unused_tables(secret: str = None):
+    """사용하지 않는 빈 테이블 삭제"""
+    admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
+    if secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Supabase not configured")
+
+    try:
+        # 사용하지 않는 테이블 데이터 삭제 (테이블 자체는 유지)
+        tables = ["music_tracks", "music_albums", "music_artists", "artist_relations"]
+        results = {}
+
+        for table in tables:
+            try:
+                result = supabase_client.table(table).delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+                results[table] = len(result.data) if result.data else 0
+            except Exception as e:
+                results[table] = f"error: {str(e)}"
+
+        return {
+            "status": "success",
+            "message": "Unused tables cleared",
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"Drop unused tables error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# =============================================================================
 # 엔트리 포인트
 # =============================================================================
 
