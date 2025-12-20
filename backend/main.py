@@ -4,6 +4,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 import os
 import json
 import logging
@@ -11,6 +12,22 @@ import logging
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Supabase 클라이언트 (영구 저장소)
+# =============================================================================
+supabase_client = None
+try:
+    from supabase import create_client, Client
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if supabase_url and supabase_key:
+        supabase_client: Client = create_client(supabase_url, supabase_key)
+        logger.info("Supabase connected!")
+except ImportError:
+    logger.warning("Supabase not installed")
+except Exception as e:
+    logger.warning(f"Supabase connection failed: {e}")
 
 # Redis 캐시 (선택적)
 redis_client = None
@@ -59,6 +76,277 @@ def cache_set(key: str, value, ttl: int = 3600):
     else:
         memory_cache[key] = value
 
+# =============================================================================
+# Supabase DB 헬퍼 함수
+# =============================================================================
+
+def db_save_artist(artist_data: dict) -> str | None:
+    """아티스트를 DB에 저장 (upsert)"""
+    if not supabase_client:
+        return None
+
+    try:
+        browse_id = artist_data.get("browseId") or artist_data.get("browse_id")
+        if not browse_id:
+            return None
+
+        data = {
+            "browse_id": browse_id,
+            "name": artist_data.get("name") or artist_data.get("artist") or "",
+            "thumbnails": json.dumps(artist_data.get("thumbnails") or []),
+            "description": artist_data.get("description") or "",
+            "subscribers": artist_data.get("subscribers") or "",
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        }
+
+        result = supabase_client.table("music_artists").upsert(
+            data, on_conflict="browse_id"
+        ).execute()
+
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.warning(f"DB save artist error: {e}")
+        return None
+
+def db_save_album(album_data: dict, artist_id: str = None) -> str | None:
+    """앨범을 DB에 저장 (upsert)"""
+    if not supabase_client:
+        return None
+
+    try:
+        browse_id = album_data.get("browseId") or album_data.get("browse_id")
+        if not browse_id:
+            return None
+
+        # 아티스트 정보 추출
+        artists = album_data.get("artists") or []
+        artist_browse_id = None
+        if artists and isinstance(artists, list) and len(artists) > 0:
+            artist_browse_id = artists[0].get("id") or artists[0].get("browseId")
+
+        data = {
+            "browse_id": browse_id,
+            "artist_browse_id": artist_browse_id or album_data.get("artist_bid"),
+            "title": album_data.get("title") or "",
+            "album_type": album_data.get("type") or "Album",
+            "year": album_data.get("year") or "",
+            "thumbnails": json.dumps(album_data.get("thumbnails") or []),
+            "track_count": len(album_data.get("tracks") or []),
+            "last_updated": datetime.now(timezone.utc).isoformat()
+        }
+
+        if artist_id:
+            data["artist_id"] = artist_id
+
+        result = supabase_client.table("music_albums").upsert(
+            data, on_conflict="browse_id"
+        ).execute()
+
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.warning(f"DB save album error: {e}")
+        return None
+
+def db_save_track(track_data: dict, album_id: str = None, artist_id: str = None) -> str | None:
+    """트랙을 DB에 저장 (upsert)"""
+    if not supabase_client:
+        return None
+
+    try:
+        video_id = track_data.get("videoId") or track_data.get("video_id")
+        if not video_id:
+            return None
+
+        # 아티스트 이름 추출
+        artists = track_data.get("artists") or []
+        artist_name = ""
+        artist_browse_id = None
+        if artists and isinstance(artists, list) and len(artists) > 0:
+            artist_name = artists[0].get("name") or ""
+            artist_browse_id = artists[0].get("id") or artists[0].get("browseId")
+
+        # 앨범 정보 추출
+        album = track_data.get("album") or {}
+        album_title = album.get("name") or ""
+        album_browse_id = album.get("id") or album.get("browseId")
+
+        # 재생 시간 파싱
+        duration = track_data.get("duration") or ""
+        duration_seconds = track_data.get("duration_seconds") or 0
+        if duration and not duration_seconds:
+            try:
+                parts = duration.split(":")
+                if len(parts) == 2:
+                    duration_seconds = int(parts[0]) * 60 + int(parts[1])
+                elif len(parts) == 3:
+                    duration_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            except:
+                pass
+
+        data = {
+            "video_id": video_id,
+            "artist_browse_id": artist_browse_id or track_data.get("artist_bid"),
+            "album_browse_id": album_browse_id,
+            "title": track_data.get("title") or "",
+            "artist_name": artist_name,
+            "album_title": album_title,
+            "duration": duration,
+            "duration_seconds": duration_seconds,
+            "thumbnails": json.dumps(track_data.get("thumbnails") or []),
+            "is_explicit": track_data.get("isExplicit") or False
+        }
+
+        if album_id:
+            data["album_id"] = album_id
+        if artist_id:
+            data["artist_id"] = artist_id
+
+        result = supabase_client.table("music_tracks").upsert(
+            data, on_conflict="video_id"
+        ).execute()
+
+        if result.data:
+            return result.data[0].get("id")
+        return None
+    except Exception as e:
+        logger.warning(f"DB save track error: {e}")
+        return None
+
+def db_get_cached_search(keyword: str, country: str = "US") -> dict | None:
+    """검색 캐시에서 데이터 조회"""
+    if not supabase_client:
+        return None
+
+    try:
+        keyword_normalized = keyword.lower()
+
+        # 검색 캐시 조회
+        result = supabase_client.table("music_search_cache").select("*").eq(
+            "keyword_normalized", keyword_normalized
+        ).eq("country", country).single().execute()
+
+        if not result.data:
+            return None
+
+        cache_entry = result.data
+        last_searched = cache_entry.get("last_searched")
+
+        # 24시간 이내인지 확인
+        if last_searched:
+            last_time = datetime.fromisoformat(last_searched.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) - last_time > timedelta(hours=24):
+                logger.info(f"Cache expired for: {keyword}")
+                return None  # 캐시 만료
+
+        # 아티스트 ID 목록으로 데이터 조회
+        artist_ids = cache_entry.get("artist_ids") or []
+        if not artist_ids:
+            return None
+
+        # 아티스트 데이터 조회
+        artists_result = supabase_client.table("music_artists").select("*").in_(
+            "id", artist_ids
+        ).execute()
+
+        artists = []
+        for a in (artists_result.data or []):
+            artists.append({
+                "browseId": a.get("browse_id"),
+                "artist": a.get("name"),
+                "name": a.get("name"),
+                "thumbnails": json.loads(a.get("thumbnails") or "[]"),
+                "description": a.get("description"),
+                "subscribers": a.get("subscribers")
+            })
+
+        # 아티스트별 앨범 및 트랙 조회
+        albums_data = []
+        for artist in artists:
+            browse_id = artist.get("browseId")
+            if not browse_id:
+                continue
+
+            # 앨범 조회
+            albums_result = supabase_client.table("music_albums").select("*").eq(
+                "artist_browse_id", browse_id
+            ).order("year", desc=True).limit(30).execute()
+
+            for album in (albums_result.data or []):
+                album_browse_id = album.get("browse_id")
+
+                # 앨범의 트랙 조회
+                tracks_result = supabase_client.table("music_tracks").select("*").eq(
+                    "album_browse_id", album_browse_id
+                ).execute()
+
+                tracks = []
+                for t in (tracks_result.data or []):
+                    tracks.append({
+                        "videoId": t.get("video_id"),
+                        "title": t.get("title"),
+                        "artists": [{"name": t.get("artist_name"), "id": t.get("artist_browse_id")}],
+                        "album": {"name": t.get("album_title"), "id": t.get("album_browse_id")},
+                        "duration": t.get("duration"),
+                        "thumbnails": json.loads(t.get("thumbnails") or "[]"),
+                        "isExplicit": t.get("is_explicit")
+                    })
+
+                albums_data.append({
+                    "browseId": album_browse_id,
+                    "title": album.get("title"),
+                    "type": album.get("album_type"),
+                    "year": album.get("year"),
+                    "thumbnails": json.loads(album.get("thumbnails") or "[]"),
+                    "artist_bid": browse_id,
+                    "tracks": tracks
+                })
+
+        # 검색 카운트 증가
+        supabase_client.table("music_search_cache").update({
+            "search_count": cache_entry.get("search_count", 0) + 1,
+            "last_searched": datetime.now(timezone.utc).isoformat()
+        }).eq("id", cache_entry.get("id")).execute()
+
+        return {
+            "keyword": keyword,
+            "country": country,
+            "artists": artists,
+            "songs": [],  # 개별 곡 검색은 ytmusicapi에서
+            "albums": [],
+            "albums2": albums_data,
+            "source": "database"
+        }
+
+    except Exception as e:
+        logger.warning(f"DB get cached search error: {e}")
+        return None
+
+def db_save_search_cache(keyword: str, country: str, artist_ids: list):
+    """검색 결과를 캐시에 저장"""
+    if not supabase_client or not artist_ids:
+        return
+
+    try:
+        data = {
+            "keyword": keyword,
+            "keyword_normalized": keyword.lower(),
+            "country": country,
+            "artist_ids": artist_ids,
+            "result_count": len(artist_ids),
+            "last_searched": datetime.now(timezone.utc).isoformat()
+        }
+
+        supabase_client.table("music_search_cache").upsert(
+            data, on_conflict="keyword_normalized,country"
+        ).execute()
+
+    except Exception as e:
+        logger.warning(f"DB save search cache error: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 시작 시
@@ -101,7 +389,8 @@ async def root():
 async def health():
     return {
         "status": "healthy",
-        "redis": "connected" if redis_client else "not configured"
+        "redis": "connected" if redis_client else "not configured",
+        "supabase": "connected" if supabase_client else "not configured"
     }
 
 # =============================================================================
@@ -207,22 +496,41 @@ async def get_new_albums(request: Request, country: str = None):
 async def search_summary(
     request: Request,
     q: str,
-    country: str = None
+    country: str = None,
+    force_refresh: bool = False
 ):
     """
     Comprehensive search returning all artist data (songs, albums, singles).
     Compatible with sample folder's api_proxy.php?type=summary
     Uses ytmusicapi 1.11.4 with get_artist_albums() for complete discography.
+
+    Data Flow:
+    1. Check Redis cache (30min TTL) - fastest
+    2. Check Supabase DB (24hr TTL) - permanent storage
+    3. Call ytmusicapi and save to both DB and cache
     """
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
 
     cache_key = f"summary:{country}:{q}"
 
-    cached = cache_get(cache_key)
-    if cached:
-        logger.info(f"Cache hit: {cache_key}")
-        return cached
+    # 1. Redis 캐시 확인 (가장 빠름)
+    if not force_refresh:
+        cached = cache_get(cache_key)
+        if cached:
+            logger.info(f"Redis cache hit: {cache_key}")
+            cached["source"] = "redis"
+            return cached
+
+        # 2. Supabase DB 확인 (24시간 이내 데이터)
+        db_cached = db_get_cached_search(q, country)
+        if db_cached:
+            logger.info(f"DB cache hit: {q}")
+            # Redis에도 캐시 (다음 요청 빠르게)
+            cache_set(cache_key, db_cached, ttl=1800)
+            return db_cached
+
+    logger.info(f"Fetching from ytmusicapi: {q}")
 
     try:
         ytmusic = get_ytmusic(country)
@@ -392,11 +700,43 @@ async def search_summary(
             "artists": artists_data,
             "songs": songs_search,
             "albums": albums_search,
-            "albums2": albums_data  # Artist discography (like sample folder)
+            "albums2": albums_data,  # Artist discography (like sample folder)
+            "source": "ytmusicapi"
         }
 
-        # Cache for 30 minutes
+        # Cache for 30 minutes (Redis)
         cache_set(cache_key, result, ttl=1800)
+
+        # Save to Supabase DB (permanent storage)
+        if supabase_client and artists_data:
+            try:
+                saved_artist_ids = []
+
+                for artist in artists_data:
+                    # 아티스트 저장
+                    artist_db_id = db_save_artist(artist)
+                    if artist_db_id:
+                        saved_artist_ids.append(artist_db_id)
+
+                # 앨범 및 트랙 저장
+                for album in albums_data:
+                    if not album.get("browseId"):
+                        continue
+                    album_db_id = db_save_album(album)
+
+                    # 앨범의 트랙 저장
+                    tracks = album.get("tracks") or []
+                    for track in tracks:
+                        if isinstance(track, dict):
+                            db_save_track(track, album_id=album_db_id)
+
+                # 검색 캐시 저장
+                if saved_artist_ids:
+                    db_save_search_cache(q, country, saved_artist_ids)
+                    logger.info(f"Saved to DB: {q} with {len(saved_artist_ids)} artists, {len(albums_data)} albums")
+
+            except Exception as db_err:
+                logger.warning(f"DB save error (non-blocking): {db_err}")
 
         return result
 
