@@ -224,6 +224,9 @@ function PlaylistPanel({
     return thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
   };
 
+  // Find current playing track info
+  const currentTrackInfo = playlist?.tracks.find((t) => t.videoId === currentVideoId);
+
   if (!isOpen) return null;
 
   return (
@@ -233,6 +236,31 @@ function PlaylistPanel({
 
       {/* Panel */}
       <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-2xl max-h-[85vh] overflow-hidden animate-slide-up">
+        {/* YouTube Video Player - YouTube iframe API compliance */}
+        {currentVideoId && (
+          <div className="w-full bg-black">
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${currentVideoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            {/* Current Track Info */}
+            {currentTrackInfo && (
+              <div className="px-4 py-2 bg-gray-900 text-white">
+                <div className="font-medium text-sm truncate">{currentTrackInfo.title}</div>
+                <div className="text-xs text-gray-400 truncate">
+                  {currentTrackInfo.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-900 z-10 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between p-4">
@@ -280,7 +308,10 @@ function PlaylistPanel({
         </div>
 
         {/* Track List */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 160px)' }}>
+        <div
+          className="overflow-y-auto flex-1"
+          style={{ maxHeight: currentVideoId ? 'calc(85vh - 380px)' : 'calc(85vh - 160px)' }}
+        >
           {loading ? (
             <div className="flex justify-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
