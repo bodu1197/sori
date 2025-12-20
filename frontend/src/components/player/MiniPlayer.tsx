@@ -12,6 +12,7 @@ import {
   Shuffle,
   ChevronUp,
   ChevronDown,
+  ListMusic,
 } from 'lucide-react';
 import usePlayerStore from '../../stores/usePlayerStore';
 
@@ -72,15 +73,20 @@ export default function MiniPlayer() {
   const handleOpenPlaylist = () => {
     if (playlist.length === 0) return;
 
+    const thumbUrl = currentTrack?.cover || currentTrack?.thumbnail;
     openTrackPanel({
       title: 'Now Playing',
       author: { name: `${playlist.length} tracks` },
-      tracks: playlist.map((t) => ({
-        videoId: t.videoId,
-        title: t.title,
-        artists: t.artist ? [{ name: t.artist }] : [{ name: 'Unknown Artist' }],
-        thumbnails: t.thumbnail ? [{ url: t.thumbnail }] : undefined,
-      })),
+      thumbnails: thumbUrl ? [{ url: thumbUrl }] : undefined,
+      tracks: playlist.map((t) => {
+        const trackThumb = t.cover || t.thumbnail;
+        return {
+          videoId: t.videoId,
+          title: t.title,
+          artists: t.artist ? [{ name: t.artist }] : [{ name: 'Unknown Artist' }],
+          thumbnails: trackThumb ? [{ url: trackThumb }] : undefined,
+        };
+      }),
       trackCount: playlist.length,
     });
   };
@@ -169,8 +175,16 @@ export default function MiniPlayer() {
           </button>
 
           <button
+            onClick={handleOpenPlaylist}
+            className="text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-1 ml-1"
+            title="View Playlist"
+          >
+            <ListMusic size={20} />
+          </button>
+
+          <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-gray-400 hover:text-black dark:hover:text-white p-1 ml-1"
+            className="text-gray-400 hover:text-black dark:hover:text-white p-1"
             title={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
