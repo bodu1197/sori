@@ -1,7 +1,7 @@
 # MusicGram Backend API
 # 200만 DAU 대응 확장 가능 설계
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -242,84 +242,462 @@ def db_save_track(track_data: dict, album_id: str = None, artist_id: str = None)
         logger.warning(f"DB save track error: {e}")
         return None
 
-def db_get_cached_search_fast(keyword: str, country: str = "US") -> dict | None:
-    """검색 캐시에서 JSON 데이터 즉시 조회 (단순화된 버전)"""
-    if not supabase_client:
+# =============================================================================
+# 정규화된 DB 함수들 (새로운 테이블 구조)
+# =============================================================================
+
+def db_get_artist_by_browse_id(browse_id: str) -> dict | None:
+    """아티스트를 browse_id로 조회"""
+    if not supabase_client or not browse_id:
         return None
-
     try:
-        keyword_normalized = keyword.lower()
-
-        # 검색 캐시에서 result_json 직접 조회 (1회 쿼리!)
-        result = supabase_client.table("music_search_cache").select(
-            "id, result_json, expires_at, search_count"
-        ).eq(
-            "keyword_normalized", keyword_normalized
-        ).eq("country", country).single().execute()
-
-        if not result.data:
-            return None
-
-        cache_entry = result.data
-        result_json = cache_entry.get("result_json")
-
-        # result_json이 없으면 캐시 미스
-        if not result_json:
-            return None
-
-        # 만료 시간 확인 (있는 경우)
-        expires_at = cache_entry.get("expires_at")
-        if expires_at:
-            expire_time = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-            if datetime.now(timezone.utc) > expire_time:
-                logger.info(f"Supabase cache expired for: {keyword}")
-                return None
-
-        # 검색 카운트 증가 (비동기로 처리해도 됨)
-        try:
-            supabase_client.table("music_search_cache").update({
-                "search_count": cache_entry.get("search_count", 0) + 1,
-                "last_searched": datetime.now(timezone.utc).isoformat()
-            }).eq("id", cache_entry.get("id")).execute()
-        except:
-            pass  # 카운트 업데이트 실패해도 무시
-
-        # JSON 결과 직접 반환
-        result_json["source"] = "supabase"
-        logger.info(f"Supabase cache hit: {keyword}")
-        return result_json
-
+        result = supabase_client.table("music_artists").select("*").eq(
+            "browse_id", browse_id
+        ).single().execute()
+        return result.data
     except Exception as e:
-        logger.warning(f"DB get cached search error: {e}")
+        logger.warning(f"DB get artist error: {e}")
         return None
 
-
-def db_save_cached_search_fast(keyword: str, country: str, result_data: dict, ttl_hours: int = 24):
-    """검색 결과를 JSON으로 저장 (단순화된 버전)"""
-    if not supabase_client:
-        return
-
+def db_check_artist_needs_sync(browse_id: str, days: int = 7) -> bool:
+    """아티스트가 동기화 필요한지 확인 (last_synced_at이 N일 초과)"""
+    if not supabase_client or not browse_id:
+        return True
     try:
-        expires_at = (datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).isoformat()
+        result = supabase_client.table("music_artists").select(
+            "last_synced_at"
+        ).eq("browse_id", browse_id).single().execute()
 
+        if not result.data or not result.data.get("last_synced_at"):
+            return True
+
+        last_synced = result.data.get("last_synced_at")
+        last_time = datetime.fromisoformat(last_synced.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) - last_time > timedelta(days=days)
+    except Exception:
+        return True
+
+def db_save_artist_full(artist_data: dict) -> bool:
+    """아티스트 정보를 정규화 테이블에 저장 (upsert)"""
+    if not supabase_client or not artist_data:
+        return False
+    try:
+        browse_id = artist_data.get("browseId")
+        if not browse_id:
+            return False
+
+        data = {
+            "browse_id": browse_id,
+            "name": artist_data.get("artist") or artist_data.get("name") or "",
+            "thumbnail_url": get_best_thumbnail(artist_data.get("thumbnails", [])),
+            "subscribers": artist_data.get("subscribers") or "",
+            "description": artist_data.get("description") or "",
+            "top_songs_json": artist_data.get("topSongs") or [],
+            "related_artists_json": artist_data.get("related") or [],
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "last_synced_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        supabase_client.table("music_artists").upsert(
+            data, on_conflict="browse_id"
+        ).execute()
+
+        logger.info(f"Artist saved: {data['name']} ({browse_id})")
+        return True
+    except Exception as e:
+        logger.warning(f"DB save artist error: {e}")
+        return False
+
+def db_save_album(album_data: dict, artist_browse_id: str) -> bool:
+    """앨범 정보 저장"""
+    if not supabase_client or not album_data or not artist_browse_id:
+        return False
+    try:
+        browse_id = album_data.get("browseId")
+        if not browse_id:
+            return False
+
+        data = {
+            "browse_id": browse_id,
+            "artist_browse_id": artist_browse_id,
+            "title": album_data.get("title") or "",
+            "type": album_data.get("type") or "Album",
+            "year": album_data.get("year") or "",
+            "thumbnail_url": get_best_thumbnail(album_data.get("thumbnails", [])),
+            "track_count": len(album_data.get("tracks", []))
+        }
+
+        supabase_client.table("music_albums").upsert(
+            data, on_conflict="browse_id"
+        ).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"DB save album error: {e}")
+        return False
+
+def db_save_track(track_data: dict, album_browse_id: str, artist_browse_id: str, track_number: int = 0) -> bool:
+    """트랙 정보 저장"""
+    if not supabase_client or not track_data or not artist_browse_id:
+        return False
+    try:
+        video_id = track_data.get("videoId")
+        if not video_id:
+            return False
+
+        # duration을 초 단위로 변환
+        duration = track_data.get("duration") or ""
+        duration_seconds = 0
+        if duration:
+            parts = duration.split(":")
+            if len(parts) == 2:
+                duration_seconds = int(parts[0]) * 60 + int(parts[1])
+            elif len(parts) == 3:
+                duration_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+
+        data = {
+            "video_id": video_id,
+            "album_browse_id": album_browse_id,
+            "artist_browse_id": artist_browse_id,
+            "title": track_data.get("title") or "",
+            "duration": duration,
+            "duration_seconds": duration_seconds,
+            "track_number": track_number,
+            "thumbnail_url": get_best_thumbnail(track_data.get("thumbnails", [])),
+            "is_explicit": track_data.get("isExplicit", False)
+        }
+
+        supabase_client.table("music_tracks").upsert(
+            data, on_conflict="video_id"
+        ).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"DB save track error: {e}")
+        return False
+
+def db_save_search_keyword(keyword: str, country: str, artist_browse_id: str):
+    """검색어-아티스트 매핑 저장"""
+    if not supabase_client or not keyword or not artist_browse_id:
+        return
+    try:
         data = {
             "keyword": keyword,
             "keyword_normalized": keyword.lower(),
             "country": country,
-            "result_json": result_data,
-            "result_count": len(result_data.get("artists", [])),
-            "expires_at": expires_at,
-            "last_searched": datetime.now(timezone.utc).isoformat()
+            "artist_browse_id": artist_browse_id,
+            "search_count": 1,
+            "last_searched_at": datetime.now(timezone.utc).isoformat()
         }
 
-        supabase_client.table("music_search_cache").upsert(
-            data, on_conflict="keyword_normalized,country"
+        supabase_client.table("search_keywords").upsert(
+            data, on_conflict="keyword_normalized,country,artist_browse_id"
         ).execute()
+    except Exception as e:
+        logger.warning(f"DB save search keyword error: {e}")
 
-        logger.info(f"Supabase cache saved: {keyword}")
+def db_increment_search_count(keyword: str, country: str):
+    """검색 횟수 증가"""
+    if not supabase_client:
+        return
+    try:
+        keyword_normalized = keyword.lower()
+        supabase_client.rpc("increment_search_count", {
+            "p_keyword": keyword_normalized,
+            "p_country": country
+        }).execute()
+    except Exception:
+        pass  # 실패해도 무시
+
+def db_get_artists_by_keyword(keyword: str, country: str) -> list:
+    """검색어로 매핑된 아티스트 목록 조회"""
+    if not supabase_client:
+        return []
+    try:
+        keyword_normalized = keyword.lower()
+
+        # search_keywords에서 artist_browse_id 목록 조회
+        result = supabase_client.table("search_keywords").select(
+            "artist_browse_id"
+        ).eq("keyword_normalized", keyword_normalized).eq("country", country).execute()
+
+        if not result.data:
+            return []
+
+        artist_browse_ids = [r["artist_browse_id"] for r in result.data]
+        return artist_browse_ids
+    except Exception as e:
+        logger.warning(f"DB get artists by keyword error: {e}")
+        return []
+
+def db_get_full_artist_data(browse_id: str) -> dict | None:
+    """아티스트의 전체 데이터 조회 (앨범, 트랙 포함)"""
+    if not supabase_client or not browse_id:
+        return None
+    try:
+        # 아티스트 기본 정보
+        artist_result = supabase_client.table("music_artists").select("*").eq(
+            "browse_id", browse_id
+        ).single().execute()
+
+        if not artist_result.data:
+            return None
+
+        artist = artist_result.data
+
+        # 앨범 목록
+        albums_result = supabase_client.table("music_albums").select("*").eq(
+            "artist_browse_id", browse_id
+        ).order("year", desc=True).execute()
+
+        albums = albums_result.data or []
+
+        # 전체 트랙 목록
+        tracks_result = supabase_client.table("music_tracks").select("*").eq(
+            "artist_browse_id", browse_id
+        ).order("created_at", desc=True).execute()
+
+        all_tracks = tracks_result.data or []
+
+        # 앨범별로 트랙 그룹화
+        album_tracks_map = {}
+        for track in all_tracks:
+            album_id = track.get("album_browse_id")
+            if album_id:
+                if album_id not in album_tracks_map:
+                    album_tracks_map[album_id] = []
+                album_tracks_map[album_id].append({
+                    "videoId": track.get("video_id"),
+                    "title": track.get("title"),
+                    "duration": track.get("duration"),
+                    "trackNumber": track.get("track_number"),
+                    "thumbnails": [{"url": track.get("thumbnail_url")}] if track.get("thumbnail_url") else []
+                })
+
+        # 앨범에 트랙 추가
+        albums_with_tracks = []
+        for album in albums:
+            album_entry = {
+                "browseId": album.get("browse_id"),
+                "title": album.get("title"),
+                "type": album.get("type"),
+                "year": album.get("year"),
+                "thumbnails": [{"url": album.get("thumbnail_url")}] if album.get("thumbnail_url") else [],
+                "tracks": album_tracks_map.get(album.get("browse_id"), [])
+            }
+            albums_with_tracks.append(album_entry)
+
+        return {
+            "browseId": artist.get("browse_id"),
+            "artist": artist.get("name"),
+            "name": artist.get("name"),
+            "thumbnails": [{"url": artist.get("thumbnail_url")}] if artist.get("thumbnail_url") else [],
+            "subscribers": artist.get("subscribers"),
+            "description": artist.get("description"),
+            "topSongs": artist.get("top_songs_json") or [],
+            "related": artist.get("related_artists_json") or [],
+            "albums": albums_with_tracks,
+            "allTracks": [{
+                "videoId": t.get("video_id"),
+                "title": t.get("title"),
+                "duration": t.get("duration"),
+                "albumTitle": next((a.get("title") for a in albums if a.get("browse_id") == t.get("album_browse_id")), ""),
+                "thumbnails": [{"url": t.get("thumbnail_url")}] if t.get("thumbnail_url") else []
+            } for t in all_tracks],
+            "last_synced_at": artist.get("last_synced_at")
+        }
+    except Exception as e:
+        logger.warning(f"DB get full artist data error: {e}")
+        return None
+
+def get_best_thumbnail(thumbnails: list) -> str:
+    """썸네일 목록에서 가장 좋은 URL 선택"""
+    if not thumbnails:
+        return ""
+    # 가장 큰 이미지 선택
+    best = thumbnails[-1] if thumbnails else {}
+    return best.get("url", "") if isinstance(best, dict) else ""
+
+
+def background_update_artist(artist_browse_id: str, country: str):
+    """
+    백그라운드에서 아티스트 데이터 업데이트 (7일 경과 시 호출)
+    - 새 앨범/싱글 확인
+    - 새 트랙만 DB에 추가 (기존 데이터 유지)
+    """
+    try:
+        from ytmusicapi import YTMusic
+
+        logger.info(f"Background update started: {artist_browse_id}")
+
+        # 기존 앨범/트랙 ID 조회
+        existing_album_ids = db_get_existing_album_ids(artist_browse_id)
+        existing_video_ids = db_get_existing_video_ids(artist_browse_id)
+
+        # ytmusicapi로 최신 데이터 가져오기
+        lang = COUNTRY_LANGUAGE_MAP.get(country.upper(), 'en')
+        ytmusic = YTMusic(language=lang, location=country.upper())
+
+        artist_info = ytmusic.get_artist(artist_browse_id)
+        if not artist_info:
+            logger.warning(f"Background update: Artist not found {artist_browse_id}")
+            return
+
+        new_albums_count = 0
+        new_tracks_count = 0
+
+        # 앨범 확인
+        albums_section = artist_info.get("albums")
+        if albums_section and isinstance(albums_section, dict):
+            params = albums_section.get("params")
+            browse_id = albums_section.get("browseId")
+            album_list = []
+
+            if params and browse_id:
+                try:
+                    album_list = ytmusic.get_artist_albums(browse_id, params) or []
+                except Exception:
+                    album_list = albums_section.get("results") or []
+            else:
+                album_list = albums_section.get("results") or []
+
+            for album in album_list:
+                album_browse_id = album.get("browseId")
+                if not album_browse_id or album_browse_id in existing_album_ids:
+                    continue
+
+                # 새 앨범 발견!
+                try:
+                    album_detail = ytmusic.get_album(album_browse_id)
+                    if not album_detail:
+                        continue
+
+                    album_data = {
+                        "browseId": album_browse_id,
+                        "title": album_detail.get("title") or "",
+                        "type": album_detail.get("type") or "Album",
+                        "year": album_detail.get("year") or "",
+                        "thumbnails": album_detail.get("thumbnails") or []
+                    }
+
+                    db_save_album(album_data, artist_browse_id)
+                    new_albums_count += 1
+
+                    # 트랙 저장
+                    for idx, track in enumerate(album_detail.get("tracks") or []):
+                        video_id = track.get("videoId")
+                        if not video_id or video_id in existing_video_ids:
+                            continue
+
+                        track_data = {
+                            "videoId": video_id,
+                            "title": track.get("title") or "",
+                            "duration": track.get("duration") or "",
+                            "thumbnails": track.get("thumbnails") or [],
+                            "isExplicit": track.get("isExplicit", False)
+                        }
+
+                        db_save_track(track_data, album_browse_id, artist_browse_id, idx + 1)
+                        new_tracks_count += 1
+
+                except Exception as e:
+                    logger.warning(f"Background album fetch error: {e}")
+
+        # 싱글 확인
+        singles_section = artist_info.get("singles")
+        if singles_section and isinstance(singles_section, dict):
+            params = singles_section.get("params")
+            browse_id = singles_section.get("browseId")
+            singles_list = []
+
+            if params and browse_id:
+                try:
+                    singles_list = ytmusic.get_artist_albums(browse_id, params) or []
+                except Exception:
+                    singles_list = singles_section.get("results") or []
+            else:
+                singles_list = singles_section.get("results") or []
+
+            for single in singles_list:
+                single_browse_id = single.get("browseId")
+                if not single_browse_id or single_browse_id in existing_album_ids:
+                    continue
+
+                try:
+                    single_detail = ytmusic.get_album(single_browse_id)
+                    if not single_detail:
+                        continue
+
+                    single_data = {
+                        "browseId": single_browse_id,
+                        "title": single_detail.get("title") or "",
+                        "type": "Single",
+                        "year": single_detail.get("year") or "",
+                        "thumbnails": single_detail.get("thumbnails") or []
+                    }
+
+                    db_save_album(single_data, artist_browse_id)
+                    new_albums_count += 1
+
+                    for idx, track in enumerate(single_detail.get("tracks") or []):
+                        video_id = track.get("videoId")
+                        if not video_id or video_id in existing_video_ids:
+                            continue
+
+                        track_data = {
+                            "videoId": video_id,
+                            "title": track.get("title") or "",
+                            "duration": track.get("duration") or "",
+                            "thumbnails": track.get("thumbnails") or [],
+                            "isExplicit": track.get("isExplicit", False)
+                        }
+
+                        db_save_track(track_data, single_browse_id, artist_browse_id, idx + 1)
+                        new_tracks_count += 1
+
+                except Exception as e:
+                    logger.warning(f"Background single fetch error: {e}")
+
+        # 인기곡 업데이트
+        top_songs = []
+        songs_section = artist_info.get("songs")
+        if songs_section and isinstance(songs_section, dict):
+            for song in songs_section.get("results", []):
+                if isinstance(song, dict) and song.get("videoId"):
+                    top_songs.append({
+                        "videoId": song.get("videoId"),
+                        "title": song.get("title") or "",
+                        "duration": song.get("duration") or "",
+                        "thumbnails": song.get("thumbnails") or []
+                    })
+
+        # 유사 아티스트 업데이트
+        related_artists = []
+        related_section = artist_info.get("related")
+        if related_section and isinstance(related_section, dict):
+            for rel in related_section.get("results", [])[:15]:
+                if isinstance(rel, dict):
+                    related_artists.append({
+                        "browseId": rel.get("browseId") or "",
+                        "name": rel.get("title") or rel.get("name") or "",
+                        "subscribers": rel.get("subscribers") or "",
+                        "thumbnails": rel.get("thumbnails") or []
+                    })
+
+        # last_synced_at 업데이트
+        if supabase_client:
+            try:
+                supabase_client.table("music_artists").update({
+                    "top_songs_json": top_songs,
+                    "related_artists_json": related_artists,
+                    "last_synced_at": datetime.now(timezone.utc).isoformat()
+                }).eq("browse_id", artist_browse_id).execute()
+            except Exception as e:
+                logger.warning(f"Background update artist error: {e}")
+
+        logger.info(f"Background update completed: {artist_browse_id} - {new_albums_count} new albums, {new_tracks_count} new tracks")
 
     except Exception as e:
-        logger.warning(f"DB save cached search error: {e}")
+        logger.error(f"Background update error: {e}")
+
 
 def db_get_existing_video_ids(artist_browse_id: str) -> set:
     """아티스트의 기존 video_id 목록 조회 (중복 방지용)"""
@@ -653,25 +1031,233 @@ async def get_home_feed(request: Request, country: str = None, limit: int = 6):
 
 
 # =============================================================================
-# Summary Search API (Sample folder compatible)
+# Summary Search API - 정규화 DB 사용 (전체 디스코그래피)
 # =============================================================================
+
+def fetch_and_save_full_discography(ytmusic, artist_id: str, artist_info: dict, country: str) -> dict:
+    """
+    아티스트의 전체 디스코그래피를 가져와서 DB에 저장
+    - 모든 앨범의 모든 트랙을 가져옴 (제한 없음)
+    - DB에 정규화하여 저장
+    """
+    artist_name = artist_info.get("name") or ""
+    search_thumbnails = artist_info.get("thumbnails") or []
+
+    # 인기곡 추출
+    top_songs = []
+    songs_section = artist_info.get("songs")
+    if songs_section and isinstance(songs_section, dict):
+        for song in songs_section.get("results", []):
+            if isinstance(song, dict) and song.get("videoId"):
+                top_songs.append({
+                    "videoId": song.get("videoId"),
+                    "title": song.get("title") or "",
+                    "duration": song.get("duration") or "",
+                    "thumbnails": song.get("thumbnails") or []
+                })
+
+    # 유사 아티스트 추출
+    related_artists = []
+    related_section = artist_info.get("related")
+    if related_section and isinstance(related_section, dict):
+        for rel in related_section.get("results", [])[:15]:
+            if isinstance(rel, dict):
+                related_artists.append({
+                    "browseId": rel.get("browseId") or "",
+                    "name": rel.get("title") or rel.get("name") or "",
+                    "subscribers": rel.get("subscribers") or "",
+                    "thumbnails": rel.get("thumbnails") or []
+                })
+
+    # 아티스트 데이터 구성
+    artist_data = {
+        "browseId": artist_id,
+        "artist": artist_name,
+        "name": artist_name,
+        "thumbnails": search_thumbnails,
+        "subscribers": artist_info.get("subscribers") or "",
+        "description": artist_info.get("description") or "",
+        "topSongs": top_songs,
+        "related": related_artists
+    }
+
+    # DB에 아티스트 저장
+    db_save_artist_full(artist_data)
+
+    # 모든 앨범과 싱글 가져오기
+    all_albums = []
+    all_tracks = []
+
+    # 앨범 목록 가져오기 (제한 없음)
+    albums_section = artist_info.get("albums")
+    if albums_section and isinstance(albums_section, dict):
+        params = albums_section.get("params")
+        browse_id = albums_section.get("browseId")
+        album_list = []
+
+        if params and browse_id:
+            try:
+                album_list = ytmusic.get_artist_albums(browse_id, params) or []
+            except Exception as e:
+                logger.warning(f"get_artist_albums error: {e}")
+
+        if not album_list:
+            album_list = albums_section.get("results") or []
+
+        # 각 앨범의 트랙 가져오기 (제한 없음!)
+        for album in album_list:
+            if not isinstance(album, dict):
+                continue
+            album_browse_id = album.get("browseId")
+            if not album_browse_id:
+                continue
+
+            try:
+                # 앨범 상세 정보 가져오기 (트랙 포함)
+                album_detail = ytmusic.get_album(album_browse_id)
+                if not album_detail:
+                    continue
+
+                album_data = {
+                    "browseId": album_browse_id,
+                    "title": album_detail.get("title") or album.get("title") or "",
+                    "type": album_detail.get("type") or album.get("type") or "Album",
+                    "year": album_detail.get("year") or album.get("year") or "",
+                    "thumbnails": album_detail.get("thumbnails") or album.get("thumbnails") or [],
+                    "tracks": []
+                }
+
+                # DB에 앨범 저장
+                db_save_album(album_data, artist_id)
+
+                # 트랙 추출 및 저장
+                tracks = album_detail.get("tracks") or []
+                for idx, track in enumerate(tracks):
+                    if not isinstance(track, dict):
+                        continue
+                    video_id = track.get("videoId")
+                    if not video_id:
+                        continue
+
+                    track_data = {
+                        "videoId": video_id,
+                        "title": track.get("title") or "",
+                        "duration": track.get("duration") or "",
+                        "thumbnails": track.get("thumbnails") or album_data["thumbnails"],
+                        "isExplicit": track.get("isExplicit", False)
+                    }
+
+                    # DB에 트랙 저장
+                    db_save_track(track_data, album_browse_id, artist_id, idx + 1)
+
+                    album_data["tracks"].append(track_data)
+                    all_tracks.append({
+                        **track_data,
+                        "albumTitle": album_data["title"],
+                        "albumBrowseId": album_browse_id
+                    })
+
+                all_albums.append(album_data)
+                logger.info(f"Album saved: {album_data['title']} ({len(tracks)} tracks)")
+
+            except Exception as e:
+                logger.warning(f"Album fetch error for {album_browse_id}: {e}")
+
+    # 싱글 목록 가져오기 (제한 없음)
+    singles_section = artist_info.get("singles")
+    if singles_section and isinstance(singles_section, dict):
+        params = singles_section.get("params")
+        browse_id = singles_section.get("browseId")
+        singles_list = []
+
+        if params and browse_id:
+            try:
+                singles_list = ytmusic.get_artist_albums(browse_id, params) or []
+            except Exception as e:
+                logger.warning(f"get_artist_albums for singles error: {e}")
+
+        if not singles_list:
+            singles_list = singles_section.get("results") or []
+
+        # 각 싱글의 트랙 가져오기
+        for single in singles_list:
+            if not isinstance(single, dict):
+                continue
+            single_browse_id = single.get("browseId")
+            if not single_browse_id:
+                continue
+
+            try:
+                single_detail = ytmusic.get_album(single_browse_id)
+                if not single_detail:
+                    continue
+
+                single_data = {
+                    "browseId": single_browse_id,
+                    "title": single_detail.get("title") or single.get("title") or "",
+                    "type": "Single",
+                    "year": single_detail.get("year") or single.get("year") or "",
+                    "thumbnails": single_detail.get("thumbnails") or single.get("thumbnails") or [],
+                    "tracks": []
+                }
+
+                db_save_album(single_data, artist_id)
+
+                tracks = single_detail.get("tracks") or []
+                for idx, track in enumerate(tracks):
+                    if not isinstance(track, dict):
+                        continue
+                    video_id = track.get("videoId")
+                    if not video_id:
+                        continue
+
+                    track_data = {
+                        "videoId": video_id,
+                        "title": track.get("title") or "",
+                        "duration": track.get("duration") or "",
+                        "thumbnails": track.get("thumbnails") or single_data["thumbnails"],
+                        "isExplicit": track.get("isExplicit", False)
+                    }
+
+                    db_save_track(track_data, single_browse_id, artist_id, idx + 1)
+
+                    single_data["tracks"].append(track_data)
+                    all_tracks.append({
+                        **track_data,
+                        "albumTitle": single_data["title"],
+                        "albumBrowseId": single_browse_id
+                    })
+
+                all_albums.append(single_data)
+
+            except Exception as e:
+                logger.warning(f"Single fetch error for {single_browse_id}: {e}")
+
+    logger.info(f"Artist {artist_name}: {len(all_albums)} albums, {len(all_tracks)} tracks saved")
+
+    return {
+        **artist_data,
+        "albums": all_albums,
+        "allTracks": all_tracks
+    }
+
 
 @app.get("/api/search/summary")
 async def search_summary(
     request: Request,
     q: str,
+    background_tasks: BackgroundTasks,
     country: str = None,
     force_refresh: bool = False
 ):
     """
-    Comprehensive search returning all artist data (songs, albums, singles).
-    Compatible with sample folder's api_proxy.php?type=summary
-    Uses ytmusicapi 1.11.4 with get_artist_albums() for complete discography.
+    아티스트 검색 및 전체 디스코그래피 반환
 
     Data Flow:
-    1. Check Redis cache (30min TTL) - fastest
-    2. Check Supabase DB (24hr TTL) - permanent storage
-    3. Call ytmusicapi and save to both DB and cache
+    1. DB에서 검색어 매핑 확인 (search_keywords)
+    2. 매핑 있음 → DB에서 전체 데이터 반환
+       - 7일 경과 시 → 반환 후 백그라운드 업데이트
+    3. 매핑 없음 → ytmusicapi 호출 → 전체 디스코그래피 → DB 저장
     """
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
@@ -679,188 +1265,141 @@ async def search_summary(
     cache_key = f"summary:{country}:{q}"
 
     # ==========================================================================
-    # 캐시 순서: Supabase (영구) → Redis (임시) → ytmusicapi (API)
+    # 1단계: DB에서 기존 데이터 확인
     # ==========================================================================
-
     if not force_refresh:
-        # 1. Supabase DB 확인 (영구 저장소 - 모든 인스턴스 공유)
-        db_cached = db_get_cached_search_fast(q, country)
-        if db_cached:
-            # Redis에도 캐시 (같은 인스턴스에서 빠르게)
-            cache_set(cache_key, db_cached, ttl=1800)
-            return db_cached
-
-        # 2. Redis/메모리 캐시 확인 (임시 저장소)
+        # Redis 캐시 먼저 확인 (빠른 응답)
         cached = cache_get(cache_key)
         if cached:
-            logger.info(f"Redis/memory cache hit: {cache_key}")
+            logger.info(f"Redis cache hit: {cache_key}")
             cached["source"] = "redis"
             return cached
 
+        # DB에서 검색어 매핑 확인
+        artist_browse_ids = db_get_artists_by_keyword(q, country)
+        if artist_browse_ids:
+            logger.info(f"DB hit for keyword: {q} ({len(artist_browse_ids)} artists)")
+
+            artists_data = []
+            all_songs = []
+            all_albums = []
+            needs_background_update = False
+
+            for browse_id in artist_browse_ids:
+                artist_full = db_get_full_artist_data(browse_id)
+                if artist_full:
+                    artists_data.append(artist_full)
+
+                    # 인기곡을 songs에 추가
+                    for song in artist_full.get("topSongs", []):
+                        song["artist_bid"] = browse_id
+                        song["resultType"] = "song"
+                        all_songs.append(song)
+
+                    # 앨범 추가
+                    for album in artist_full.get("albums", []):
+                        album["artist_bid"] = browse_id
+                        all_albums.append(album)
+
+                    # 7일 경과 체크
+                    if db_check_artist_needs_sync(browse_id, days=7):
+                        needs_background_update = True
+                        # 백그라운드 업데이트 트리거
+                        background_tasks.add_task(background_update_artist, browse_id, country)
+
+            if artists_data:
+                result = {
+                    "keyword": q,
+                    "country": country,
+                    "artists": artists_data,
+                    "songs": all_songs,
+                    "albums": [],
+                    "albums2": all_albums,
+                    "allTracks": [t for a in artists_data for t in a.get("allTracks", [])],
+                    "source": "database",
+                    "updating": needs_background_update  # 업데이트 중임을 알림
+                }
+
+                # Redis에 캐시
+                cache_set(cache_key, result, ttl=1800)
+
+                if needs_background_update:
+                    logger.info(f"Background update triggered for: {q}")
+
+                return result
+
+    # ==========================================================================
+    # 2단계: ytmusicapi에서 새로 가져오기
+    # ==========================================================================
     logger.info(f"Fetching from ytmusicapi: {q}")
 
     try:
         ytmusic = get_ytmusic(country)
 
-        # 1. Search for artists (with error handling)
-        # Note: filter="artists" sometimes returns empty, so use general search as fallback
+        # 아티스트 검색
         artists_search = []
         try:
             artists_search = ytmusic.search(q, filter="artists", limit=5) or []
-            # Fallback: if filtered search returns empty, use general search
             if not artists_search:
                 general_results = ytmusic.search(q, limit=50) or []
                 artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
         except Exception as e:
             logger.warning(f"Artist search error: {e}")
 
-        # 2. Also search for songs directly (for song title searches)
-        # This helps when user searches for a song title like "Dynamite"
+        # 곡 직접 검색 (곡 제목으로 검색하는 경우)
         songs_search = []
         try:
-            direct_song_results = ytmusic.search(q, filter="songs", limit=20) or []
+            direct_song_results = ytmusic.search(q, filter="songs", limit=30) or []
             for song in direct_song_results:
                 if isinstance(song, dict) and song.get("videoId"):
                     song_copy = dict(song)
                     song_copy["resultType"] = "song"
-                    song_copy["from_direct_search"] = True  # Mark as from direct search
+                    song_copy["from_direct_search"] = True
                     songs_search.append(song_copy)
         except Exception as e:
             logger.warning(f"Song search error: {e}")
 
-        # 3. Skip general albums search - we'll get albums from artist page only
-        albums_search = []  # Will be populated from artist page below
-
-        # 4. For each artist, get complete discography
+        # 각 아티스트에 대해 전체 디스코그래피 가져오기
         artists_data = []
         albums_data = []
+        all_tracks = []
 
-        for artist in artists_search[:2]:  # Top 2 artists to reduce load
+        for artist in artists_search[:3]:  # 상위 3명 아티스트
             if not isinstance(artist, dict):
                 continue
             artist_id = artist.get("browseId")
             if not artist_id:
                 continue
+
             try:
                 artist_info = ytmusic.get_artist(artist_id)
                 if not artist_info or not isinstance(artist_info, dict):
                     continue
 
-                # Extract artist details
-                # Use search result thumbnails (square) instead of get_artist thumbnails (banner)
-                search_thumbnails = artist.get("thumbnails") or []
-                artist_entry = {
-                    "artist": artist_info.get("name") or artist.get("artist") or "",
-                    "browseId": artist_id,
-                    "thumbnails": search_thumbnails if search_thumbnails else artist_info.get("thumbnails") or [],
-                    "description": artist_info.get("description") or "",
-                    "subscribers": artist_info.get("subscribers") or ""
-                }
-                artists_data.append(artist_entry)
+                # 전체 디스코그래피 가져오기 및 DB 저장
+                artist_full = fetch_and_save_full_discography(
+                    ytmusic, artist_id, artist_info, country
+                )
 
-                # Extract songs from artist page (only this artist's songs)
-                songs_section = artist_info.get("songs")
-                if songs_section and isinstance(songs_section, dict):
-                    song_results = songs_section.get("results") or []
-                    for song in song_results:
-                        if isinstance(song, dict):
-                            song_copy = dict(song)
-                            song_copy["artist_bid"] = artist_id
-                            song_copy["resultType"] = "song"
-                            songs_search.append(song_copy)  # Add to songs list
+                if artist_full:
+                    artists_data.append(artist_full)
 
-                # Get albums list WITHOUT fetching each album's details (FAST!)
-                # Album details can be fetched on-demand when user clicks an album
-                albums_section = artist_info.get("albums")
-                if albums_section and isinstance(albums_section, dict):
-                    # First try get_artist_albums for complete list
-                    params = albums_section.get("params")
-                    browse_id = albums_section.get("browseId")
-                    album_list = []
+                    # 검색어-아티스트 매핑 저장
+                    db_save_search_keyword(q, country, artist_id)
 
-                    if params and browse_id:
-                        try:
-                            album_list = ytmusic.get_artist_albums(browse_id, params) or []
-                        except Exception as e:
-                            logger.warning(f"get_artist_albums error: {e}")
+                    # 인기곡을 songs에 추가
+                    for song in artist_full.get("topSongs", []):
+                        song["artist_bid"] = artist_id
+                        song["resultType"] = "song"
+                        songs_search.append(song)
 
-                    # Fallback to results from artist page
-                    if not album_list:
-                        album_list = albums_section.get("results") or []
+                    # 앨범 데이터 추가
+                    for album in artist_full.get("albums", []):
+                        album["artist_bid"] = artist_id
+                        albums_data.append(album)
 
-                    # Add albums WITHOUT fetching details (no get_album calls!)
-                    for album in album_list[:15]:  # Limit to 15 albums
-                        if not isinstance(album, dict):
-                            continue
-                        album_id = album.get("browseId")
-                        if not album_id:
-                            continue
-
-                        album_entry = {
-                            "title": album.get("title") or "",
-                            "browseId": album_id,
-                            "artists": [{"name": artist_entry.get("artist"), "id": artist_id}],
-                            "thumbnails": album.get("thumbnails") or [],
-                            "year": album.get("year") or "",
-                            "type": album.get("type") or "Album",
-                            "artist_bid": artist_id,
-                            "tracks": []  # Empty - fetch on demand
-                        }
-                        albums_data.append(album_entry)
-
-                # Get related artists from artist page
-                related_section = artist_info.get("related")
-                if related_section and isinstance(related_section, dict):
-                    related_results = related_section.get("results") or []
-                    for related_artist in related_results[:10]:  # Limit to 10 related artists
-                        if isinstance(related_artist, dict):
-                            related_entry = {
-                                "browseId": related_artist.get("browseId") or "",
-                                "artist": related_artist.get("title") or related_artist.get("name") or "",
-                                "name": related_artist.get("title") or related_artist.get("name") or "",
-                                "subscribers": related_artist.get("subscribers") or "",
-                                "thumbnails": related_artist.get("thumbnails") or []
-                            }
-                            # Add to artist_entry's related list
-                            if "related" not in artist_entry:
-                                artist_entry["related"] = []
-                            artist_entry["related"].append(related_entry)
-
-                # Get singles list WITHOUT fetching details (FAST!)
-                singles_section = artist_info.get("singles")
-                if singles_section and isinstance(singles_section, dict):
-                    params = singles_section.get("params")
-                    browse_id = singles_section.get("browseId")
-                    singles_list = []
-
-                    if params and browse_id:
-                        try:
-                            singles_list = ytmusic.get_artist_albums(browse_id, params) or []
-                        except Exception as e:
-                            logger.warning(f"get_artist_albums for singles error: {e}")
-
-                    if not singles_list:
-                        singles_list = singles_section.get("results") or []
-
-                    # Add singles WITHOUT fetching details
-                    for single in singles_list[:10]:  # Limit to 10 singles
-                        if not isinstance(single, dict):
-                            continue
-                        single_id = single.get("browseId")
-                        if not single_id:
-                            continue
-
-                        single_entry = {
-                            "title": single.get("title") or "",
-                            "browseId": single_id,
-                            "artists": [{"name": artist_entry.get("artist"), "id": artist_id}],
-                            "thumbnails": single.get("thumbnails") or [],
-                            "year": single.get("year") or "",
-                            "type": "Single",
-                            "artist_bid": artist_id,
-                            "tracks": []  # Empty - fetch on demand
-                        }
-                        albums_data.append(single_entry)
+                    # 전체 트랙 추가
+                    all_tracks.extend(artist_full.get("allTracks", []))
 
             except Exception as artist_err:
                 logger.warning(f"Artist fetch error for {artist_id}: {artist_err}")
@@ -870,33 +1409,14 @@ async def search_summary(
             "country": country,
             "artists": artists_data,
             "songs": songs_search,
-            "albums": albums_search,
-            "albums2": albums_data,  # Artist discography (like sample folder)
+            "albums": [],
+            "albums2": albums_data,
+            "allTracks": all_tracks,
             "source": "ytmusicapi"
         }
 
-        # =======================================================================
-        # 캐시 저장 (2단계)
-        # =======================================================================
-
-        # 1. Redis/메모리 캐시 저장 (30분 TTL)
+        # Redis 캐시 저장
         cache_set(cache_key, result, ttl=1800)
-
-        # 2. Supabase에 JSON 결과 저장 (24시간 TTL) - 빠른 조회용
-        db_save_cached_search_fast(q, country, result, ttl_hours=24)
-
-        # 3. (선택) 메타데이터 테이블에 저장 - 장기 보관용 (백그라운드 처리 권장)
-        # 현재는 비활성화 - 검색 속도 우선
-        # TODO: 별도 백그라운드 작업으로 이동
-        """
-        if supabase_client and artists_data:
-            try:
-                for artist in artists_data:
-                    db_save_artist(artist)
-                    # ... 앨범, 트랙 저장 로직
-            except Exception as db_err:
-                logger.warning(f"DB metadata save error: {db_err}")
-        """
 
         return result
 
