@@ -7,11 +7,14 @@ import SearchPage from './pages/SearchPage';
 import ProfilePage from './pages/ProfilePage';
 import CreatePage from './pages/CreatePage';
 import ChartsPage from './pages/ChartsPage';
+import AuthPage from './pages/AuthPage';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/auth" element={<AuthPage />} />
+
         <Route element={<MobileLayout />}>
           <Route path="/" element={<FeedPage />} />
           <Route path="/search" element={<SearchPage />} />
