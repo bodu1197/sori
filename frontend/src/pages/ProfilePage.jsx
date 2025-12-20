@@ -1,7 +1,6 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { Grid, Heart, Lock, Play, LogOut, Search, Music, Shuffle, Trash2, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
@@ -102,7 +101,6 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
 }
 
 export default function ProfilePage() {
-  const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
   const { setTrack, startPlayback, currentTrack, isPlaying } = usePlayerStore();
 
@@ -317,19 +315,6 @@ export default function ProfilePage() {
           >
             <LogOut size={16} /> Sign Out
           </button>
-        </div>
-
-        {/* Story Highlights (Playlist Quick Access) */}
-        <div className="flex gap-4 overflow-x-auto mb-6 scrollbar-hide">
-          <div
-            className="flex flex-col items-center flex-shrink-0"
-            onClick={() => navigate('/create')}
-          >
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-              <span className="text-2xl">+</span>
-            </div>
-            <span className="text-xs mt-1">New</span>
-          </div>
         </div>
       </div>
 
