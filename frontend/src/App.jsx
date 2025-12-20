@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage';
 import CreatePage from './pages/CreatePage';
 import ChartsPage from './pages/ChartsPage';
 import AuthPage from './pages/AuthPage';
+import TestSearchPage from './pages/TestSearchPage';
 import useAuthStore from './stores/useAuthStore';
 
 // Protected Route Wrapper
@@ -41,6 +42,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/test-search" element={<TestSearchPage />} />
 
         <Route
           element={

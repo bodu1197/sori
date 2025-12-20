@@ -325,6 +325,59 @@ def db_get_cached_search(keyword: str, country: str = "US") -> dict | None:
         logger.warning(f"DB get cached search error: {e}")
         return None
 
+def db_get_existing_video_ids(artist_browse_id: str) -> set:
+    """아티스트의 기존 video_id 목록 조회 (중복 방지용)"""
+    if not supabase_client or not artist_browse_id:
+        return set()
+
+    try:
+        result = supabase_client.table("music_tracks").select("video_id").eq(
+            "artist_browse_id", artist_browse_id
+        ).execute()
+
+        return {r.get("video_id") for r in (result.data or []) if r.get("video_id")}
+    except Exception as e:
+        logger.warning(f"DB get existing video_ids error: {e}")
+        return set()
+
+def db_get_existing_album_ids(artist_browse_id: str) -> set:
+    """아티스트의 기존 album browse_id 목록 조회 (중복 방지용)"""
+    if not supabase_client or not artist_browse_id:
+        return set()
+
+    try:
+        result = supabase_client.table("music_albums").select("browse_id").eq(
+            "artist_browse_id", artist_browse_id
+        ).execute()
+
+        return {r.get("browse_id") for r in (result.data or []) if r.get("browse_id")}
+    except Exception as e:
+        logger.warning(f"DB get existing album_ids error: {e}")
+        return set()
+
+def db_artist_needs_update(browse_id: str, hours: int = 6) -> bool:
+    """아티스트가 업데이트 필요한지 확인 (마지막 업데이트 후 N시간 경과)"""
+    if not supabase_client or not browse_id:
+        return True
+
+    try:
+        result = supabase_client.table("music_artists").select("last_updated").eq(
+            "browse_id", browse_id
+        ).single().execute()
+
+        if not result.data:
+            return True  # 없으면 업데이트 필요
+
+        last_updated = result.data.get("last_updated")
+        if not last_updated:
+            return True
+
+        last_time = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) - last_time > timedelta(hours=hours)
+    except Exception as e:
+        logger.warning(f"DB artist needs update check error: {e}")
+        return True
+
 def db_save_related_artists(main_artist_browse_id: str, related_artists: list):
     """유사 아티스트 관계 저장"""
     if not supabase_client or not related_artists:
@@ -785,13 +838,21 @@ async def search_summary(
         # Cache for 30 minutes (Redis)
         cache_set(cache_key, result, ttl=1800)
 
-        # Save to Supabase DB (permanent storage)
+        # Save to Supabase DB (incremental - only NEW items)
         if supabase_client and artists_data:
             try:
                 saved_artist_ids = []
+                new_albums_count = 0
+                new_tracks_count = 0
+                skipped_albums = 0
+                skipped_tracks = 0
 
                 for artist in artists_data:
-                    # 아티스트 저장
+                    browse_id = artist.get("browseId")
+                    if not browse_id:
+                        continue
+
+                    # 아티스트 저장 (upsert - 기본 정보만 업데이트)
                     artist_db_id = db_save_artist(artist)
                     if artist_db_id:
                         saved_artist_ids.append(artist_db_id)
@@ -799,26 +860,52 @@ async def search_summary(
                     # 유사 아티스트 저장
                     related_artists = artist.get("related") or []
                     if related_artists:
-                        browse_id = artist.get("browseId")
-                        if browse_id:
-                            db_save_related_artists(browse_id, related_artists)
+                        db_save_related_artists(browse_id, related_artists)
 
-                # 앨범 및 트랙 저장
-                for album in albums_data:
-                    if not album.get("browseId"):
-                        continue
-                    album_db_id = db_save_album(album)
+                    # 기존 앨범/트랙 ID 가져오기 (중복 방지)
+                    existing_album_ids = db_get_existing_album_ids(browse_id)
+                    existing_video_ids = db_get_existing_video_ids(browse_id)
 
-                    # 앨범의 트랙 저장
-                    tracks = album.get("tracks") or []
-                    for track in tracks:
-                        if isinstance(track, dict):
+                    # 이 아티스트의 앨범만 필터링
+                    artist_albums = [a for a in albums_data if a.get("artist_bid") == browse_id]
+
+                    for album in artist_albums:
+                        album_browse_id = album.get("browseId")
+                        if not album_browse_id:
+                            continue
+
+                        # 새 앨범만 저장
+                        if album_browse_id in existing_album_ids:
+                            skipped_albums += 1
+                            continue
+
+                        album_db_id = db_save_album(album)
+                        new_albums_count += 1
+
+                        # 새 트랙만 저장
+                        tracks = album.get("tracks") or []
+                        for track in tracks:
+                            if not isinstance(track, dict):
+                                continue
+                            video_id = track.get("videoId")
+                            if not video_id:
+                                continue
+
+                            if video_id in existing_video_ids:
+                                skipped_tracks += 1
+                                continue
+
                             db_save_track(track, album_id=album_db_id)
+                            existing_video_ids.add(video_id)  # 중복 방지
+                            new_tracks_count += 1
 
                 # 검색 캐시 저장
                 if saved_artist_ids:
                     db_save_search_cache(q, country, saved_artist_ids)
-                    logger.info(f"Saved to DB: {q} with {len(saved_artist_ids)} artists, {len(albums_data)} albums")
+
+                logger.info(f"DB save complete: {q} | "
+                           f"New: {new_albums_count} albums, {new_tracks_count} tracks | "
+                           f"Skipped: {skipped_albums} albums, {skipped_tracks} tracks")
 
             except Exception as db_err:
                 logger.warning(f"DB save error (non-blocking): {db_err}")
