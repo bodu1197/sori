@@ -301,6 +301,39 @@ export default function SearchPage() {
                   </button>
                 </div>
               )}
+
+              {/* Similar Artists */}
+              {artists[0]?.related && artists[0].related.length > 0 && (
+                <div className="mt-6 w-full">
+                  <h4 className="text-sm font-semibold text-gray-500 mb-3 text-center">
+                    Similar Artists
+                  </h4>
+                  <div className="flex gap-4 overflow-x-auto pb-2 justify-center flex-wrap">
+                    {artists[0].related.slice(0, 6).map((related, idx) => (
+                      <div
+                        key={related.browseId || idx}
+                        className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+                        onClick={() => setSearchQuery(related.artist || related.name)}
+                      >
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-700 mb-1">
+                          <img
+                            src={related.thumbnails?.[0]?.url || PLACEHOLDER_ARTIST}
+                            alt={related.artist || related.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = PLACEHOLDER_ARTIST;
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-400 text-center truncate w-16">
+                          {related.artist || related.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

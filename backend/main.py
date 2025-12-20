@@ -325,6 +325,35 @@ def db_get_cached_search(keyword: str, country: str = "US") -> dict | None:
         logger.warning(f"DB get cached search error: {e}")
         return None
 
+def db_save_related_artists(main_artist_browse_id: str, related_artists: list):
+    """유사 아티스트 관계 저장"""
+    if not supabase_client or not related_artists:
+        return
+
+    try:
+        for related in related_artists:
+            related_browse_id = related.get("browseId")
+            if not related_browse_id:
+                continue
+
+            # 먼저 관련 아티스트도 music_artists 테이블에 저장
+            db_save_artist(related)
+
+            # 관계 저장
+            data = {
+                "main_artist_browse_id": main_artist_browse_id,
+                "related_artist_browse_id": related_browse_id,
+                "relation_type": "similar"
+            }
+
+            supabase_client.table("artist_relations").upsert(
+                data, on_conflict="main_artist_browse_id,related_artist_browse_id"
+            ).execute()
+
+        logger.info(f"Saved {len(related_artists)} related artists for {main_artist_browse_id}")
+    except Exception as e:
+        logger.warning(f"DB save related artists error: {e}")
+
 def db_save_search_cache(keyword: str, country: str, artist_ids: list):
     """검색 결과를 캐시에 저장"""
     if not supabase_client or not artist_ids:
@@ -766,6 +795,13 @@ async def search_summary(
                     artist_db_id = db_save_artist(artist)
                     if artist_db_id:
                         saved_artist_ids.append(artist_db_id)
+
+                    # 유사 아티스트 저장
+                    related_artists = artist.get("related") or []
+                    if related_artists:
+                        browse_id = artist.get("browseId")
+                        if browse_id:
+                            db_save_related_artists(browse_id, related_artists)
 
                 # 앨범 및 트랙 저장
                 for album in albums_data:

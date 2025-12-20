@@ -5,7 +5,7 @@ const path = require('path');
 // Configuration
 const PROJECT_ID = 'nrtkbulkzhhlstaomvas';
 const ACCESS_TOKEN = 'sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296'; // Token provided by user
-const SQL_FILE_PATH = path.join(__dirname, '../../supabase/migrations/20251220_music_metadata.sql');
+const SQL_FILE_PATH = path.join(__dirname, '../../supabase/migrations/20251220_artist_relations.sql');
 
 function executeQuery(query) {
   return new Promise((resolve, reject) => {
