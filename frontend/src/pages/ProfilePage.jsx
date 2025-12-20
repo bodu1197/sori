@@ -1,7 +1,8 @@
 // @ts-nocheck
-import React, { useState } from 'react';
-import { Menu, Grid, List, Lock, Play } from 'lucide-react';
-import { CURRENT_USER, POSTS } from '../data/mock';
+import React, { useEffect, useState } from 'react';
+import { Grid, List, Lock, Play, LogOut } from 'lucide-react';
+import useAuthStore from '../stores/useAuthStore';
+import { supabase } from '../lib/supabase';
 
 function StatItem({ count, label }) {
   return (
@@ -13,46 +14,87 @@ function StatItem({ count, label }) {
 }
 
 export default function ProfilePage() {
+  const { user, signOut } = useAuthStore();
   const [activeTab, setActiveTab] = useState('playlists');
+  const [profile, setProfile] = useState(null);
+  const [playlists, setPlaylists] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProfileData() {
+      if (!user) return;
+
+      try {
+        setLoading(true);
+
+        // 1. Fetch Profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) throw profileError;
+        setProfile(profileData);
+
+        // 2. Fetch User's Playlists
+        const { data: playlistData, error: playlistError } = await supabase
+          .from('playlists')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (playlistError) throw playlistError;
+        setPlaylists(playlistData || []);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfileData();
+  }, [user]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  }
 
   return (
     <div className="bg-white dark:bg-black min-h-screen pb-20">
-      {/* Header Name (Top Nav is Global, but maybe we want username centered here or in top nav) */}
-      {/* We are using Global TopNav, so we skip the extra header row */}
-
       <div className="px-4 pt-4 pb-4">
         {/* Top Section: Avatar + Stats */}
         <div className="flex items-center justify-between mb-4">
           <div className="relative">
             <div className="w-20 h-20 rounded-full p-[2px] bg-gradient-to-tr from-gray-200 to-gray-200">
               <img
-                src={CURRENT_USER.avatar}
+                src={
+                  profile?.avatar_url ||
+                  user?.user_metadata?.avatar_url ||
+                  'https://via.placeholder.com/150'
+                }
                 alt="Profile"
                 className="w-full h-full rounded-full object-cover border-2 border-white dark:border-black"
               />
             </div>
-            <div className="absolute bottom-0 right-0 bg-blue-500 rounded-full w-6 h-6 flex items-center justify-center border-2 border-white text-white text-xs">
-              +
-            </div>
           </div>
 
           <div className="flex flex-1 justify-around ml-4">
-            <StatItem count={12} label="Playlists" />
-            <StatItem count={542} label="Followers" />
-            <StatItem count={189} label="Following" />
+            <StatItem count={playlists.length} label="Playlists" />
+            <StatItem count={0} label="Followers" />
+            <StatItem count={0} label="Following" />
           </div>
         </div>
 
         {/* Bio Section */}
         <div className="mb-4">
-          <h2 className="font-bold text-sm">{CURRENT_USER.name}</h2>
-          <span className="text-xs text-gray-500 block mb-1">Musician/Band</span>
-          <p className="text-sm whitespace-pre-line">
-            Music is life 🎵 Creating vibes daily. Check out my new selection! 👇
-          </p>
-          <a href="#" className="text-blue-900 dark:text-blue-400 text-sm font-semibold">
-            musicgram.link/mylife
-          </a>
+          <h2 className="font-bold text-sm">
+            {profile?.full_name || user?.user_metadata?.full_name || 'No Name'}
+          </h2>
+          <span className="text-xs text-gray-500 block mb-1">
+            @{profile?.username || 'username'}
+          </span>
+          <p className="text-sm whitespace-pre-line">{profile?.website || 'Music is life 🎵'}</p>
         </div>
 
         {/* Action Buttons */}
@@ -60,21 +102,22 @@ export default function ProfilePage() {
           <button className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">
             Edit profile
           </button>
-          <button className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-            Share profile
+          <button
+            onClick={signOut}
+            className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
+          >
+            <LogOut size={16} /> Sign Out
           </button>
         </div>
 
         {/* Story Highlights (Placeholder) */}
         <div className="flex gap-4 overflow-x-auto mb-6 scrollbar-hide">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex flex-col items-center flex-shrink-0">
-              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 flex items-center justify-center">
-                <span className="text-xs">✨</span>
-              </div>
-              <span className="text-xs mt-1">High {i}</span>
+          <div className="flex flex-col items-center flex-shrink-0">
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 flex items-center justify-center cursor-pointer">
+              <span className="text-2xl">+</span>
             </div>
-          ))}
+            <span className="text-xs mt-1">New</span>
+          </div>
         </div>
       </div>
 
@@ -90,7 +133,6 @@ export default function ProfilePage() {
           onClick={() => setActiveTab('liked')}
           className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'liked' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
         >
-          {/* List Icon representing "Liked Songs List" */}
           <List size={24} />
         </button>
         <button
@@ -103,16 +145,27 @@ export default function ProfilePage() {
 
       {/* Grid Content */}
       <div className="grid grid-cols-3 gap-0.5">
-        {POSTS.map((post) => (
-          <div key={post.id} className="aspect-square relative group bg-gray-100 cursor-pointer">
-            <img src={post.playlist.cover} alt="cover" className="w-full h-full object-cover" />
-            {activeTab === 'liked' && (
-              <div className="absolute top-2 right-2 text-white drop-shadow-md">
-                <Play fill="white" size={16} />
-              </div>
-            )}
+        {playlists.length > 0 ? (
+          playlists.map((playlist) => (
+            <div
+              key={playlist.id}
+              className="aspect-square relative group bg-gray-100 cursor-pointer"
+            >
+              <img
+                src={
+                  playlist.cover_url ||
+                  'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
+                }
+                alt="cover"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))
+        ) : (
+          <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
+            No playlists yet. Create one!
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
