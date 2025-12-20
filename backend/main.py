@@ -621,52 +621,34 @@ async def get_mood_playlists(params: str, country: str = None, request: Request 
 
 
 @app.get("/api/home")
-async def get_home(request: Request, country: str = None):
-    """홈 화면 추천 콘텐츠 (차트, 신규 앨범, 무드 통합)"""
+async def get_home_feed(request: Request, country: str = None, limit: int = 6):
+    """
+    홈 화면 추천 콘텐츠 - ytmusic.get_home() 사용
+    YouTube Music 홈 화면과 동일한 추천 섹션 반환
+    (Quick picks, 믹스, 추천 플레이리스트, 신규 앨범 등)
+    """
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
 
-    cache_key = f"home:{country}"
+    cache_key = f"home_feed:{country}:{limit}"
 
     cached = cache_get(cache_key)
     if cached:
-        return {"country": country, "source": "cache", **cached}
+        return {"country": country, "source": "cache", "sections": cached}
 
     try:
         ytmusic = get_ytmusic(country)
 
-        # 병렬로 데이터 수집
-        charts = None
-        new_albums = None
-        moods = None
-
-        try:
-            charts = ytmusic.get_charts(country)
-        except Exception as e:
-            logger.warning(f"Charts fetch failed: {e}")
-
-        try:
-            new_albums = ytmusic.get_new_albums()
-        except Exception as e:
-            logger.warning(f"New albums fetch failed: {e}")
-
-        try:
-            moods = ytmusic.get_mood_categories()
-        except Exception as e:
-            logger.warning(f"Moods fetch failed: {e}")
-
-        result = {
-            "charts": charts,
-            "new_albums": new_albums,
-            "moods": moods
-        }
+        # get_home()은 홈 화면의 모든 섹션을 반환
+        # limit: 가져올 섹션 수 (기본 6개)
+        home_sections = ytmusic.get_home(limit=limit)
 
         # 30분 캐시
-        cache_set(cache_key, result, ttl=1800)
+        cache_set(cache_key, home_sections, ttl=1800)
 
-        return {"country": country, "source": "api", **result}
+        return {"country": country, "source": "api", "sections": home_sections}
     except Exception as e:
-        logger.error(f"Home error: {e}")
+        logger.error(f"Home feed error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

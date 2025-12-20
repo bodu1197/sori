@@ -1,17 +1,6 @@
 import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Grid,
-  Heart,
-  Lock,
-  Play,
-  LogOut,
-  Music,
-  Shuffle,
-  Trash2,
-  Disc,
-  TrendingUp,
-} from 'lucide-react';
+import { Grid, Heart, Lock, Play, LogOut, Music, Shuffle, Trash2, Disc } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
 import useCountry from '../hooks/useCountry';
@@ -155,29 +144,25 @@ interface Playlist {
   created_at: string;
 }
 
-interface Album {
-  browseId: string;
+interface HomeContentItem {
   title: string;
-  year?: string;
+  videoId?: string;
+  playlistId?: string;
+  browseId?: string;
   thumbnails?: Array<{ url: string; width: number; height: number }>;
   artists?: Array<{ name: string; id?: string }>;
+  views?: string;
+  album?: { name: string; id: string };
+  subtitle?: string;
 }
 
-interface ChartSong {
-  videoId: string;
+interface HomeSection {
   title: string;
-  artists?: Array<{ name: string; id?: string }>;
-  thumbnails?: Array<{ url: string; width: number; height: number }>;
-  rank?: string;
+  contents: HomeContentItem[];
 }
 
 interface HomeData {
-  charts?: {
-    songs?: { items?: ChartSong[] };
-    trending?: { items?: ChartSong[] };
-  };
-  new_albums?: Album[];
-  moods?: Record<string, Array<{ title: string; params: string }>>;
+  sections: HomeSection[];
 }
 
 export default function ProfilePage() {
@@ -252,7 +237,7 @@ export default function ProfilePage() {
 
       setHomeLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}`);
+        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}&limit=6`);
         if (response.ok) {
           const data = await response.json();
           setHomeData(data);
@@ -273,15 +258,17 @@ export default function ProfilePage() {
     return thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
   };
 
-  // Play a chart song
-  const handlePlayChartSong = (song: ChartSong) => {
-    const track = {
-      videoId: song.videoId,
-      title: song.title,
-      artist: song.artists?.map((a) => a.name).join(', ') || 'Unknown',
-      thumbnail: getBestThumbnail(song.thumbnails) || undefined,
-    };
-    setTrack(track);
+  // Play a home content item (song or playlist)
+  const handlePlayHomeItem = (item: HomeContentItem) => {
+    if (item.videoId) {
+      const track = {
+        videoId: item.videoId,
+        title: item.title,
+        artist: item.artists?.map((a) => a.name).join(', ') || item.subtitle || 'Unknown',
+        thumbnail: getBestThumbnail(item.thumbnails) || undefined,
+      };
+      setTrack(track);
+    }
   };
 
   // Play a single playlist
@@ -549,135 +536,74 @@ export default function ProfilePage() {
           )}
         </div>
       ) : activeTab === 'discover' ? (
-        // Discover Tab - Recommendations & New Albums
+        // Discover Tab - YouTube Music Home Feed
         <div className="p-4 space-y-6">
           {homeLoading ? (
             <div className="flex justify-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
             </div>
-          ) : (
-            <>
-              {/* Trending Songs */}
-              {homeData?.charts?.songs?.items && homeData.charts.songs.items.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp size={20} className="text-red-500" />
-                    <h3 className="font-bold text-lg">{t('profile.trending', 'Trending')}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {homeData.charts.songs.items.slice(0, 10).map((song, index) => (
-                      <div
-                        key={song.videoId || index}
-                        onClick={() => handlePlayChartSong(song)}
-                        className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-                      >
-                        <span className="w-6 text-center font-bold text-gray-400">{index + 1}</span>
+          ) : homeData?.sections && homeData.sections.length > 0 ? (
+            homeData.sections.map((section, sectionIndex) => (
+              <div key={sectionIndex}>
+                {/* Section Title */}
+                <h3 className="font-bold text-lg mb-3">{section.title}</h3>
+
+                {/* Horizontal Scroll Content */}
+                <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
+                  {section.contents.slice(0, 12).map((item, itemIndex) => (
+                    <div
+                      key={item.videoId || item.playlistId || itemIndex}
+                      onClick={() => handlePlayHomeItem(item)}
+                      className="flex-shrink-0 w-36 cursor-pointer group"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative">
                         <img
                           src={
-                            getBestThumbnail(song.thumbnails) || 'https://via.placeholder.com/48'
+                            getBestThumbnail(item.thumbnails) || 'https://via.placeholder.com/144'
                           }
-                          alt={song.title}
-                          className="w-12 h-12 rounded object-cover"
+                          alt={item.title}
+                          className="w-36 h-36 rounded-lg object-cover shadow-md group-hover:shadow-lg transition-shadow"
                           onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                            e.currentTarget.src = 'https://via.placeholder.com/48';
+                            e.currentTarget.src = 'https://via.placeholder.com/144';
                           }}
                         />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{song.title}</div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {song.artists?.map((a) => a.name).join(', ') || 'Unknown'}
+                        {/* Play Overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center">
+                          <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                            <Play size={24} className="text-black ml-1" fill="black" />
                           </div>
                         </div>
-                        <Play size={18} className="text-gray-400" />
+                        {/* Views Badge */}
+                        {item.views && (
+                          <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                            {item.views}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* New Albums */}
-              {homeData?.new_albums && homeData.new_albums.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Disc size={20} className="text-purple-500" />
-                    <h3 className="font-bold text-lg">{t('profile.newAlbums', 'New Albums')}</h3>
-                  </div>
-                  <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
-                    {homeData.new_albums.slice(0, 20).map((album, index) => (
-                      <div
-                        key={album.browseId || index}
-                        className="flex-shrink-0 w-32 cursor-pointer group"
-                      >
-                        <div className="relative">
-                          <img
-                            src={
-                              getBestThumbnail(album.thumbnails) ||
-                              'https://via.placeholder.com/128'
-                            }
-                            alt={album.title}
-                            className="w-32 h-32 rounded-lg object-cover shadow-md group-hover:shadow-lg transition-shadow"
-                            onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                              e.currentTarget.src = 'https://via.placeholder.com/128';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
-                            <div className="w-10 h-10 bg-white/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Play size={20} className="text-black ml-0.5" fill="black" />
-                            </div>
-                          </div>
+                      {/* Info */}
+                      <div className="mt-2">
+                        <div className="font-medium text-sm line-clamp-2 leading-tight">
+                          {item.title}
                         </div>
-                        <div className="mt-2">
-                          <div className="font-medium text-sm truncate">{album.title}</div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {album.artists?.map((a) => a.name).join(', ') || 'Unknown'}
-                          </div>
-                          {album.year && <div className="text-xs text-gray-400">{album.year}</div>}
+                        <div className="text-xs text-gray-500 truncate mt-0.5">
+                          {item.artists?.map((a) => a.name).join(', ') ||
+                            item.subtitle ||
+                            item.album?.name ||
+                            ''}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-
-              {/* Moods & Genres */}
-              {homeData?.moods && Object.keys(homeData.moods).length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Music size={20} className="text-blue-500" />
-                    <h3 className="font-bold text-lg">{t('profile.moods', 'Moods & Genres')}</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(homeData.moods)
-                      .slice(0, 3)
-                      .map(([category, items]) => (
-                        <div key={category} className="w-full">
-                          <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                            {category}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {items.slice(0, 6).map((mood, idx) => (
-                              <button
-                                key={idx}
-                                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                              >
-                                {mood.title}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {/* No data */}
-              {!homeData?.charts && !homeData?.new_albums && !homeData?.moods && (
-                <div className="py-10 text-center text-gray-500">
-                  <Disc size={48} className="mx-auto mb-2 opacity-50" />
-                  <p>{t('profile.noRecommendations', 'No recommendations available')}</p>
-                </div>
-              )}
-            </>
+              </div>
+            ))
+          ) : (
+            <div className="py-10 text-center text-gray-500">
+              <Disc size={48} className="mx-auto mb-2 opacity-50" />
+              <p>{t('profile.noRecommendations', 'No recommendations available')}</p>
+            </div>
           )}
         </div>
       ) : (
