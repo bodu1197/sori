@@ -332,11 +332,11 @@ export default function ProfilePage() {
   // Play all songs from search
   const handlePlayAllSongs = () => {
     if (searchSongs.length === 0) return;
-    const playlist = searchSongs.slice(0, 20).map((song) => ({
+    const playlist = searchSongs.map((song) => ({
       videoId: song.videoId,
       title: song.title,
       artist: song.artists?.[0]?.name || 'Unknown',
-      thumbnail: song.thumbnails?.[0]?.url,
+      thumbnail: getBestThumbnail(song.thumbnails),
     }));
     startPlayback(playlist, 0);
   };
@@ -344,11 +344,11 @@ export default function ProfilePage() {
   // Shuffle songs from search
   const handleShuffleSearchSongs = () => {
     if (searchSongs.length === 0) return;
-    const playlist = searchSongs.slice(0, 20).map((song) => ({
+    const playlist = searchSongs.map((song) => ({
       videoId: song.videoId,
       title: song.title,
       artist: song.artists?.[0]?.name || 'Unknown',
-      thumbnail: song.thumbnails?.[0]?.url,
+      thumbnail: getBestThumbnail(song.thumbnails),
     }));
     const shuffled = [...playlist].sort(() => Math.random() - 0.5);
     startPlayback(shuffled, 0);
@@ -549,7 +549,7 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Artist Card */}
+              {/* 1. Artist Card */}
               {searchArtist && (
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6">
                   <div className="flex items-start gap-4">
@@ -592,35 +592,6 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Similar Artists */}
-                  {searchArtist.related && searchArtist.related.length > 0 && (
-                    <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">
-                        Similar Artists
-                      </h4>
-                      <div className="flex gap-4 overflow-x-auto pb-2">
-                        {searchArtist.related.slice(0, 6).map((r, i) => (
-                          <div
-                            key={i}
-                            className="flex flex-col items-center flex-shrink-0 cursor-pointer hover:opacity-80"
-                            onClick={() => handleSearchSimilarArtist(r.artist || r.name)}
-                          >
-                            <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-1">
-                              <img
-                                src={getBestThumbnail(r.thumbnails)}
-                                alt={r.artist || r.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <span className="text-xs text-gray-600 dark:text-gray-400 text-center w-16 truncate">
-                              {r.artist || r.name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -631,7 +602,7 @@ export default function ProfilePage() {
                     Top Tracks ({searchSongs.length})
                   </h3>
                   <div className="space-y-1">
-                    {searchSongs.slice(0, 20).map((song, i) => (
+                    {searchSongs.map((song, i) => (
                       <div
                         key={song.videoId || i}
                         onClick={() => handlePlayTrackFromSearch(song)}
@@ -675,7 +646,7 @@ export default function ProfilePage() {
                     Albums & Singles ({searchAlbums.length})
                   </h3>
                   <div className="space-y-3">
-                    {searchAlbums.slice(0, 15).map((album, i) => {
+                    {searchAlbums.map((album, i) => {
                       const albumId = album.browseId || `album-${i}`;
                       const isExpanded = expandedAlbums.has(albumId);
                       const trackCount = album.tracks?.length || 0;
@@ -773,6 +744,43 @@ export default function ProfilePage() {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Similar Artists */}
+              {searchArtist?.related && searchArtist.related.length > 0 && (
+                <div>
+                  <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                    Similar Artists ({searchArtist.related.length})
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {searchArtist.related.map((artist, i) => (
+                      <div
+                        key={artist.browseId || `related-${i}`}
+                        onClick={() => handleSearchSimilarArtist(artist.title)}
+                        className="flex flex-col items-center cursor-pointer group"
+                      >
+                        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
+                          <img
+                            src={getBestThumbnail(artist.thumbnails)}
+                            alt={artist.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = PLACEHOLDER;
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1">
+                          {artist.title}
+                        </span>
+                        {artist.subscribers && (
+                          <span className="text-xs text-gray-500 truncate w-full text-center">
+                            {artist.subscribers}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
