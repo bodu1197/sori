@@ -1,1 +1,2 @@
+#!/bin/sh
 cd frontend && npx tsc --noEmit && npm run lint
