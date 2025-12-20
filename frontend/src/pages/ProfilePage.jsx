@@ -140,6 +140,9 @@ export default function ProfilePage() {
   const [searchAlbums, setSearchAlbums] = useState([]);
   const [searchSongs, setSearchSongs] = useState([]);
   const [expandedAlbums, setExpandedAlbums] = useState(new Set());
+  const [albumTracks, setAlbumTracks] = useState({}); // Cache for fetched album tracks
+  const [loadingAlbums, setLoadingAlbums] = useState(new Set()); // Loading state for albums
+  const [showAllSongs, setShowAllSongs] = useState(false); // Show all songs toggle
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
@@ -154,8 +157,11 @@ export default function ProfilePage() {
     return thumbnails[2]?.url || thumbnails[1]?.url || thumbnails[0]?.url || PLACEHOLDER;
   };
 
-  // Toggle album expansion
-  const toggleAlbumExpand = (albumId) => {
+  // Toggle album expansion and fetch tracks if needed
+  const toggleAlbumExpand = async (album) => {
+    const albumId = album.browseId || `album-${album.title}`;
+
+    // Toggle expansion
     setExpandedAlbums((prev) => {
       const next = new Set(prev);
       if (next.has(albumId)) {
@@ -165,12 +171,46 @@ export default function ProfilePage() {
       }
       return next;
     });
+
+    // If already have tracks (from API or cache), don't fetch again
+    if (album.tracks?.length > 0 || albumTracks[albumId]) {
+      return;
+    }
+
+    // Fetch album tracks from API
+    if (album.browseId) {
+      setLoadingAlbums((prev) => new Set(prev).add(albumId));
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/album/${album.browseId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.tracks && data.tracks.length > 0) {
+            setAlbumTracks((prev) => ({ ...prev, [albumId]: data.tracks }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching album tracks:', error);
+      } finally {
+        setLoadingAlbums((prev) => {
+          const next = new Set(prev);
+          next.delete(albumId);
+          return next;
+        });
+      }
+    }
+  };
+
+  // Get tracks for an album (from album data or cache)
+  const getAlbumTracks = (album) => {
+    const albumId = album.browseId || `album-${album.title}`;
+    return album.tracks?.length > 0 ? album.tracks : albumTracks[albumId] || [];
   };
 
   // Play album tracks
   const handlePlayAlbum = (album) => {
-    if (!album.tracks || album.tracks.length === 0) return;
-    const playlist = album.tracks.map((t) => ({
+    const tracks = getAlbumTracks(album);
+    if (tracks.length === 0) return;
+    const playlist = tracks.map((t) => ({
       videoId: t.videoId,
       title: t.title,
       artist: t.artists?.[0]?.name || 'Unknown',
@@ -181,8 +221,9 @@ export default function ProfilePage() {
 
   // Shuffle album tracks
   const handleShuffleAlbum = (album) => {
-    if (!album.tracks || album.tracks.length === 0) return;
-    const playlist = album.tracks.map((t) => ({
+    const tracks = getAlbumTracks(album);
+    if (tracks.length === 0) return;
+    const playlist = tracks.map((t) => ({
       videoId: t.videoId,
       title: t.title,
       artist: t.artists?.[0]?.name || 'Unknown',
@@ -194,8 +235,9 @@ export default function ProfilePage() {
 
   // Play a track from album
   const handlePlayAlbumTrack = (album, trackIndex) => {
-    if (!album.tracks || album.tracks.length === 0) return;
-    const playlist = album.tracks.map((t) => ({
+    const tracks = getAlbumTracks(album);
+    if (tracks.length === 0) return;
+    const playlist = tracks.map((t) => ({
       videoId: t.videoId,
       title: t.title,
       artist: t.artists?.[0]?.name || 'Unknown',
@@ -314,6 +356,9 @@ export default function ProfilePage() {
     setSearchAlbums([]);
     setSearchSongs([]);
     setExpandedAlbums(new Set());
+    setAlbumTracks({});
+    setLoadingAlbums(new Set());
+    setShowAllSongs(false);
   };
 
   // Play a single track from search
@@ -602,7 +647,7 @@ export default function ProfilePage() {
                     Top Tracks ({searchSongs.length})
                   </h3>
                   <div className="space-y-1">
-                    {searchSongs.map((song, i) => (
+                    {(showAllSongs ? searchSongs : searchSongs.slice(0, 10)).map((song, i) => (
                       <div
                         key={song.videoId || i}
                         onClick={() => handlePlayTrackFromSearch(song)}
@@ -636,6 +681,25 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
+                  {/* Show More Button */}
+                  {searchSongs.length > 10 && (
+                    <button
+                      onClick={() => setShowAllSongs(!showAllSongs)}
+                      className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
+                    >
+                      {showAllSongs ? (
+                        <>
+                          <ChevronUp size={16} />
+                          접기
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={16} />
+                          더보기 ({searchSongs.length - 10}곡)
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -646,18 +710,23 @@ export default function ProfilePage() {
                     Albums & Singles ({searchAlbums.length})
                   </h3>
                   <div className="space-y-3">
-                    {searchAlbums.map((album, i) => {
-                      const albumId = album.browseId || `album-${i}`;
+                    {searchAlbums.map((album) => {
+                      const albumId = album.browseId || `album-${album.title}`;
                       const isExpanded = expandedAlbums.has(albumId);
-                      const trackCount = album.tracks?.length || 0;
+                      const isLoading = loadingAlbums.has(albumId);
+                      const tracks = getAlbumTracks(album);
+                      const trackCount = tracks.length;
 
                       return (
                         <div
                           key={albumId}
                           className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
                         >
-                          {/* Album Header */}
-                          <div className="flex items-start gap-3 p-3">
+                          {/* Album Header - Clickable */}
+                          <div
+                            onClick={() => toggleAlbumExpand(album)}
+                            className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                          >
                             <img
                               src={getBestThumbnail(album.thumbnails)}
                               alt={album.title}
@@ -670,75 +739,103 @@ export default function ProfilePage() {
                               <div className="text-xs text-gray-500 mb-2">
                                 {album.type || 'Album'}
                                 {album.year && ` • ${album.year}`}
-                                {trackCount > 0 && ` • ${trackCount} tracks`}
                               </div>
-                              {/* Album Action Buttons */}
-                              <div className="flex flex-wrap gap-1.5">
-                                {trackCount > 0 && (
-                                  <>
-                                    <button
-                                      onClick={() => handlePlayAlbum(album)}
-                                      className="flex items-center gap-1 bg-black dark:bg-white text-white dark:text-black px-3 py-1 rounded-full text-xs font-semibold hover:opacity-80"
-                                    >
-                                      <Play size={12} fill="currentColor" /> Play
-                                    </button>
-                                    <button
-                                      onClick={() => handleShuffleAlbum(album)}
-                                      className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 px-3 py-1 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
-                                    >
-                                      <Shuffle size={12} /> Shuffle
-                                    </button>
-                                    <button
-                                      onClick={() => toggleAlbumExpand(albumId)}
-                                      className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 px-3 py-1 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
-                                    >
-                                      Tracks ({trackCount})
-                                      {isExpanded ? (
-                                        <ChevronUp size={12} />
-                                      ) : (
-                                        <ChevronDown size={12} />
-                                      )}
-                                    </button>
-                                  </>
+                              {/* Expand indicator */}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                {isLoading ? (
+                                  <Loader2 size={14} className="animate-spin" />
+                                ) : isExpanded ? (
+                                  <ChevronUp size={14} />
+                                ) : (
+                                  <ChevronDown size={14} />
                                 )}
+                                <span>
+                                  {isLoading
+                                    ? '로딩 중...'
+                                    : trackCount > 0
+                                      ? `${trackCount}곡`
+                                      : '클릭하여 트랙 보기'}
+                                </span>
                               </div>
                             </div>
                           </div>
 
                           {/* Album Track List (Expandable) */}
-                          {isExpanded && album.tracks && album.tracks.length > 0 && (
-                            <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-2">
-                              {album.tracks.map((track, trackIdx) => (
-                                <div
-                                  key={track.videoId || trackIdx}
-                                  onClick={() => handlePlayAlbumTrack(album, trackIdx)}
-                                  className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
+                          {isExpanded && trackCount > 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-700">
+                              {/* Play/Shuffle Buttons */}
+                              <div className="flex gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePlayAlbum(album);
+                                  }}
+                                  className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-xs font-semibold hover:opacity-80"
                                 >
-                                  <span className="w-5 text-center text-xs text-gray-400">
-                                    {trackIdx + 1}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-black dark:text-white truncate">
-                                      {track.title}
-                                    </div>
-                                  </div>
-                                  <span className="text-xs text-gray-400">
-                                    {track.duration || ''}
-                                  </span>
-                                  <button
+                                  <Play size={12} fill="currentColor" /> 전체 재생
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleShuffleAlbum(album);
+                                  }}
+                                  className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
+                                >
+                                  <Shuffle size={12} /> 셔플
+                                </button>
+                              </div>
+                              {/* Track List */}
+                              <div className="px-3 py-2">
+                                {tracks.map((track, trackIdx) => (
+                                  <div
+                                    key={track.videoId || trackIdx}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAddToLiked({
-                                        ...track,
-                                        thumbnails: track.thumbnails || album.thumbnails,
-                                      });
+                                      handlePlayAlbumTrack(album, trackIdx);
                                     }}
-                                    className="p-1 text-gray-400 hover:text-red-500"
+                                    className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
                                   >
-                                    <Heart size={14} />
-                                  </button>
-                                </div>
-                              ))}
+                                    <span className="w-5 text-center text-xs text-gray-400">
+                                      {trackIdx + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm text-black dark:text-white truncate">
+                                        {track.title}
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                      {track.duration || ''}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddToLiked({
+                                          ...track,
+                                          thumbnails: track.thumbnails || album.thumbnails,
+                                        });
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-red-500"
+                                    >
+                                      <Heart size={14} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Loading State */}
+                          {isExpanded && isLoading && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex items-center justify-center">
+                              <Loader2 size={20} className="animate-spin text-gray-400" />
+                              <span className="ml-2 text-sm text-gray-500">트랙 로딩 중...</span>
+                            </div>
+                          )}
+
+                          {/* No Tracks Message */}
+                          {isExpanded && !isLoading && trackCount === 0 && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-500">
+                              트랙 정보를 불러올 수 없습니다.
                             </div>
                           )}
                         </div>
