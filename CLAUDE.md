@@ -175,8 +175,10 @@ Base URL: https://musicgram-api-89748215794.us-central1.run.app
 GET /api/search?q=검색어     # 음악 검색
 GET /api/charts?country=KR   # 국가별 차트
 GET /api/new-albums          # 신규 앨범
+GET /api/home                # 홈 피드 추천 (ytmusic.get_home())
 GET /api/artist/{id}         # 아티스트 정보
 GET /api/album/{id}          # 앨범 정보
+GET /api/playlist/{id}       # 플레이리스트 트랙 목록
 ```
 
 ---
@@ -283,6 +285,10 @@ sori/
 | **모든 항목 표시 (slice 제거)** | `ProfilePage.jsx` | ✅ 완료 |
 | **Similar Artists 섹션 추가** | `ProfilePage.jsx` | ✅ 완료 |
 | **큰 썸네일 사용 (getBestThumbnail)** | `ProfilePage.jsx` | ✅ 완료 |
+| **글로벌 국가 지원 (70+ 국가)** | `backend/main.py`, `useCountry.ts` | ✅ 완료 |
+| **Discover 탭 (ytmusic.get_home)** | `ProfilePage.tsx` | ✅ 완료 |
+| **플레이리스트 패널 (슬라이드업)** | `ProfilePage.tsx` | ✅ 완료 |
+| **플레이리스트/앨범 클릭 재생** | `ProfilePage.tsx`, `backend/main.py` | ✅ 완료 |
 
 #### 삭제된 하드코딩 데이터
 
@@ -296,13 +302,15 @@ sori/
 #### 커밋 히스토리 (최신순)
 
 ```
+d63c26a Add playlist panel for Discover tab music playback
+7cd7f01 Improve Discover tab with ytmusic.get_home() for real recommendations
+274e5fa Add Discover tab with trending songs, new albums, and moods
+34adf40 Fix: Use only YouTube Music API supported languages
+4518412 Add global country support for localized YouTube Music results
 3e0824c Improve search results: show all items and add Similar Artists section
 41947f7 Remove Story Highlights section from ProfilePage
 3890435 Remove hardcoded demo data and fix dark mode text colors
 2d0d662 Add player controls, song deletion, and context-based recommendations
-c1cb85c Remove hardcoded mock data and connect real APIs
-6b725a2 Improve dark mode text contrast and add API utilities
-cea3107 Implement YouTube Music Player and Your Music feature
 ```
 
 #### 남은 작업 (TODO)
