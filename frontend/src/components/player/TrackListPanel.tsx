@@ -430,7 +430,7 @@ export default function TrackListPanel({
         </div>
 
         {/* Track List */}
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 scrollbar-hide">
           {loading ? (
             <div className="flex justify-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
