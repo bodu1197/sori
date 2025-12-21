@@ -1552,40 +1552,21 @@ async def search_quick(request: Request, q: str, country: str = None):
         cached["source"] = "cache"
         return cached
 
-    # 2. Supabase DB 확인
-    if supabase_client:
-        try:
-            result = supabase_client.table("music_artists").select(
-                "browse_id, name, thumbnail_url, songs_playlist_id"
-            ).ilike("name", f"%{q.strip()}%").limit(1).execute()
-
-            if result.data and result.data[0]:
-                db_artist = result.data[0]
-                response = {
-                    "artist": {
-                        "browseId": db_artist.get("browse_id"),
-                        "name": db_artist.get("name"),
-                        "thumbnail": db_artist.get("thumbnail_url"),
-                        "songsPlaylistId": db_artist.get("songs_playlist_id")
-                    },
-                    "songs": [],
-                    "source": "database"
-                }
-                cache_set(cache_key, response, ttl=1800)
-                return response
-        except Exception as db_err:
-            logger.warning(f"DB quick search error: {db_err}")
-
-    # 3. ytmusicapi 검색 (search()만 호출 - 빠름!)
+    # 2. ytmusicapi 검색 (search()만 호출 - 빠름!)
+    # DB 캐시 사용 안함 - 앨범/비슷한 아티스트도 반환해야 하므로
     try:
         ytmusic = get_ytmusic(country)
 
-        # 병렬로 아티스트와 노래 검색
-        future_artists = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=1)
+        # 병렬로 아티스트, 노래, 앨범, 비슷한 아티스트 검색
+        future_artists = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=5)
         future_songs = run_in_thread(ytmusic.search, q.strip(), filter="songs", limit=5)
-        artists_results, songs_results = await asyncio.gather(future_artists, future_songs)
+        future_albums = run_in_thread(ytmusic.search, q.strip(), filter="albums", limit=10)
+        artists_results, songs_results, albums_results = await asyncio.gather(
+            future_artists, future_songs, future_albums
+        )
 
         artist_data = None
+        similar_artists = []
         if artists_results and len(artists_results) > 0:
             artist = artists_results[0]
             artist_data = {
@@ -1594,6 +1575,14 @@ async def search_quick(request: Request, q: str, country: str = None):
                 "thumbnail": get_best_thumbnail(artist.get("thumbnails", [])),
                 "songsPlaylistId": None  # 별도 API로 로드
             }
+
+            # 나머지 아티스트는 비슷한 아티스트로 표시
+            for a in artists_results[1:5]:
+                similar_artists.append({
+                    "browseId": a.get("browseId"),
+                    "name": a.get("artist") or a.get("name"),
+                    "thumbnail": get_best_thumbnail(a.get("thumbnails", []))
+                })
 
             # 백그라운드에서 DB에 저장 (다음 검색 시 빠르게)
             if supabase_client and artist_data.get("browseId"):
@@ -1619,9 +1608,23 @@ async def search_quick(request: Request, q: str, country: str = None):
                 "album": s.get("album")
             })
 
+        # 앨범 결과 정리
+        albums = []
+        for a in (albums_results or [])[:10]:
+            albums.append({
+                "browseId": a.get("browseId"),
+                "title": a.get("title"),
+                "artists": a.get("artists", []),
+                "thumbnails": a.get("thumbnails", []),
+                "year": a.get("year"),
+                "type": a.get("type", "Album")
+            })
+
         response = {
             "artist": artist_data,
             "songs": songs,
+            "albums": albums,
+            "similarArtists": similar_artists,
             "source": "api"
         }
 

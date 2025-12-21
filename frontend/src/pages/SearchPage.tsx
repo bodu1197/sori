@@ -232,11 +232,38 @@ export default function SearchPage() {
               name: data.artist.name,
               thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
               songsPlaylistId: data.artist.songsPlaylistId,
+              // 비슷한 아티스트 추가
+              related: (data.similarArtists || []).map(
+                (a: { browseId: string; name: string; thumbnail: string }) => ({
+                  browseId: a.browseId,
+                  title: a.name,
+                  thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
+                })
+              ),
             }
           : null;
 
         setSearchArtist(artist);
-        setSearchAlbums([]); // 앨범은 필요 시 별도 로드
+        // 앨범 데이터 변환
+        setSearchAlbums(
+          (data.albums || []).map(
+            (a: {
+              browseId: string;
+              title: string;
+              artists: Array<{ name: string; id?: string }>;
+              thumbnails: Array<{ url: string }>;
+              year?: string;
+              type?: string;
+            }) => ({
+              browseId: a.browseId,
+              title: a.title,
+              artists: a.artists,
+              thumbnails: a.thumbnails,
+              year: a.year,
+              type: a.type || 'Album',
+            })
+          )
+        );
         setSearchSongs(data.songs || []);
 
         // 2단계: 플레이리스트 ID 병렬 로드 (All Songs 버튼용)
