@@ -15,12 +15,13 @@ interface Notification {
   user_id: string;
   actor_id: string;
   type: 'like' | 'comment' | 'follow' | 'mention' | 'reply';
-  reference_id?: string;
-  reference_type?: string;
-  content?: string;
+  post_id?: string;
+  comment_id?: string;
+  message?: string;
   is_read: boolean;
   created_at: string;
   actor?: Profile;
+  content?: string; // For backward compatibility
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -64,16 +65,16 @@ function getNotificationText(notification: Notification): string {
     case 'like':
       return `${username} liked your post`;
     case 'comment':
-      return notification.content
-        ? `${username} commented: "${notification.content.slice(0, 50)}${notification.content.length > 50 ? '...' : ''}"`
+      return notification.message
+        ? `${username} commented: "${notification.message.slice(0, 50)}${notification.message.length > 50 ? '...' : ''}"`
         : `${username} commented on your post`;
     case 'follow':
       return `${username} started following you`;
     case 'mention':
       return `${username} mentioned you in a comment`;
     case 'reply':
-      return notification.content
-        ? `${username} replied: "${notification.content.slice(0, 50)}${notification.content.length > 50 ? '...' : ''}"`
+      return notification.message
+        ? `${username} replied: "${notification.message.slice(0, 50)}${notification.message.length > 50 ? '...' : ''}"`
         : `${username} replied to your comment`;
     default:
       return `${username} interacted with you`;
@@ -100,16 +101,11 @@ export default function NotificationsPage() {
             user_id,
             actor_id,
             type,
-            reference_id,
-            reference_type,
-            content,
+            post_id,
+            comment_id,
+            message,
             is_read,
-            created_at,
-            actor:actor_id (
-              id,
-              username,
-              avatar_url
-            )
+            created_at
           `
           )
           .eq('user_id', user.id)
@@ -117,6 +113,21 @@ export default function NotificationsPage() {
           .limit(50);
 
         if (error) throw error;
+
+        // Fetch actor profiles separately
+        if (data && data.length > 0) {
+          const actorIds = [...new Set(data.map((n) => n.actor_id).filter(Boolean))];
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', actorIds);
+
+          const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+          data.forEach((n) => {
+            (n as Notification).actor = profileMap.get(n.actor_id);
+          });
+        }
+
         setNotifications((data as unknown as Notification[]) || []);
       } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -126,6 +137,47 @@ export default function NotificationsPage() {
     }
 
     fetchNotifications();
+  }, [user?.id]);
+
+  // Real-time subscription for new notifications
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newNotification = payload.new as Notification;
+
+          // Fetch actor profile for the new notification
+          if (newNotification.actor_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id, username, avatar_url')
+              .eq('id', newNotification.actor_id)
+              .single();
+
+            if (profile) {
+              newNotification.actor = profile;
+            }
+          }
+
+          // Add to the beginning of the list
+          setNotifications((prev) => [newNotification, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   // Mark single notification as read
