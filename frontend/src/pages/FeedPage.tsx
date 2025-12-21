@@ -117,18 +117,20 @@ interface Profile {
   location?: string;
 }
 
-interface PlaylistPost {
+interface FeedPost {
   id: string;
-  title?: string;
-  description?: string;
+  title: string;
+  artist?: string;
+  caption?: string;
   cover_url?: string;
   video_id?: string;
   created_at: string;
-  likes_count?: number;
-  comments_count?: number;
+  like_count?: number;
+  comment_count?: number;
   repost_count?: number;
   user_id?: string;
-  profiles?: Profile;
+  is_public?: boolean;
+  profile?: Profile;
   // Repost info (when this is a repost)
   isRepost?: boolean;
   reposter?: Profile;
@@ -449,16 +451,16 @@ function StoryRail() {
   );
 }
 
-interface PlaylistPostProps {
-  post: PlaylistPost;
+interface FeedPostProps {
+  post: FeedPost;
   onLikeChange?: (postId: string, newCount: number) => void;
   onCommentCountChange?: (postId: string, newCount: number) => void;
 }
 
-function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: PlaylistPostProps) {
-  const user = post.profiles;
+function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPostProps) {
+  const user = post.profile;
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
-  const likeCountText = useLikeCountText(post.likes_count || 0);
+  const likeCountText = useLikeCountText(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
 
   const handlePlayClick = () => {
@@ -467,13 +469,13 @@ function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: Pla
     // Open popup with the post track
     const panelTrack: PlaylistTrackData = {
       videoId: post.video_id,
-      title: post.title || 'Unknown Playlist',
-      artists: [{ name: user?.username || 'Unknown Artist' }],
+      title: post.title || 'Unknown',
+      artists: post.artist ? [{ name: post.artist }] : [{ name: 'Unknown Artist' }],
       thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
     };
     openTrackPanel({
-      title: post.title || 'Playlist',
-      author: { name: user?.username || 'Unknown Artist' },
+      title: post.title || 'Track',
+      author: { name: post.artist || user?.username || 'Unknown Artist' },
       thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
       tracks: [panelTrack],
       trackCount: 1,
@@ -481,8 +483,8 @@ function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: Pla
 
     const track = {
       videoId: post.video_id,
-      title: post.title || 'Unknown Playlist',
-      artist: user?.username || 'Unknown Artist',
+      title: post.title || 'Unknown',
+      artist: post.artist || 'Unknown Artist',
       thumbnail: post.cover_url,
       cover: post.cover_url,
     };
@@ -599,7 +601,7 @@ function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: Pla
         <div className="flex gap-4">
           <LikeButton
             postId={post.id}
-            initialLikeCount={post.likes_count || 0}
+            initialLikeCount={post.like_count || 0}
             size={26}
             onLikeChange={(_isLiked, count) => {
               onLikeChange?.(post.id, count);
@@ -630,14 +632,14 @@ function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: Pla
       <div className="px-3 pt-1">
         <div className="text-sm">
           <span className="font-semibold mr-2 text-black dark:text-white">{user?.username}</span>
-          <span className="text-gray-700 dark:text-gray-300">{post.description}</span>
+          <span className="text-gray-700 dark:text-gray-300">{post.caption}</span>
         </div>
-        {(post.comments_count || 0) > 0 ? (
+        {(post.comment_count || 0) > 0 ? (
           <button
             onClick={() => setShowComments(true)}
             className="text-gray-500 dark:text-gray-400 text-sm mt-1"
           >
-            View all {post.comments_count} comments
+            View all {post.comment_count} comments
           </button>
         ) : (
           <button
@@ -669,7 +671,7 @@ function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: Pla
 
 export default function FeedPage() {
   const { user } = useAuthStore();
-  const [posts, setPosts] = useState<PlaylistPost[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [followingIds, setFollowingIds] = useState<string[]>([]);
@@ -697,37 +699,56 @@ export default function FeedPage() {
     fetchFollowing();
   }, [user?.id]);
 
-  // Fetch posts
+  // Fetch posts from posts table (public feed posts)
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const { data, error } = await supabase
-          .from('playlists')
-          .select(
-            `
-            id,
-            title,
-            description,
-            cover_url,
-            video_id,
-            created_at,
-            likes_count,
-            comments_count,
-            repost_count,
-            user_id,
-            profiles:user_id (
-              id,
-              username,
-              avatar_url,
-              full_name
-            )
-          `
-          )
-          .order('created_at', { ascending: false });
+        // Step 1: Fetch public posts
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-        if (error) throw error;
-        // Supabase returns profiles as object, cast properly
-        setPosts((data as unknown as PlaylistPost[]) || []);
+        if (postsError) throw postsError;
+
+        if (!postsData || postsData.length === 0) {
+          setPosts([]);
+          return;
+        }
+
+        // Step 2: Get unique user IDs
+        const userIds = [...new Set(postsData.map((p) => p.user_id))];
+
+        // Step 3: Fetch profiles for those user IDs
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, full_name')
+          .in('id', userIds);
+
+        // Create a map for quick lookup
+        const profilesMap = new Map<string, Profile>();
+        profilesData?.forEach((p) => profilesMap.set(p.id, p as Profile));
+
+        // Step 4: Combine posts with profiles
+        const postsWithProfiles: FeedPost[] = postsData.map((post) => ({
+          id: post.id,
+          title: post.title,
+          artist: post.artist,
+          caption: post.caption,
+          cover_url: post.cover_url,
+          video_id: post.video_id,
+          created_at: post.created_at,
+          like_count: post.like_count,
+          comment_count: post.comment_count,
+          repost_count: post.repost_count,
+          user_id: post.user_id,
+          is_public: post.is_public,
+          profile: profilesMap.get(post.user_id) || undefined,
+        }));
+
+        setPosts(postsWithProfiles);
       } catch {
         // Error fetching posts
       } finally {
@@ -740,14 +761,14 @@ export default function FeedPage() {
   // Handle like count update in local state
   const handleLikeChange = useCallback((postId: string, newCount: number) => {
     setPosts((prevPosts) =>
-      prevPosts.map((post) => (post.id === postId ? { ...post, likes_count: newCount } : post))
+      prevPosts.map((post) => (post.id === postId ? { ...post, like_count: newCount } : post))
     );
   }, []);
 
   // Handle comment count update in local state
   const handleCommentCountChange = useCallback((postId: string, newCount: number) => {
     setPosts((prevPosts) =>
-      prevPosts.map((post) => (post.id === postId ? { ...post, comments_count: newCount } : post))
+      prevPosts.map((post) => (post.id === postId ? { ...post, comment_count: newCount } : post))
     );
   }, []);
 
@@ -797,7 +818,7 @@ export default function FeedPage() {
       <div className="space-y-2 mt-2">
         {filteredPosts.length > 0 ? (
           filteredPosts.map((post) => (
-            <PlaylistPostComponent
+            <FeedPostComponent
               key={post.id}
               post={post}
               onLikeChange={handleLikeChange}
@@ -807,12 +828,12 @@ export default function FeedPage() {
         ) : filter === 'following' ? (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>No posts from people you follow.</p>
-            <p className="text-sm mt-1">Follow some musicians to see their playlists here!</p>
+            <p className="text-sm mt-1">Follow some musicians to see their posts here!</p>
           </div>
         ) : (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>No posts yet.</p>
-            <p className="text-sm">Follow some musicians or create a playlist!</p>
+            <p className="text-sm">Follow some musicians or create a post!</p>
           </div>
         )}
       </div>

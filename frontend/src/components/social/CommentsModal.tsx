@@ -51,7 +51,7 @@ export default function CommentsModal({
       try {
         // Fetch all comments for this post
         const { data, error } = await supabase
-          .from('comments')
+          .from('post_comments')
           .select(
             `
             id,
@@ -131,7 +131,7 @@ export default function CommentsModal({
       };
 
       const { data, error } = await supabase
-        .from('comments')
+        .from('post_comments')
         .insert(commentData)
         .select(
           `

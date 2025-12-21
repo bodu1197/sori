@@ -159,6 +159,19 @@ interface Playlist {
   created_at: string;
 }
 
+interface Post {
+  id: string;
+  title: string;
+  artist?: string;
+  video_id?: string;
+  cover_url?: string;
+  caption?: string;
+  like_count?: number;
+  comment_count?: number;
+  is_public?: boolean;
+  created_at: string;
+}
+
 interface HomeContentItem {
   title: string;
   videoId?: string;
@@ -188,10 +201,11 @@ export default function ProfilePage() {
     usePlayerStore();
   const country = useCountry();
 
-  const [activeTab, setActiveTab] = useState<'playlists' | 'liked' | 'discover' | 'private'>(
+  const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'discover' | 'private'>(
     'discover'
   );
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [likedSongs, setLikedSongs] = useState<LikedTrack[]>([]);
   const [homeData, setHomeData] = useState<HomeData | null>(null);
@@ -219,7 +233,18 @@ export default function ProfilePage() {
         if (profileError) throw profileError;
         setProfile(profileData as Profile);
 
-        // 2. Fetch User's Playlists
+        // 2. Fetch User's Posts (public feed posts)
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (!postsError) {
+          setPosts((postsData as Post[]) || []);
+        }
+
+        // 3. Fetch User's Playlists (for other uses)
         const { data: playlistData, error: playlistError } = await supabase
           .from('playlists')
           .select('*')
@@ -229,7 +254,7 @@ export default function ProfilePage() {
         if (playlistError) throw playlistError;
         setPlaylists((playlistData as Playlist[]) || []);
 
-        // 3. Fetch Liked Songs (using playlists with video_id as liked songs for now)
+        // 4. Fetch Liked Songs (using playlists with video_id as liked songs for now)
         const likedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
           .filter((p) => p.video_id)
           .map((p) => ({
@@ -388,6 +413,35 @@ export default function ProfilePage() {
     }
   };
 
+  // Play a single post - opens popup
+  const handlePlayPost = (post: Post) => {
+    if (!post.video_id) return;
+
+    const panelTrack: PlaylistTrackData = {
+      videoId: post.video_id,
+      title: post.title || 'Unknown',
+      artists: post.artist ? [{ name: post.artist }] : [{ name: 'Unknown Artist' }],
+      thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
+    };
+    openTrackPanel({
+      title: post.title || 'Track',
+      author: { name: post.artist || profile?.username || 'You' },
+      thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
+      tracks: [panelTrack],
+      trackCount: 1,
+    });
+
+    const track = {
+      videoId: post.video_id,
+      title: post.title || 'Unknown',
+      artist: post.artist || 'Unknown Artist',
+      thumbnail: post.cover_url,
+      cover: post.cover_url,
+    };
+
+    setTrack(track);
+  };
+
   // Play a single playlist - opens popup
   const handlePlayPlaylist = (playlist: Playlist) => {
     if (!playlist.video_id) return;
@@ -520,7 +574,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-1 justify-around ml-4">
-            <StatItem count={playlists.length} label={t('profile.playlists')} />
+            <StatItem count={posts.length} label="Posts" />
             <button onClick={() => setShowFollowersModal(true)} className="text-center">
               <StatItem count={profile?.followers_count || 0} label="Followers" />
             </button>
@@ -569,8 +623,8 @@ export default function ProfilePage() {
       {/* Tabs */}
       <div className="flex border-t border-gray-100 dark:border-gray-800">
         <button
-          onClick={() => setActiveTab('playlists')}
-          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'playlists' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
+          onClick={() => setActiveTab('posts')}
+          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'posts' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
         >
           <Grid size={24} />
         </button>
@@ -640,24 +694,26 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-      ) : activeTab === 'playlists' ? (
-        // Playlists Grid Tab
+      ) : activeTab === 'posts' ? (
+        // Posts Grid Tab
         <div className="grid grid-cols-3 gap-0.5">
-          {playlists.length > 0 ? (
-            playlists.map((playlist) => {
-              const isCurrentlyPlaying = currentTrack?.videoId === playlist.video_id && isPlaying;
+          {posts.length > 0 ? (
+            posts.map((post) => {
+              const isCurrentlyPlaying = currentTrack?.videoId === post.video_id && isPlaying;
               return (
                 <div
-                  key={playlist.id}
-                  onClick={() => handlePlayPlaylist(playlist)}
+                  key={post.id}
+                  onClick={() => handlePlayPost(post)}
                   className="aspect-square relative group bg-gray-100 cursor-pointer"
                 >
                   <img
                     src={
-                      playlist.cover_url ||
-                      'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
+                      post.cover_url ||
+                      (post.video_id
+                        ? `https://i.ytimg.com/vi/${post.video_id}/hqdefault.jpg`
+                        : 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop')
                     }
-                    alt="cover"
+                    alt={post.title}
                     className="w-full h-full object-cover"
                     onError={(e: SyntheticEvent<HTMLImageElement>) => {
                       e.currentTarget.src =
@@ -698,7 +754,7 @@ export default function ProfilePage() {
                   {/* Title */}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                     <span className="text-white text-xs font-medium line-clamp-1">
-                      {playlist.title}
+                      {post.title}
                     </span>
                   </div>
                 </div>
@@ -706,7 +762,7 @@ export default function ProfilePage() {
             })
           ) : (
             <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
-              {t('profile.noPlaylists')}
+              No posts yet. Share some music!
             </div>
           )}
         </div>

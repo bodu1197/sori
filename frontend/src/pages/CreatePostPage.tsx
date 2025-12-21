@@ -85,19 +85,20 @@ export default function CreatePostPage() {
 
     setPosting(true);
     try {
-      const { error } = await supabase.from('playlists').insert({
+      const { error } = await supabase.from('posts').insert({
         user_id: user.id,
-        title: selectedTrack.title,
-        description: caption || null,
         video_id: selectedTrack.videoId,
+        title: selectedTrack.title,
+        artist: selectedTrack.artists?.map((a) => a.name).join(', ') || null,
         cover_url: getBestThumbnail(selectedTrack.thumbnails),
+        caption: caption || null,
         is_public: isPublic,
       });
 
       if (error) throw error;
 
-      // Navigate to profile or feed
-      navigate('/profile');
+      // Navigate to feed to see the post
+      navigate('/');
     } catch (error) {
       console.error('Error creating post:', error);
     } finally {

@@ -60,7 +60,7 @@ export default function CommentItem({
     if (!confirm('Delete this comment?')) return;
 
     try {
-      const { error } = await supabase.from('comments').delete().eq('id', comment.id);
+      const { error } = await supabase.from('post_comments').delete().eq('id', comment.id);
 
       if (error) throw error;
       onDelete(comment.id);
