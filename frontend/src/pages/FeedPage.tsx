@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } f
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
+import useCountry from '../hooks/useCountry';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
@@ -119,6 +120,7 @@ interface PlaylistPost {
  */
 function ForYouSection() {
   const context = useContextRecommendation();
+  const country = useCountry();
   const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(true);
@@ -149,59 +151,75 @@ function ForYouSection() {
   const handleMouseLeave = () => setIsDragging(false);
 
   useEffect(() => {
-    async function fetchChartRecommendations() {
+    async function fetchHomeRecommendations() {
+      if (!country.code) return;
+
       try {
         setLoadingRecs(true);
 
-        // Fetch charts (backend auto-detects country via CF-IPCountry header)
-        const response = await fetch(`${API_BASE_URL}/api/charts`);
+        // Fetch home recommendations with detected country code
+        // Home API returns actual songs, unlike charts which only has playlists/artists
+        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}`);
 
         if (response.ok) {
           const data = await response.json();
-          // Backend returns: { country, source, charts: { songs: { items: [...] } } }
-          const songs = data.charts?.songs?.items || data.charts?.songs || [];
+          // Backend returns: { country, source, sections: [{ title, contents: [...] }] }
+          const sections = data.sections || [];
 
-          if (songs.length > 0) {
+          // Collect all songs from all sections
+          const allSongs: Array<{
+            videoId: string;
+            title: string;
+            artists?: Artist[];
+            thumbnails?: { url: string }[];
+          }> = [];
+
+          for (const section of sections) {
+            const contents = section.contents || [];
+            for (const item of contents) {
+              // Only include items with videoId (actual songs)
+              if (item.videoId) {
+                allSongs.push({
+                  videoId: item.videoId,
+                  title: item.title,
+                  artists: item.artists,
+                  thumbnails: item.thumbnails,
+                });
+              }
+            }
+          }
+
+          if (allSongs.length > 0) {
             // Time-based offset for variety (changes every few minutes)
             const now = new Date();
             const seed = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
-            const maxOffset = Math.max(0, songs.length - 5);
+            const maxOffset = Math.max(0, allSongs.length - 5);
             const offset = seed % (maxOffset + 1);
 
-            // Select 5 songs from offset
-            const selected = songs.slice(offset, offset + 5);
+            // Select 5 items from offset
+            const selected = allSongs.slice(offset, offset + 5);
 
             // If not enough, wrap around
             const finalSelection =
               selected.length < 5
-                ? [...selected, ...songs.slice(0, 5 - selected.length)]
+                ? [...selected, ...allSongs.slice(0, 5 - selected.length)]
                 : selected;
 
             setRecommendations(
-              finalSelection.map(
-                (song: {
-                  videoId: string;
-                  title: string;
-                  artists?: Artist[];
-                  thumbnails?: { url: string }[];
-                }) => ({
-                  videoId: song.videoId,
-                  title: song.title,
-                  artists: song.artists,
-                  thumbnail: song.thumbnails?.[0]?.url,
-                })
-              )
+              finalSelection.map((item) => ({
+                videoId: item.videoId,
+                title: item.title,
+                artists: item.artists,
+                thumbnail: item.thumbnails?.[0]?.url,
+              }))
             );
           }
 
-          // Get country name from response (convert code to readable name)
-          if (data.country) {
-            const code = data.country.toUpperCase();
-            setCountryName(COUNTRY_NAMES[code] || data.country);
-          }
+          // Use detected country name
+          setCountryName(country.name);
         }
       } catch {
-        // Failed to fetch charts, fallback to search
+        // Failed to fetch home, fallback to search
         if (context.recommendation?.searchQuery) {
           try {
             const fallbackResponse = await fetch(
@@ -220,8 +238,8 @@ function ForYouSection() {
       }
     }
 
-    fetchChartRecommendations();
-  }, [context.recommendation?.searchQuery]);
+    fetchHomeRecommendations();
+  }, [country.code, country.name, context.recommendation?.searchQuery]);
 
   const handlePlay = (track: RecommendationTrack, index: number) => {
     // Open popup with all recommendations
@@ -277,7 +295,7 @@ function ForYouSection() {
       {/* Recommendation Label */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          {countryName ? `Trending in ${countryName}` : 'Top Hits'}
+          {countryName ? `Popular in ${countryName}` : 'For You'}
         </span>
         <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white">
           See all
