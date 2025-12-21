@@ -57,6 +57,7 @@ export default function CreateStoryModal({ onClose, onStoryCreated }: CreateStor
   const [textContent, setTextContent] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#000000');
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Search for tracks
   const handleSearch = async () => {
@@ -80,12 +81,22 @@ export default function CreateStoryModal({ onClose, onStoryCreated }: CreateStor
 
   // Create story
   const handleCreate = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setError('Please log in to create a story');
+      return;
+    }
 
-    if (storyType === 'track' && !selectedTrack) return;
-    if (storyType === 'text' && !textContent.trim()) return;
+    if (storyType === 'track' && !selectedTrack) {
+      setError('Please select a track');
+      return;
+    }
+    if (storyType === 'text' && !textContent.trim()) {
+      setError('Please enter some text');
+      return;
+    }
 
     setCreating(true);
+    setError(null);
     try {
       const storyData = {
         user_id: user.id,
@@ -101,13 +112,22 @@ export default function CreateStoryModal({ onClose, onStoryCreated }: CreateStor
         background_color: backgroundColor,
       };
 
-      const { data, error } = await supabase.from('stories').insert(storyData).select().single();
+      const { data, error: insertError } = await supabase
+        .from('stories')
+        .insert(storyData)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (insertError) {
+        console.error('Supabase error:', insertError);
+        setError(insertError.message || 'Failed to create story');
+        return;
+      }
 
       onStoryCreated(data as Story);
-    } catch (error) {
-      console.error('Error creating story:', error);
+    } catch (err) {
+      console.error('Error creating story:', err);
+      setError('An unexpected error occurred');
     } finally {
       setCreating(false);
     }
@@ -276,6 +296,11 @@ export default function CreateStoryModal({ onClose, onStoryCreated }: CreateStor
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          {error && (
+            <div className="mb-3 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg">
+              {error}
+            </div>
+          )}
           <button
             onClick={handleCreate}
             disabled={
