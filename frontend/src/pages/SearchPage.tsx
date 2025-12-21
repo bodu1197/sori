@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
+import { useEffect, useState, useRef, useCallback, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Search,
@@ -118,6 +118,26 @@ export default function SearchPage() {
   const [likedSongs, setLikedSongs] = useState<Set<string>>(new Set());
   const [likedAlbums, setLikedAlbums] = useState<Set<string>>(new Set());
   const [savingAlbums, setSavingAlbums] = useState<Set<string>>(new Set());
+
+  // Load liked songs from DB on mount
+  useEffect(() => {
+    const loadLikedSongs = async () => {
+      if (!user) return;
+
+      try {
+        const { data } = await supabase.from('playlists').select('video_id').eq('user_id', user.id);
+
+        if (data) {
+          const videoIds = new Set(data.map((item) => item.video_id));
+          setLikedSongs(videoIds);
+        }
+      } catch {
+        // Error loading liked songs
+      }
+    };
+
+    loadLikedSongs();
+  }, [user]);
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
@@ -717,37 +737,54 @@ export default function SearchPage() {
     }
   };
 
-  // Add song to liked (save to Supabase)
-  const handleAddToLiked = async (item: SearchSong | AlbumTrack, albumThumbnails?: Thumbnail[]) => {
+  // Toggle song like (add or remove)
+  const handleToggleLike = async (item: SearchSong | AlbumTrack, albumThumbnails?: Thumbnail[]) => {
     if (!item.videoId || !user) return;
 
-    // Already liked
-    if (likedSongs.has(item.videoId)) return;
+    const isLiked = likedSongs.has(item.videoId);
 
     try {
-      const thumbnails = item.thumbnails || albumThumbnails;
-      const { error } = await supabase.from('playlists').insert({
-        user_id: user.id,
-        title: item.title,
-        video_id: item.videoId,
-        cover_url: getBestThumbnail(thumbnails),
-        is_public: true,
-      });
+      if (isLiked) {
+        // Remove from liked
+        const { error } = await supabase
+          .from('playlists')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', item.videoId);
 
-      if (error) throw error;
+        if (!error) {
+          setLikedSongs((prev) => {
+            const next = new Set(prev);
+            next.delete(item.videoId);
+            return next;
+          });
+        }
+      } else {
+        // Add to liked
+        const thumbnails = item.thumbnails || albumThumbnails;
+        const { error } = await supabase.from('playlists').insert({
+          user_id: user.id,
+          title: item.title,
+          video_id: item.videoId,
+          cover_url: getBestThumbnail(thumbnails),
+          is_public: true,
+        });
 
-      // Update liked state
-      setLikedSongs((prev) => new Set(prev).add(item.videoId));
+        if (!error) {
+          setLikedSongs((prev) => new Set(prev).add(item.videoId));
+        }
+      }
     } catch {
-      // Error adding to liked
+      // Error toggling like
     }
   };
 
-  // Add album to liked (save all tracks)
-  const handleAddAlbumToLiked = async (album: SearchAlbum) => {
+  // Toggle album like (add or remove all tracks)
+  const handleToggleAlbumLike = async (album: SearchAlbum) => {
     const albumId = album.browseId || `album-${album.title}`;
-    if (!user || likedAlbums.has(albumId) || savingAlbums.has(albumId)) return;
+    if (!user || savingAlbums.has(albumId)) return;
 
+    const isLiked = likedAlbums.has(albumId);
     setSavingAlbums((prev) => new Set(prev).add(albumId));
 
     try {
@@ -761,23 +798,45 @@ export default function SearchPage() {
         }
       }
 
-      // Save all tracks
-      for (const track of tracks) {
-        if (track.videoId && !likedSongs.has(track.videoId)) {
-          await supabase.from('playlists').insert({
-            user_id: user.id,
-            title: track.title,
-            video_id: track.videoId,
-            cover_url: getBestThumbnail(track.thumbnails || album.thumbnails),
-            is_public: true,
-          });
-          setLikedSongs((prev) => new Set(prev).add(track.videoId));
+      if (isLiked) {
+        // Remove all tracks
+        for (const track of tracks) {
+          if (track.videoId && likedSongs.has(track.videoId)) {
+            await supabase
+              .from('playlists')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('video_id', track.videoId);
+            setLikedSongs((prev) => {
+              const next = new Set(prev);
+              next.delete(track.videoId);
+              return next;
+            });
+          }
         }
+        setLikedAlbums((prev) => {
+          const next = new Set(prev);
+          next.delete(albumId);
+          return next;
+        });
+      } else {
+        // Add all tracks
+        for (const track of tracks) {
+          if (track.videoId && !likedSongs.has(track.videoId)) {
+            await supabase.from('playlists').insert({
+              user_id: user.id,
+              title: track.title,
+              video_id: track.videoId,
+              cover_url: getBestThumbnail(track.thumbnails || album.thumbnails),
+              is_public: true,
+            });
+            setLikedSongs((prev) => new Set(prev).add(track.videoId));
+          }
+        }
+        setLikedAlbums((prev) => new Set(prev).add(albumId));
       }
-
-      setLikedAlbums((prev) => new Set(prev).add(albumId));
     } catch {
-      // Error saving album
+      // Error toggling album like
     } finally {
       setSavingAlbums((prev) => {
         const next = new Set(prev);
@@ -910,7 +969,7 @@ export default function SearchPage() {
                       <button
                         onClick={(e: MouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
-                          handleAddToLiked(song);
+                          handleToggleLike(song);
                         }}
                         className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                       >
@@ -1007,7 +1066,7 @@ export default function SearchPage() {
                             <button
                               onClick={(e: MouseEvent<HTMLButtonElement>) => {
                                 e.stopPropagation();
-                                handleAddToLiked(song);
+                                handleToggleLike(song);
                               }}
                               className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                             >
@@ -1085,7 +1144,7 @@ export default function SearchPage() {
                           <button
                             onClick={(e: MouseEvent<HTMLButtonElement>) => {
                               e.stopPropagation();
-                              handleAddAlbumToLiked(album);
+                              handleToggleAlbumLike(album);
                             }}
                             className={`p-2 flex-shrink-0 ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                           >
@@ -1146,7 +1205,7 @@ export default function SearchPage() {
                                   <button
                                     onClick={(e: MouseEvent<HTMLButtonElement>) => {
                                       e.stopPropagation();
-                                      handleAddToLiked(track, album.thumbnails);
+                                      handleToggleLike(track, album.thumbnails);
                                     }}
                                     className={`p-1 ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                   >
