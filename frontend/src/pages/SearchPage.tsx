@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef, useCallback, SyntheticEvent, MouseEvent } from 'react';
+import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Play,
@@ -10,10 +11,13 @@ import {
   ChevronDown,
   ChevronUp,
   ListMusic,
+  Music,
+  Users,
 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
+import { FollowButton } from '../components/social';
 
 // Cloud Run Backend API (ytmusicapi)
 const API_BASE_URL =
@@ -80,22 +84,32 @@ interface AlbumTrack {
   duration?: string;
 }
 
+interface UserProfile {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  bio?: string;
+  followers_count?: number;
+}
+
+type SearchTab = 'music' | 'users';
+
 export default function SearchPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
-  const {
-    startPlayback,
-    currentTrack,
-    isPlaying,
-    openTrackPanel,
-    setTrackPanelLoading,
-    loadYouTubePlaylist,
-  } = usePlayerStore();
+  const { startPlayback, openTrackPanel, setTrackPanelLoading } = usePlayerStore();
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<SearchTab>('music');
+
+  // User search state
+  const [userResults, setUserResults] = useState<UserProfile[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
 
   // Artist search data
   const [searchArtist, setSearchArtist] = useState<SearchArtist | null>(null);
@@ -328,11 +342,47 @@ export default function SearchPage() {
     }
   };
 
+  // User search function
+  const performUserSearch = async () => {
+    if (searchQuery.trim().length < 2) return;
+
+    setUserSearchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, bio')
+        .or(`username.ilike.%${searchQuery.trim()}%,full_name.ilike.%${searchQuery.trim()}%`)
+        .neq('id', user?.id || '')
+        .limit(20);
+
+      if (error) throw error;
+      setUserResults(data || []);
+    } catch (err) {
+      console.error('Error searching users:', err);
+      setUserResults([]);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  };
+
   // Handle Enter key press
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (activeTab === 'music') {
+        performSearch();
+      } else {
+        performUserSearch();
+      }
+    }
+  };
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    if (activeTab === 'music') {
       performSearch();
+    } else {
+      performUserSearch();
     }
   };
 
@@ -349,6 +399,7 @@ export default function SearchPage() {
     setAllSongsExpanded(false);
     setAllSongsTracks([]);
     setShowAllAlbums(false);
+    setUserResults([]);
   };
 
   // Toggle All Songs expansion and fetch tracks
@@ -847,18 +898,21 @@ export default function SearchPage() {
   };
 
   const hasResults = searchArtist || searchSongs.length > 0 || searchAlbums.length > 0;
+  const hasUserResults = userResults.length > 0;
+  const isLoading = activeTab === 'music' ? searchLoading : userSearchLoading;
 
   return (
     <div className="bg-white dark:bg-black min-h-screen pb-20">
       {/* Search Header */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-black px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-        <div className="flex gap-2">
+      <div className="sticky top-0 z-10 bg-white dark:bg-black border-b border-gray-100 dark:border-gray-800">
+        {/* Search Input */}
+        <div className="flex gap-2 px-4 py-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder={t('search.placeholder')}
+              placeholder={activeTab === 'music' ? t('search.placeholder') : 'Search users...'}
               className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -875,436 +929,523 @@ export default function SearchPage() {
             )}
           </div>
           <button
-            onClick={performSearch}
-            disabled={searchQuery.trim().length < 2 || searchLoading}
+            onClick={handleSearchClick}
+            disabled={searchQuery.trim().length < 2 || isLoading}
             className="px-4 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition"
             title={t('search.search')}
           >
-            {searchLoading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+            {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-t border-gray-100 dark:border-gray-800">
+          <button
+            onClick={() => setActiveTab('music')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition ${
+              activeTab === 'music'
+                ? 'text-black dark:text-white border-b-2 border-black dark:border-white'
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <Music size={18} />
+            Music
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition ${
+              activeTab === 'users'
+                ? 'text-black dark:text-white border-b-2 border-black dark:border-white'
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            <Users size={18} />
+            Users
           </button>
         </div>
       </div>
 
       {/* Search Results */}
       <div className="p-4">
-        {searchLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 size={32} className="animate-spin text-gray-500" />
-          </div>
-        ) : hasResults ? (
-          <div className="space-y-6">
-            {/* 1. Artist Card - 2층 구조 */}
-            {searchArtist && (
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
-                {/* 2층: 사진, 이름, 좋아요 버튼 */}
-                <div className="flex items-center gap-4 p-4">
-                  <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
+        {/* User Search Results */}
+        {activeTab === 'users' && (
+          <>
+            {userSearchLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={32} className="animate-spin text-gray-500" />
+              </div>
+            ) : hasUserResults ? (
+              <div className="space-y-2">
+                {userResults.map((profile) => (
+                  <div
+                    key={profile.id}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer"
+                    onClick={() => navigate(`/profile/${profile.id}`)}
+                  >
                     <img
-                      src={getBestThumbnail(searchArtist.thumbnails)}
-                      alt={searchArtist.artist}
-                      className="w-full h-full object-cover"
-                      onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                        e.currentTarget.src = PLACEHOLDER;
-                      }}
+                      src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                      alt={profile.username}
+                      className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
                     />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-black dark:text-white truncate">
+                        {profile.username}
+                      </p>
+                      {profile.full_name && (
+                        <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
+                      )}
+                      {profile.bio && (
+                        <p className="text-xs text-gray-400 truncate mt-0.5">{profile.bio}</p>
+                      )}
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <FollowButton userId={profile.id} size="sm" />
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-xl font-bold text-black dark:text-white truncate">
-                      {searchArtist.artist}
-                    </h2>
-                    <p className="text-sm text-gray-500">{searchArtist.subscribers || 'Artist'}</p>
-                  </div>
-                  <button className="p-2 text-gray-400 hover:text-red-500 transition">
-                    <Heart size={24} />
-                  </button>
-                </div>
-
-                {/* 1층: 버튼들 */}
-                <div className="flex items-center gap-2 px-4 pb-4">
-                  <button
-                    onClick={handlePlayAllSongs}
-                    className="flex-1 flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 transition"
-                  >
-                    <Play size={16} fill="currentColor" /> {t('player.playAll')}
-                  </button>
-                  <button
-                    onClick={handleShuffleSearchSongs}
-                    className="flex-1 flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition text-black dark:text-white"
-                  >
-                    <Shuffle size={16} /> {t('player.shufflePlay')}
-                  </button>
-                </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-gray-500">
+                <Users size={48} className="mx-auto mb-4 opacity-50" />
+                <p>Search for users</p>
+                <p className="text-sm mt-2 text-gray-400">Find people by username or name</p>
               </div>
             )}
+          </>
+        )}
 
-            {/* 2. Top Tracks */}
-            {searchSongs.length > 0 && (
-              <div>
-                <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                  {t('search.topTracks')} ({searchSongs.length})
-                </h3>
-                <div className="space-y-1">
-                  {(showAllSongs ? searchSongs : searchSongs.slice(0, 5)).map((song, i) => (
-                    <div
-                      key={song.videoId || i}
-                      onClick={() => handlePlayTrackFromSearch(song, i)}
-                      className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                    >
-                      <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
-                      <img
-                        src={getBestThumbnail(song.thumbnails)}
-                        alt={song.title}
-                        className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-black dark:text-white truncate">
-                          {song.title}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {song.artists?.[0]?.name}
-                          {song.album?.name && ` - ${song.album.name}`}
-                        </div>
-                      </div>
-                      <span className="text-xs text-gray-400">{song.duration}</span>
-                      <button
-                        onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                          e.stopPropagation();
-                          handleToggleLike(song);
-                        }}
-                        className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
-                      >
-                        <Heart
-                          size={16}
-                          fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
+        {/* Music Search Results */}
+        {activeTab === 'music' && (
+          <>
+            {searchLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={32} className="animate-spin text-gray-500" />
+              </div>
+            ) : hasResults ? (
+              <div className="space-y-6">
+                {/* 1. Artist Card - 2층 구조 */}
+                {searchArtist && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
+                    {/* 2층: 사진, 이름, 좋아요 버튼 */}
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
+                        <img
+                          src={getBestThumbnail(searchArtist.thumbnails)}
+                          alt={searchArtist.artist}
+                          className="w-full h-full object-cover"
+                          onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                            e.currentTarget.src = PLACEHOLDER;
+                          }}
                         />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-xl font-bold text-black dark:text-white truncate">
+                          {searchArtist.artist}
+                        </h2>
+                        <p className="text-sm text-gray-500">
+                          {searchArtist.subscribers || 'Artist'}
+                        </p>
+                      </div>
+                      <button className="p-2 text-gray-400 hover:text-red-500 transition">
+                        <Heart size={24} />
                       </button>
                     </div>
-                  ))}
-                </div>
-                {searchSongs.length > 5 && (
-                  <button
-                    onClick={() => setShowAllSongs(!showAllSongs)}
-                    className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
-                  >
-                    {showAllSongs ? (
-                      <>
-                        <ChevronUp size={16} />
-                        {t('search.showLess')}
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown size={16} />
-                        {t('search.showMore')} ({searchSongs.length - 5})
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            )}
 
-            {/* 3. All Songs - 펼침 리스트 */}
-            {searchArtist?.songsPlaylistId && (
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
-                <button
-                  onClick={toggleAllSongs}
-                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center">
-                      <ListMusic size={16} className="text-white" />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-sm font-semibold text-black dark:text-white">
-                        All Songs
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {allSongsTracks.length > 0
-                          ? `${allSongsTracks.length} ${t('search.tracks')}`
-                          : t('search.clickToViewTracks')}
-                      </div>
-                    </div>
-                  </div>
-                  {allSongsLoading ? (
-                    <Loader2 size={18} className="animate-spin text-gray-400" />
-                  ) : allSongsExpanded ? (
-                    <ChevronUp size={18} className="text-gray-400" />
-                  ) : (
-                    <ChevronDown size={18} className="text-gray-400" />
-                  )}
-                </button>
-
-                {allSongsExpanded && (
-                  <div className="border-t border-gray-200 dark:border-gray-700">
-                    {allSongsLoading ? (
-                      <div className="p-4 flex items-center justify-center gap-2">
-                        <Loader2 size={20} className="animate-spin text-gray-400" />
-                        <span className="text-sm text-gray-500">{t('search.loadingTracks')}</span>
-                      </div>
-                    ) : allSongsTracks.length > 0 ? (
-                      <div>
-                        {allSongsTracks.map((song, i) => (
-                          <div
-                            key={song.videoId || i}
-                            onClick={() => handlePlayAllSongsTrack(song, i)}
-                            className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                          >
-                            <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
-                            <img
-                              src={getBestThumbnail(song.thumbnails)}
-                              alt={song.title}
-                              className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-black dark:text-white truncate">
-                                {song.title}
-                              </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {song.artists?.[0]?.name}
-                              </div>
-                            </div>
-                            <span className="text-xs text-gray-400">{song.duration}</span>
-                            <button
-                              onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                                e.stopPropagation();
-                                handleToggleLike(song);
-                              }}
-                              className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
-                            >
-                              <Heart
-                                size={16}
-                                fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
-                              />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        {t('search.noTracksAvailable')}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 4. Albums & Singles */}
-            {searchAlbums.length > 0 && (
-              <div>
-                <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                  {t('search.albumsAndSingles')} ({searchAlbums.length})
-                </h3>
-                <div className="space-y-3">
-                  {(showAllAlbums ? searchAlbums : searchAlbums.slice(0, 4)).map((album) => {
-                    const albumId = album.browseId || `album-${album.title}`;
-                    const isExpanded = expandedAlbums.has(albumId);
-                    const isLoading = loadingAlbums.has(albumId);
-                    const tracks = getAlbumTracks(album);
-                    const trackCount = tracks.length;
-
-                    return (
-                      <div
-                        key={albumId}
-                        className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
+                    {/* 1층: 버튼들 */}
+                    <div className="flex items-center gap-2 px-4 pb-4">
+                      <button
+                        onClick={handlePlayAllSongs}
+                        className="flex-1 flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 transition"
                       >
+                        <Play size={16} fill="currentColor" /> {t('player.playAll')}
+                      </button>
+                      <button
+                        onClick={handleShuffleSearchSongs}
+                        className="flex-1 flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition text-black dark:text-white"
+                      >
+                        <Shuffle size={16} /> {t('player.shufflePlay')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Top Tracks */}
+                {searchSongs.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                      {t('search.topTracks')} ({searchSongs.length})
+                    </h3>
+                    <div className="space-y-1">
+                      {(showAllSongs ? searchSongs : searchSongs.slice(0, 5)).map((song, i) => (
                         <div
-                          onClick={() => handleShowAlbumPanel(album)}
-                          className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                          key={song.videoId || i}
+                          onClick={() => handlePlayTrackFromSearch(song, i)}
+                          className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                         >
+                          <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
                           <img
-                            src={getBestThumbnail(album.thumbnails)}
-                            alt={album.title}
-                            className="w-20 h-20 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+                            src={getBestThumbnail(song.thumbnails)}
+                            alt={song.title}
+                            className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-black dark:text-white truncate">
-                              {album.title}
+                            <div className="text-sm font-medium text-black dark:text-white truncate">
+                              {song.title}
                             </div>
-                            <div className="text-xs text-gray-500 mb-2">
-                              {album.type || 'Album'}
-                              {album.year && ` - ${album.year}`}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              {isLoading ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : isExpanded ? (
-                                <ChevronUp size={14} />
-                              ) : (
-                                <ChevronDown size={14} />
-                              )}
-                              <span>
-                                {isLoading
-                                  ? t('common.loading')
-                                  : trackCount > 0
-                                    ? `${trackCount} ${t('search.tracks')}`
-                                    : t('search.clickToViewTracks')}
-                              </span>
+                            <div className="text-xs text-gray-500 truncate">
+                              {song.artists?.[0]?.name}
+                              {song.album?.name && ` - ${song.album.name}`}
                             </div>
                           </div>
+                          <span className="text-xs text-gray-400">{song.duration}</span>
                           <button
                             onClick={(e: MouseEvent<HTMLButtonElement>) => {
                               e.stopPropagation();
-                              handleToggleAlbumLike(album);
+                              handleToggleLike(song);
                             }}
-                            className={`p-2 flex-shrink-0 ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                            className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                           >
-                            {savingAlbums.has(albumId) ? (
-                              <Loader2 size={20} className="animate-spin" />
-                            ) : (
-                              <Heart
-                                size={20}
-                                fill={likedAlbums.has(albumId) ? 'currentColor' : 'none'}
-                              />
-                            )}
+                            <Heart
+                              size={16}
+                              fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
+                            />
                           </button>
                         </div>
-
-                        {isExpanded && trackCount > 0 && (
-                          <div className="border-t border-gray-200 dark:border-gray-700">
-                            <div className="flex gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
-                              <button
-                                onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                                  e.stopPropagation();
-                                  handlePlayAlbum(album);
-                                }}
-                                className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-xs font-semibold hover:opacity-80"
-                              >
-                                <Play size={12} fill="currentColor" /> {t('player.playAll')}
-                              </button>
-                              <button
-                                onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                                  e.stopPropagation();
-                                  handleShuffleAlbum(album);
-                                }}
-                                className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
-                              >
-                                <Shuffle size={12} /> {t('player.shufflePlay')}
-                              </button>
-                            </div>
-                            <div className="px-3 py-2">
-                              {tracks.map((track, trackIdx) => (
-                                <div
-                                  key={track.videoId || trackIdx}
-                                  onClick={(e: MouseEvent<HTMLDivElement>) => {
-                                    e.stopPropagation();
-                                    handlePlayAlbumTrack(album, trackIdx);
-                                  }}
-                                  className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
-                                >
-                                  <span className="w-5 text-center text-xs text-gray-400">
-                                    {trackIdx + 1}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-black dark:text-white truncate">
-                                      {track.title}
-                                    </div>
-                                  </div>
-                                  <span className="text-xs text-gray-400">
-                                    {track.duration || ''}
-                                  </span>
-                                  <button
-                                    onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                                      e.stopPropagation();
-                                      handleToggleLike(track, album.thumbnails);
-                                    }}
-                                    className={`p-1 ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
-                                  >
-                                    <Heart
-                                      size={14}
-                                      fill={likedSongs.has(track.videoId) ? 'currentColor' : 'none'}
-                                    />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                      ))}
+                    </div>
+                    {searchSongs.length > 5 && (
+                      <button
+                        onClick={() => setShowAllSongs(!showAllSongs)}
+                        className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
+                      >
+                        {showAllSongs ? (
+                          <>
+                            <ChevronUp size={16} />
+                            {t('search.showLess')}
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={16} />
+                            {t('search.showMore')} ({searchSongs.length - 5})
+                          </>
                         )}
+                      </button>
+                    )}
+                  </div>
+                )}
 
-                        {isExpanded && isLoading && (
-                          <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex items-center justify-center">
+                {/* 3. All Songs - 펼침 리스트 */}
+                {searchArtist?.songsPlaylistId && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
+                    <button
+                      onClick={toggleAllSongs}
+                      className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center">
+                          <ListMusic size={16} className="text-white" />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-sm font-semibold text-black dark:text-white">
+                            All Songs
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {allSongsTracks.length > 0
+                              ? `${allSongsTracks.length} ${t('search.tracks')}`
+                              : t('search.clickToViewTracks')}
+                          </div>
+                        </div>
+                      </div>
+                      {allSongsLoading ? (
+                        <Loader2 size={18} className="animate-spin text-gray-400" />
+                      ) : allSongsExpanded ? (
+                        <ChevronUp size={18} className="text-gray-400" />
+                      ) : (
+                        <ChevronDown size={18} className="text-gray-400" />
+                      )}
+                    </button>
+
+                    {allSongsExpanded && (
+                      <div className="border-t border-gray-200 dark:border-gray-700">
+                        {allSongsLoading ? (
+                          <div className="p-4 flex items-center justify-center gap-2">
                             <Loader2 size={20} className="animate-spin text-gray-400" />
-                            <span className="ml-2 text-sm text-gray-500">
+                            <span className="text-sm text-gray-500">
                               {t('search.loadingTracks')}
                             </span>
                           </div>
-                        )}
-
-                        {isExpanded && !isLoading && trackCount === 0 && (
-                          <div className="border-t border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-500">
+                        ) : allSongsTracks.length > 0 ? (
+                          <div>
+                            {allSongsTracks.map((song, i) => (
+                              <div
+                                key={song.videoId || i}
+                                onClick={() => handlePlayAllSongsTrack(song, i)}
+                                className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                              >
+                                <span className="w-6 text-center text-sm text-gray-400">
+                                  {i + 1}
+                                </span>
+                                <img
+                                  src={getBestThumbnail(song.thumbnails)}
+                                  alt={song.title}
+                                  className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-black dark:text-white truncate">
+                                    {song.title}
+                                  </div>
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {song.artists?.[0]?.name}
+                                  </div>
+                                </div>
+                                <span className="text-xs text-gray-400">{song.duration}</span>
+                                <button
+                                  onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                    e.stopPropagation();
+                                    handleToggleLike(song);
+                                  }}
+                                  className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                >
+                                  <Heart
+                                    size={16}
+                                    fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
+                                  />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-center text-sm text-gray-500">
                             {t('search.noTracksAvailable')}
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-                {searchAlbums.length > 4 && (
-                  <button
-                    onClick={() => setShowAllAlbums(!showAllAlbums)}
-                    className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
-                  >
-                    {showAllAlbums ? (
-                      <>
-                        <ChevronUp size={16} />
-                        {t('search.showLess')}
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown size={16} />
-                        {t('search.showMore')} ({searchAlbums.length - 4})
-                      </>
                     )}
-                  </button>
+                  </div>
+                )}
+
+                {/* 4. Albums & Singles */}
+                {searchAlbums.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                      {t('search.albumsAndSingles')} ({searchAlbums.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {(showAllAlbums ? searchAlbums : searchAlbums.slice(0, 4)).map((album) => {
+                        const albumId = album.browseId || `album-${album.title}`;
+                        const isExpanded = expandedAlbums.has(albumId);
+                        const isLoading = loadingAlbums.has(albumId);
+                        const tracks = getAlbumTracks(album);
+                        const trackCount = tracks.length;
+
+                        return (
+                          <div
+                            key={albumId}
+                            className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
+                          >
+                            <div
+                              onClick={() => handleShowAlbumPanel(album)}
+                              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                            >
+                              <img
+                                src={getBestThumbnail(album.thumbnails)}
+                                alt={album.title}
+                                className="w-20 h-20 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-black dark:text-white truncate">
+                                  {album.title}
+                                </div>
+                                <div className="text-xs text-gray-500 mb-2">
+                                  {album.type || 'Album'}
+                                  {album.year && ` - ${album.year}`}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  {isLoading ? (
+                                    <Loader2 size={14} className="animate-spin" />
+                                  ) : isExpanded ? (
+                                    <ChevronUp size={14} />
+                                  ) : (
+                                    <ChevronDown size={14} />
+                                  )}
+                                  <span>
+                                    {isLoading
+                                      ? t('common.loading')
+                                      : trackCount > 0
+                                        ? `${trackCount} ${t('search.tracks')}`
+                                        : t('search.clickToViewTracks')}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                  e.stopPropagation();
+                                  handleToggleAlbumLike(album);
+                                }}
+                                className={`p-2 flex-shrink-0 ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                              >
+                                {savingAlbums.has(albumId) ? (
+                                  <Loader2 size={20} className="animate-spin" />
+                                ) : (
+                                  <Heart
+                                    size={20}
+                                    fill={likedAlbums.has(albumId) ? 'currentColor' : 'none'}
+                                  />
+                                )}
+                              </button>
+                            </div>
+
+                            {isExpanded && trackCount > 0 && (
+                              <div className="border-t border-gray-200 dark:border-gray-700">
+                                <div className="flex gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
+                                  <button
+                                    onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                      e.stopPropagation();
+                                      handlePlayAlbum(album);
+                                    }}
+                                    className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-xs font-semibold hover:opacity-80"
+                                  >
+                                    <Play size={12} fill="currentColor" /> {t('player.playAll')}
+                                  </button>
+                                  <button
+                                    onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                      e.stopPropagation();
+                                      handleShuffleAlbum(album);
+                                    }}
+                                    className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-800"
+                                  >
+                                    <Shuffle size={12} /> {t('player.shufflePlay')}
+                                  </button>
+                                </div>
+                                <div className="px-3 py-2">
+                                  {tracks.map((track, trackIdx) => (
+                                    <div
+                                      key={track.videoId || trackIdx}
+                                      onClick={(e: MouseEvent<HTMLDivElement>) => {
+                                        e.stopPropagation();
+                                        handlePlayAlbumTrack(album, trackIdx);
+                                      }}
+                                      className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
+                                    >
+                                      <span className="w-5 text-center text-xs text-gray-400">
+                                        {trackIdx + 1}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm text-black dark:text-white truncate">
+                                          {track.title}
+                                        </div>
+                                      </div>
+                                      <span className="text-xs text-gray-400">
+                                        {track.duration || ''}
+                                      </span>
+                                      <button
+                                        onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                          e.stopPropagation();
+                                          handleToggleLike(track, album.thumbnails);
+                                        }}
+                                        className={`p-1 ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                      >
+                                        <Heart
+                                          size={14}
+                                          fill={
+                                            likedSongs.has(track.videoId) ? 'currentColor' : 'none'
+                                          }
+                                        />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {isExpanded && isLoading && (
+                              <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex items-center justify-center">
+                                <Loader2 size={20} className="animate-spin text-gray-400" />
+                                <span className="ml-2 text-sm text-gray-500">
+                                  {t('search.loadingTracks')}
+                                </span>
+                              </div>
+                            )}
+
+                            {isExpanded && !isLoading && trackCount === 0 && (
+                              <div className="border-t border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-500">
+                                {t('search.noTracksAvailable')}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {searchAlbums.length > 4 && (
+                      <button
+                        onClick={() => setShowAllAlbums(!showAllAlbums)}
+                        className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
+                      >
+                        {showAllAlbums ? (
+                          <>
+                            <ChevronUp size={16} />
+                            {t('search.showLess')}
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={16} />
+                            {t('search.showMore')} ({searchAlbums.length - 4})
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 5. Similar Artists */}
+                {searchArtist?.related && searchArtist.related.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                      {t('search.similarArtists')} ({searchArtist.related.length})
+                    </h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {searchArtist.related.map((artist, i) => {
+                        const artistName =
+                          artist.name || artist.artist || artist.title || 'Unknown';
+                        return (
+                          <div
+                            key={artist.browseId || `related-${i}`}
+                            onClick={() => handleSearchSimilarArtist(artistName)}
+                            className="flex flex-col items-center cursor-pointer group"
+                          >
+                            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
+                              <img
+                                src={getBestThumbnail(artist.thumbnails)}
+                                alt={artistName}
+                                className="w-full h-full object-cover"
+                                onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                                  e.currentTarget.src = PLACEHOLDER;
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1">
+                              {artistName}
+                            </span>
+                            {artist.subscribers && (
+                              <span className="text-xs text-gray-500 truncate w-full text-center">
+                                {artist.subscribers}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
-
-            {/* 5. Similar Artists */}
-            {searchArtist?.related && searchArtist.related.length > 0 && (
-              <div>
-                <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                  {t('search.similarArtists')} ({searchArtist.related.length})
-                </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {searchArtist.related.map((artist, i) => {
-                    const artistName = artist.name || artist.artist || artist.title || 'Unknown';
-                    return (
-                      <div
-                        key={artist.browseId || `related-${i}`}
-                        onClick={() => handleSearchSimilarArtist(artistName)}
-                        className="flex flex-col items-center cursor-pointer group"
-                      >
-                        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
-                          <img
-                            src={getBestThumbnail(artist.thumbnails)}
-                            alt={artistName}
-                            className="w-full h-full object-cover"
-                            onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                              e.currentTarget.src = PLACEHOLDER;
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1">
-                          {artistName}
-                        </span>
-                        {artist.subscribers && (
-                          <span className="text-xs text-gray-500 truncate w-full text-center">
-                            {artist.subscribers}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+            ) : (
+              <div className="text-center py-16 text-gray-500">
+                <Search size={48} className="mx-auto mb-4 opacity-50" />
+                <p>{t('search.hint')}</p>
+                <p className="text-sm mt-2 text-gray-400">{t('search.pressEnter')}</p>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="text-center py-16 text-gray-500">
-            <Search size={48} className="mx-auto mb-4 opacity-50" />
-            <p>{t('search.hint')}</p>
-            <p className="text-sm mt-2 text-gray-400">{t('search.pressEnter')}</p>
-          </div>
+          </>
         )}
       </div>
     </div>

@@ -1,11 +1,20 @@
 import { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
-import { MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
+import {
+  MessageCircle,
+  Send,
+  Bookmark,
+  MoreHorizontal,
+  Play,
+  Loader2,
+  Repeat2,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
 import useCountry from '../hooks/useCountry';
 import useAuthStore from '../stores/useAuthStore';
-import { LikeButton, useLikeCountText } from '../components/social';
+import { LikeButton, useLikeCountText, CommentsModal, RepostButton } from '../components/social';
+import { StoriesBar } from '../components/stories';
 
 type FeedFilter = 'following' | 'all';
 
@@ -116,8 +125,14 @@ interface PlaylistPost {
   video_id?: string;
   created_at: string;
   likes_count?: number;
+  comments_count?: number;
+  repost_count?: number;
   user_id?: string;
   profiles?: Profile;
+  // Repost info (when this is a repost)
+  isRepost?: boolean;
+  reposter?: Profile;
+  repostQuote?: string;
 }
 
 /**
@@ -437,12 +452,14 @@ function StoryRail() {
 interface PlaylistPostProps {
   post: PlaylistPost;
   onLikeChange?: (postId: string, newCount: number) => void;
+  onCommentCountChange?: (postId: string, newCount: number) => void;
 }
 
-function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
+function PlaylistPostComponent({ post, onLikeChange, onCommentCountChange }: PlaylistPostProps) {
   const user = post.profiles;
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const likeCountText = useLikeCountText(post.likes_count || 0);
+  const [showComments, setShowComments] = useState(false);
 
   const handlePlayClick = () => {
     if (!post.video_id) return;
@@ -562,6 +579,21 @@ function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
         </div>
       </div>
 
+      {/* Repost Header (if this is a repost) */}
+      {post.isRepost && post.reposter && (
+        <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+          <Repeat2 size={16} />
+          <span>{post.reposter.username} reposted</span>
+        </div>
+      )}
+
+      {/* Repost Quote */}
+      {post.isRepost && post.repostQuote && (
+        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+          <p className="text-sm text-gray-700 dark:text-gray-300 italic">"{post.repostQuote}"</p>
+        </div>
+      )}
+
       {/* Action Bar */}
       <div className="flex justify-between items-center px-3 pt-3 pb-2">
         <div className="flex gap-4">
@@ -573,9 +605,13 @@ function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
               onLikeChange?.(post.id, count);
             }}
           />
-          <button className="hover:opacity-60 text-black dark:text-white">
+          <button
+            onClick={() => setShowComments(true)}
+            className="hover:opacity-60 text-black dark:text-white"
+          >
             <MessageCircle size={26} />
           </button>
+          <RepostButton postId={post.id} initialCount={post.repost_count || 0} size="md" />
           <button className="hover:opacity-60 text-black dark:text-white">
             <Send size={26} />
           </button>
@@ -596,7 +632,21 @@ function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
           <span className="font-semibold mr-2 text-black dark:text-white">{user?.username}</span>
           <span className="text-gray-700 dark:text-gray-300">{post.description}</span>
         </div>
-        <button className="text-gray-500 dark:text-gray-400 text-sm mt-1">View comments</button>
+        {(post.comments_count || 0) > 0 ? (
+          <button
+            onClick={() => setShowComments(true)}
+            className="text-gray-500 dark:text-gray-400 text-sm mt-1"
+          >
+            View all {post.comments_count} comments
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowComments(true)}
+            className="text-gray-500 dark:text-gray-400 text-sm mt-1"
+          >
+            Add a comment...
+          </button>
+        )}
       </div>
 
       {/* Timestamp */}
@@ -605,6 +655,14 @@ function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
           {new Date(post.created_at).toLocaleDateString()}
         </span>
       </div>
+
+      {/* Comments Modal */}
+      <CommentsModal
+        postId={post.id}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+        onCommentCountChange={(count) => onCommentCountChange?.(post.id, count)}
+      />
     </article>
   );
 }
@@ -654,6 +712,8 @@ export default function FeedPage() {
             video_id,
             created_at,
             likes_count,
+            comments_count,
+            repost_count,
             user_id,
             profiles:user_id (
               id,
@@ -681,6 +741,13 @@ export default function FeedPage() {
   const handleLikeChange = useCallback((postId: string, newCount: number) => {
     setPosts((prevPosts) =>
       prevPosts.map((post) => (post.id === postId ? { ...post, likes_count: newCount } : post))
+    );
+  }, []);
+
+  // Handle comment count update in local state
+  const handleCommentCountChange = useCallback((postId: string, newCount: number) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) => (post.id === postId ? { ...post, comments_count: newCount } : post))
     );
   }, []);
 
@@ -723,14 +790,19 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* Story Rail */}
-      <StoryRail />
+      {/* Stories */}
+      <StoriesBar />
 
       {/* Posts */}
       <div className="space-y-2 mt-2">
         {filteredPosts.length > 0 ? (
           filteredPosts.map((post) => (
-            <PlaylistPostComponent key={post.id} post={post} onLikeChange={handleLikeChange} />
+            <PlaylistPostComponent
+              key={post.id}
+              post={post}
+              onLikeChange={handleLikeChange}
+              onCommentCountChange={handleCommentCountChange}
+            />
           ))
         ) : filter === 'following' ? (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">

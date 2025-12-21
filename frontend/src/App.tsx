@@ -6,6 +6,12 @@ import ProfilePage from './pages/ProfilePage';
 import SearchPage from './pages/SearchPage';
 import ChartsPage from './pages/ChartsPage';
 import AuthPage from './pages/AuthPage';
+import NotificationsPage from './pages/NotificationsPage';
+import EditProfilePage from './pages/EditProfilePage';
+import SettingsPage from './pages/SettingsPage';
+import MessagesPage from './pages/MessagesPage';
+import ChatPage from './pages/ChatPage';
+import HashtagPage from './pages/HashtagPage';
 import useAuthStore from './stores/useAuthStore';
 
 interface ProtectedRouteProps {
@@ -55,6 +61,13 @@ function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/charts" element={<ChartsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/:userId" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/edit-profile" element={<EditProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/messages" element={<MessagesPage />} />
+          <Route path="/messages/:conversationId" element={<ChatPage />} />
+          <Route path="/hashtag/:tag" element={<HashtagPage />} />
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
