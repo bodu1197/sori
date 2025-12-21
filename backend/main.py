@@ -2140,6 +2140,120 @@ async def clear_search_cache(secret: str = None):
         logger.error(f"Cache clear error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/admin/run-sql")
+async def run_custom_sql(secret: str = None, access_token: str = None, sql: str = None):
+    """임의의 SQL 실행 - Management API 사용"""
+    import httpx
+
+    admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
+    if secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    if not sql:
+        raise HTTPException(status_code=400, detail="sql parameter required")
+
+    mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
+    if not mgmt_token:
+        raise HTTPException(status_code=400, detail="access_token required")
+
+    project_ref = "nrtkbulkzhhlstaomvas"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
+            headers={
+                "Authorization": f"Bearer {mgmt_token}",
+                "Content-Type": "application/json"
+            },
+            json={"query": sql}
+        )
+
+        if response.status_code != 201:
+            return {"success": False, "error": response.text, "status": response.status_code}
+
+        return {"success": True, "result": response.json()}
+
+
+@app.post("/api/admin/fix-notification-triggers")
+async def fix_notification_triggers(secret: str = None, access_token: str = None):
+    """알림 트리거 수정 - posts 테이블용"""
+    import httpx
+
+    admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
+    if secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
+    if not mgmt_token:
+        raise HTTPException(status_code=400, detail="access_token required")
+
+    project_ref = "nrtkbulkzhhlstaomvas"
+
+    sql_commands = [
+        # Fix like notification trigger
+        """CREATE OR REPLACE FUNCTION create_post_like_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+    post_owner_id UUID;
+BEGIN
+    SELECT user_id INTO post_owner_id FROM posts WHERE id = NEW.post_id;
+    IF post_owner_id IS NOT NULL AND post_owner_id != NEW.user_id THEN
+        INSERT INTO notifications (user_id, actor_id, type, reference_id, reference_type, content)
+        VALUES (post_owner_id, NEW.user_id, 'like', NEW.post_id, 'post', 'liked your post');
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER""",
+
+        # Fix comment notification trigger
+        """CREATE OR REPLACE FUNCTION create_post_comment_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+    post_owner_id UUID;
+BEGIN
+    SELECT user_id INTO post_owner_id FROM posts WHERE id = NEW.post_id;
+    IF post_owner_id IS NOT NULL AND post_owner_id != NEW.user_id THEN
+        INSERT INTO notifications (user_id, actor_id, type, reference_id, reference_type, content)
+        VALUES (post_owner_id, NEW.user_id, 'comment', NEW.post_id, 'post', 'commented on your post');
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER""",
+
+        # Recreate triggers
+        "DROP TRIGGER IF EXISTS on_post_like_notify ON post_likes",
+        """CREATE TRIGGER on_post_like_notify
+    AFTER INSERT ON post_likes
+    FOR EACH ROW EXECUTE FUNCTION create_post_like_notification()""",
+
+        "DROP TRIGGER IF EXISTS on_post_comment_notify ON post_comments",
+        """CREATE TRIGGER on_post_comment_notify
+    AFTER INSERT ON post_comments
+    FOR EACH ROW EXECUTE FUNCTION create_post_comment_notification()"""
+    ]
+
+    results = []
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for i, sql in enumerate(sql_commands):
+            response = await client.post(
+                f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
+                headers={
+                    "Authorization": f"Bearer {mgmt_token}",
+                    "Content-Type": "application/json"
+                },
+                json={"query": sql}
+            )
+
+            results.append({
+                "index": i,
+                "success": response.status_code == 201,
+                "status": response.status_code,
+                "error": response.text if response.status_code != 201 else None
+            })
+
+    return {"results": results, "total": len(sql_commands), "success": all(r["success"] for r in results)}
+
+
 @app.post("/api/admin/fix-advisor")
 async def fix_advisor_warnings(secret: str = None, access_token: str = None):
     """Supabase Advisor 경고 수정 - Management API로 SQL 실행"""
