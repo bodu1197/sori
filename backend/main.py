@@ -1582,27 +1582,97 @@ async def search_quick(request: Request, q: str, country: str = None):
                         if browse_id:
                             songs_playlist_id = browse_id[2:] if browse_id.startswith("VL") else browse_id
 
-                    # 전체 앨범 추출
-                    for album in artist_detail.get("albums", {}).get("results", []):
-                        albums.append({
-                            "browseId": album.get("browseId"),
-                            "title": album.get("title"),
-                            "artists": [{"name": artist.get("artist") or artist.get("name")}],
-                            "thumbnails": album.get("thumbnails", []),
-                            "year": album.get("year"),
-                            "type": "Album"
-                        })
+                    artist_name = artist.get("artist") or artist.get("name")
 
-                    # 전체 싱글 추출
-                    for single in artist_detail.get("singles", {}).get("results", []):
-                        albums.append({
-                            "browseId": single.get("browseId"),
-                            "title": single.get("title"),
-                            "artists": [{"name": artist.get("artist") or artist.get("name")}],
-                            "thumbnails": single.get("thumbnails", []),
-                            "year": single.get("year"),
-                            "type": "Single"
-                        })
+                    # 전체 앨범 가져오기 (get_artist_albums 사용)
+                    albums_section = artist_detail.get("albums", {})
+                    if isinstance(albums_section, dict):
+                        albums_browse_id = albums_section.get("browseId")
+                        albums_params = albums_section.get("params")
+
+                        if albums_browse_id and albums_params:
+                            # 더 많은 앨범이 있음 - 전체 목록 가져오기
+                            try:
+                                all_albums = await run_in_thread(
+                                    ytmusic.get_artist_albums, albums_browse_id, albums_params
+                                )
+                                for album in (all_albums or []):
+                                    albums.append({
+                                        "browseId": album.get("browseId"),
+                                        "title": album.get("title"),
+                                        "artists": [{"name": artist_name}],
+                                        "thumbnails": album.get("thumbnails", []),
+                                        "year": album.get("year"),
+                                        "type": "Album"
+                                    })
+                            except Exception as e:
+                                logger.warning(f"Failed to get all albums: {e}")
+                                # Fallback to initial results
+                                for album in albums_section.get("results", []):
+                                    albums.append({
+                                        "browseId": album.get("browseId"),
+                                        "title": album.get("title"),
+                                        "artists": [{"name": artist_name}],
+                                        "thumbnails": album.get("thumbnails", []),
+                                        "year": album.get("year"),
+                                        "type": "Album"
+                                    })
+                        else:
+                            # browseId/params 없으면 초기 결과 사용
+                            for album in albums_section.get("results", []):
+                                albums.append({
+                                    "browseId": album.get("browseId"),
+                                    "title": album.get("title"),
+                                    "artists": [{"name": artist_name}],
+                                    "thumbnails": album.get("thumbnails", []),
+                                    "year": album.get("year"),
+                                    "type": "Album"
+                                })
+
+                    # 전체 싱글 가져오기 (get_artist_albums 사용)
+                    singles_section = artist_detail.get("singles", {})
+                    if isinstance(singles_section, dict):
+                        singles_browse_id = singles_section.get("browseId")
+                        singles_params = singles_section.get("params")
+
+                        if singles_browse_id and singles_params:
+                            # 더 많은 싱글이 있음 - 전체 목록 가져오기
+                            try:
+                                all_singles = await run_in_thread(
+                                    ytmusic.get_artist_albums, singles_browse_id, singles_params
+                                )
+                                for single in (all_singles or []):
+                                    albums.append({
+                                        "browseId": single.get("browseId"),
+                                        "title": single.get("title"),
+                                        "artists": [{"name": artist_name}],
+                                        "thumbnails": single.get("thumbnails", []),
+                                        "year": single.get("year"),
+                                        "type": "Single"
+                                    })
+                            except Exception as e:
+                                logger.warning(f"Failed to get all singles: {e}")
+                                # Fallback to initial results
+                                for single in singles_section.get("results", []):
+                                    albums.append({
+                                        "browseId": single.get("browseId"),
+                                        "title": single.get("title"),
+                                        "artists": [{"name": artist_name}],
+                                        "thumbnails": single.get("thumbnails", []),
+                                        "year": single.get("year"),
+                                        "type": "Single"
+                                    })
+                        else:
+                            # browseId/params 없으면 초기 결과 사용
+                            for single in singles_section.get("results", []):
+                                albums.append({
+                                    "browseId": single.get("browseId"),
+                                    "title": single.get("title"),
+                                    "artists": [{"name": artist_name}],
+                                    "thumbnails": single.get("thumbnails", []),
+                                    "year": single.get("year"),
+                                    "type": "Single"
+                                })
 
                     # get_artist()의 related 섹션에서 비슷한 아티스트 추출
                     related_section = artist_detail.get("related", {})
