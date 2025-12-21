@@ -1529,14 +1529,35 @@ async def get_artist_songs_playlist(artist_id: str, country: str = "US"):
 
 @app.get("/api/artist/playlist-id")
 async def get_artist_playlist_id(q: str, country: str = "US"):
-    """아티스트 검색 -> 플레이리스트 ID만 반환 (초고속 엔드포인트)"""
+    """아티스트 검색 -> 플레이리스트 ID만 반환 (초고속 엔드포인트)
+
+    1. Supabase에서 먼저 검색 (캐시)
+    2. 없으면 ytmusicapi 호출 후 Supabase에 저장
+    """
     if not q or len(q.strip()) < 1:
         raise HTTPException(status_code=400, detail="Query required")
 
     try:
-        ytmusic = get_ytmusic(country)
+        # 1. Supabase에서 먼저 검색 (이름으로 검색)
+        if supabase_client:
+            try:
+                result = supabase_client.table("music_artists").select(
+                    "browse_id, name, songs_playlist_id"
+                ).ilike("name", f"%{q.strip()}%").limit(1).execute()
 
-        # 1. 아티스트 검색
+                if result.data and result.data[0].get("songs_playlist_id"):
+                    cached = result.data[0]
+                    logger.info(f"[playlist-id] DB hit: {cached['name']}")
+                    return {
+                        "playlistId": cached["songs_playlist_id"],
+                        "artist": cached["name"],
+                        "source": "database"
+                    }
+            except Exception as db_err:
+                logger.warning(f"DB search error: {db_err}")
+
+        # 2. DB에 없으면 ytmusicapi 호출
+        ytmusic = get_ytmusic(country)
         artists = await run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=1)
 
         if not artists:
@@ -1549,7 +1570,7 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
         if not artist_id:
             return {"playlistId": None, "artist": artist_name}
 
-        # 2. 아티스트 상세에서 songs.browseId만 추출
+        # 3. 아티스트 상세에서 songs.browseId만 추출
         artist_detail = await run_in_thread(ytmusic.get_artist, artist_id)
 
         songs_section = artist_detail.get("songs", {})
@@ -1560,9 +1581,24 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
         if songs_browse_id:
             playlist_id = songs_browse_id[2:] if songs_browse_id.startswith("VL") else songs_browse_id
 
+        # 4. Supabase에 저장 (재검색 시 빠른 응답)
+        if supabase_client and playlist_id:
+            try:
+                supabase_client.table("music_artists").upsert({
+                    "browse_id": artist_id,
+                    "name": artist_name,
+                    "songs_playlist_id": playlist_id,
+                    "thumbnail_url": get_best_thumbnail(artist.get("thumbnails", [])),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }, on_conflict="browse_id").execute()
+                logger.info(f"[playlist-id] Saved to DB: {artist_name} -> {playlist_id}")
+            except Exception as save_err:
+                logger.warning(f"DB save error: {save_err}")
+
         return {
             "playlistId": playlist_id,
-            "artist": artist_name
+            "artist": artist_name,
+            "source": "api"
         }
 
     except Exception as e:
