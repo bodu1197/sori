@@ -346,7 +346,7 @@ export default function SearchPage() {
       const response = await fetch(`${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`);
       if (response.ok) {
         const data = await response.json();
-        const tracks = data.tracks || [];
+        const tracks = data.playlist?.tracks || [];
         setAllSongsTracks(
           tracks.map(
             (t: {
@@ -469,7 +469,7 @@ export default function SearchPage() {
         );
         if (response.ok) {
           const data = await response.json();
-          const tracks = (data.tracks || []).map(
+          const tracks = (data.playlist?.tracks || []).map(
             (t: {
               videoId: string;
               title: string;
@@ -589,7 +589,7 @@ export default function SearchPage() {
         );
         if (response.ok) {
           const data = await response.json();
-          const tracks = (data.tracks || []).map(
+          const tracks = (data.playlist?.tracks || []).map(
             (t: {
               videoId: string;
               title: string;
