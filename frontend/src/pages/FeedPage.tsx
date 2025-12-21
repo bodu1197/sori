@@ -7,6 +7,25 @@ import useContextRecommendation from '../hooks/useContextRecommendation';
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
+// Get high resolution YouTube thumbnail (maxresdefault or hqdefault)
+const getHighResThumbnail = (videoId?: string, coverUrl?: string): string => {
+  // If we have a video ID, use YouTube's max resolution thumbnail
+  if (videoId) {
+    return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+  }
+
+  // If cover_url exists and is a YouTube thumbnail, upgrade to max resolution
+  if (coverUrl) {
+    const ytMatch = coverUrl.match(/https?:\/\/i\.ytimg\.com\/vi\/([^/]+)\//);
+    if (ytMatch) {
+      return `https://i.ytimg.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
+    }
+    return coverUrl;
+  }
+
+  return 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1280&h=720&fit=crop';
+};
+
 interface Artist {
   name: string;
   id?: string;
@@ -311,16 +330,29 @@ function PlaylistPostComponent({ post }: PlaylistPostProps) {
 
       {/* Playlist Visual (16:9 YouTube ratio) */}
       <div
-        className="relative w-full aspect-video bg-gray-100 cursor-pointer group overflow-hidden"
+        className="relative w-full aspect-video bg-gray-900 cursor-pointer group overflow-hidden"
         onClick={handlePlayClick}
       >
         <img
-          src={
-            post.cover_url ||
-            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=338&fit=crop'
-          }
+          src={getHighResThumbnail(post.video_id, post.cover_url)}
           alt={post.title}
+          width={1280}
+          height={720}
+          loading="lazy"
           className="w-full h-full object-cover"
+          onError={(e: SyntheticEvent<HTMLImageElement>) => {
+            const target = e.currentTarget;
+            const currentSrc = target.src;
+            // Fallback: maxresdefault -> hqdefault -> sddefault -> placeholder
+            if (currentSrc.includes('maxresdefault')) {
+              target.src = currentSrc.replace('maxresdefault', 'hqdefault');
+            } else if (currentSrc.includes('hqdefault')) {
+              target.src = currentSrc.replace('hqdefault', 'sddefault');
+            } else {
+              target.src =
+                'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1280&h=720&fit=crop';
+            }
+          }}
         />
 
         {/* Play Overlay */}
