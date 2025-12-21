@@ -2221,7 +2221,7 @@ $$"""
 
 @app.post("/api/admin/run-migrations")
 async def run_migrations(secret: str = None, access_token: str = None):
-    """SNS 기능 마이그레이션 실행 - stories, messages, hashtags, reposts, comments, notifications"""
+    """SNS 기능 마이그레이션 실행 - follows, likes, stories, messages, hashtags, reposts, comments, notifications"""
     import httpx
 
     admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
@@ -2235,6 +2235,152 @@ async def run_migrations(secret: str = None, access_token: str = None):
     project_ref = "nrtkbulkzhhlstaomvas"
 
     sql_commands = [
+        # =====================================================
+        # FOLLOWS TABLE - 팔로우 시스템
+        # =====================================================
+        """CREATE TABLE IF NOT EXISTS follows (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            follower_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            following_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(follower_id, following_id),
+            CHECK (follower_id != following_id)
+        )""",
+        "ALTER TABLE follows ENABLE ROW LEVEL SECURITY",
+        'DROP POLICY IF EXISTS "Anyone can view follows" ON follows',
+        """CREATE POLICY "Anyone can view follows" ON follows FOR SELECT USING (true)""",
+        'DROP POLICY IF EXISTS "Users can follow others" ON follows',
+        """CREATE POLICY "Users can follow others" ON follows FOR INSERT WITH CHECK (auth.uid() = follower_id)""",
+        'DROP POLICY IF EXISTS "Users can unfollow" ON follows',
+        """CREATE POLICY "Users can unfollow" ON follows FOR DELETE USING (auth.uid() = follower_id)""",
+        "CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id)",
+        "CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id)",
+
+        # Profiles - followers/following count columns
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS followers_count INTEGER DEFAULT 0",
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS following_count INTEGER DEFAULT 0",
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio TEXT",
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()",
+
+        # Follow count trigger function
+        """CREATE OR REPLACE FUNCTION update_follow_counts()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            IF TG_OP = 'INSERT' THEN
+                UPDATE profiles SET followers_count = followers_count + 1 WHERE id = NEW.following_id;
+                UPDATE profiles SET following_count = following_count + 1 WHERE id = NEW.follower_id;
+                RETURN NEW;
+            ELSIF TG_OP = 'DELETE' THEN
+                UPDATE profiles SET followers_count = GREATEST(0, followers_count - 1) WHERE id = OLD.following_id;
+                UPDATE profiles SET following_count = GREATEST(0, following_count - 1) WHERE id = OLD.follower_id;
+                RETURN OLD;
+            END IF;
+            RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER""",
+        "DROP TRIGGER IF EXISTS on_follow_change ON follows",
+        """CREATE TRIGGER on_follow_change
+            AFTER INSERT OR DELETE ON follows
+            FOR EACH ROW EXECUTE FUNCTION update_follow_counts()""",
+
+        # =====================================================
+        # LIKES TABLE - 좋아요 시스템
+        # =====================================================
+        """CREATE TABLE IF NOT EXISTS likes (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            post_id UUID NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(user_id, post_id)
+        )""",
+        "ALTER TABLE likes ENABLE ROW LEVEL SECURITY",
+        'DROP POLICY IF EXISTS "Anyone can view likes" ON likes',
+        """CREATE POLICY "Anyone can view likes" ON likes FOR SELECT USING (true)""",
+        'DROP POLICY IF EXISTS "Users can like posts" ON likes',
+        """CREATE POLICY "Users can like posts" ON likes FOR INSERT WITH CHECK (auth.uid() = user_id)""",
+        'DROP POLICY IF EXISTS "Users can unlike posts" ON likes',
+        """CREATE POLICY "Users can unlike posts" ON likes FOR DELETE USING (auth.uid() = user_id)""",
+        "CREATE INDEX IF NOT EXISTS idx_likes_user ON likes(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id)",
+
+        # Playlists - like_count column
+        "ALTER TABLE playlists ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0",
+
+        # Like count trigger function
+        """CREATE OR REPLACE FUNCTION update_like_counts()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            IF TG_OP = 'INSERT' THEN
+                UPDATE playlists SET like_count = like_count + 1 WHERE id = NEW.post_id;
+                RETURN NEW;
+            ELSIF TG_OP = 'DELETE' THEN
+                UPDATE playlists SET like_count = GREATEST(0, like_count - 1) WHERE id = OLD.post_id;
+                RETURN OLD;
+            END IF;
+            RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER""",
+        "DROP TRIGGER IF EXISTS on_like_change ON likes",
+        """CREATE TRIGGER on_like_change
+            AFTER INSERT OR DELETE ON likes
+            FOR EACH ROW EXECUTE FUNCTION update_like_counts()""",
+
+        # =====================================================
+        # CONVERSATIONS TABLES (must be created before messages can reference them)
+        # =====================================================
+        """CREATE TABLE IF NOT EXISTS conversations (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )""",
+        """CREATE TABLE IF NOT EXISTS conversation_participants (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+            user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            last_read_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(conversation_id, user_id)
+        )""",
+        """CREATE TABLE IF NOT EXISTS messages (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+            sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+            content TEXT NOT NULL,
+            shared_track_id TEXT,
+            shared_track_title TEXT,
+            shared_track_artist TEXT,
+            shared_track_thumbnail TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )""",
+        "ALTER TABLE conversations ENABLE ROW LEVEL SECURITY",
+        "ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY",
+        "ALTER TABLE messages ENABLE ROW LEVEL SECURITY",
+        'DROP POLICY IF EXISTS "Users can view own conversations" ON conversations',
+        """CREATE POLICY "Users can view own conversations" ON conversations FOR SELECT USING (
+            EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = id AND user_id = auth.uid())
+        )""",
+        'DROP POLICY IF EXISTS "Users can create conversations" ON conversations',
+        """CREATE POLICY "Users can create conversations" ON conversations FOR INSERT WITH CHECK (true)""",
+        'DROP POLICY IF EXISTS "Users can view own participations" ON conversation_participants',
+        """CREATE POLICY "Users can view own participations" ON conversation_participants FOR SELECT USING (
+            EXISTS (SELECT 1 FROM conversation_participants cp WHERE cp.conversation_id = conversation_id AND cp.user_id = auth.uid())
+        )""",
+        'DROP POLICY IF EXISTS "Users can create participations" ON conversation_participants',
+        """CREATE POLICY "Users can create participations" ON conversation_participants FOR INSERT WITH CHECK (true)""",
+        'DROP POLICY IF EXISTS "Users can update own participation" ON conversation_participants',
+        """CREATE POLICY "Users can update own participation" ON conversation_participants FOR UPDATE USING (auth.uid() = user_id)""",
+        'DROP POLICY IF EXISTS "Users can view messages in own conversations" ON messages',
+        """CREATE POLICY "Users can view messages in own conversations" ON messages FOR SELECT USING (
+            EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = messages.conversation_id AND user_id = auth.uid())
+        )""",
+        'DROP POLICY IF EXISTS "Users can send messages" ON messages',
+        """CREATE POLICY "Users can send messages" ON messages FOR INSERT WITH CHECK (auth.uid() = sender_id)""",
+        "CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)",
+        "CREATE INDEX IF NOT EXISTS idx_conversation_participants_user ON conversation_participants(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_conversation_participants_conv ON conversation_participants(conversation_id)",
+
+        # =====================================================
+        # STORIES TABLE
+        # =====================================================
         # Stories table
         """CREATE TABLE IF NOT EXISTS stories (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

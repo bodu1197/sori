@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Edit, Loader2 } from 'lucide-react';
+import { Search, Edit, Loader2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
+
+interface SearchedUser {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
 
 interface Participant {
   user_id: string;
@@ -31,6 +38,11 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchedUsers, setSearchedUsers] = useState<SearchedUser[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [creatingConversation, setCreatingConversation] = useState(false);
 
   // Fetch conversations
   useEffect(() => {
@@ -160,6 +172,94 @@ export default function MessagesPage() {
     fetchConversations();
   }, [user?.id]);
 
+  // Search users for new conversation
+  useEffect(() => {
+    async function searchUsers() {
+      if (!userSearchQuery.trim() || !user?.id) {
+        setSearchedUsers([]);
+        return;
+      }
+
+      setSearchingUsers(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .neq('id', user.id)
+          .or(`username.ilike.%${userSearchQuery}%,full_name.ilike.%${userSearchQuery}%`)
+          .limit(20);
+
+        if (error) throw error;
+        setSearchedUsers(data || []);
+      } catch (error) {
+        console.error('Error searching users:', error);
+      } finally {
+        setSearchingUsers(false);
+      }
+    }
+
+    const debounce = setTimeout(searchUsers, 300);
+    return () => clearTimeout(debounce);
+  }, [userSearchQuery, user?.id]);
+
+  // Start or find existing conversation
+  const startConversation = async (otherUserId: string) => {
+    if (!user?.id || creatingConversation) return;
+
+    setCreatingConversation(true);
+    try {
+      // Check if conversation already exists between these users
+      const { data: existingParticipations } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      if (existingParticipations && existingParticipations.length > 0) {
+        const conversationIds = existingParticipations.map((p) => p.conversation_id);
+
+        const { data: otherParticipations } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', otherUserId)
+          .in('conversation_id', conversationIds);
+
+        if (otherParticipations && otherParticipations.length > 0) {
+          // Existing conversation found
+          navigate(`/messages/${otherParticipations[0].conversation_id}`);
+          setShowNewMessageModal(false);
+          setUserSearchQuery('');
+          return;
+        }
+      }
+
+      // Create new conversation
+      const { data: newConversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({})
+        .select('id')
+        .single();
+
+      if (convError) throw convError;
+
+      // Add both participants
+      const { error: participantsError } = await supabase.from('conversation_participants').insert([
+        { conversation_id: newConversation.id, user_id: user.id },
+        { conversation_id: newConversation.id, user_id: otherUserId },
+      ]);
+
+      if (participantsError) throw participantsError;
+
+      // Navigate to the new conversation
+      navigate(`/messages/${newConversation.id}`);
+      setShowNewMessageModal(false);
+      setUserSearchQuery('');
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+    } finally {
+      setCreatingConversation(false);
+    }
+  };
+
   // Format time
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -199,7 +299,11 @@ export default function MessagesPage() {
       <div className="sticky top-0 z-10 bg-white dark:bg-black border-b border-gray-100 dark:border-gray-800 px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-black dark:text-white">Messages</h1>
-          <button className="p-2 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full">
+          <button
+            onClick={() => setShowNewMessageModal(true)}
+            className="p-2 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full"
+            title="New message"
+          >
             <Edit size={22} />
           </button>
         </div>
@@ -285,6 +389,88 @@ export default function MessagesPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* New Message Modal */}
+      {showNewMessageModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+          <div className="bg-white dark:bg-gray-900 w-full sm:w-[400px] sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setShowNewMessageModal(false);
+                  setUserSearchQuery('');
+                  setSearchedUsers([]);
+                }}
+                className="p-1 text-black dark:text-white"
+              >
+                <X size={24} />
+              </button>
+              <h2 className="text-lg font-semibold text-black dark:text-white">New message</h2>
+              <div className="w-8" />
+            </div>
+
+            {/* Search Input */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* User Results */}
+            <div className="flex-1 overflow-y-auto">
+              {searchingUsers ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={24} className="animate-spin text-gray-400" />
+                </div>
+              ) : searchedUsers.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">
+                  {userSearchQuery.trim() ? 'No users found' : 'Search for users to message'}
+                </div>
+              ) : (
+                <div>
+                  {searchedUsers.map((searchedUser) => (
+                    <button
+                      key={searchedUser.id}
+                      onClick={() => startConversation(searchedUser.id)}
+                      disabled={creatingConversation}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50"
+                    >
+                      <img
+                        src={searchedUser.avatar_url || 'https://via.placeholder.com/150'}
+                        alt={searchedUser.username || 'User'}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      <div className="text-left">
+                        <p className="font-semibold text-black dark:text-white">
+                          {searchedUser.username || searchedUser.full_name || 'User'}
+                        </p>
+                        {searchedUser.full_name && searchedUser.username && (
+                          <p className="text-sm text-gray-500">{searchedUser.full_name}</p>
+                        )}
+                      </div>
+                      {creatingConversation && (
+                        <Loader2 size={18} className="animate-spin text-gray-400 ml-auto" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
