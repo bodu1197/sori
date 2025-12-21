@@ -509,11 +509,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
             <span className="font-semibold text-sm leading-none hover:underline text-black dark:text-white">
               {displayName}
             </span>
-            {post.artist && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 leading-none mt-0.5">
-                {post.artist}
-              </span>
-            )}
           </div>
         </div>
         <button className="text-gray-500 dark:text-gray-400">
