@@ -28,51 +28,55 @@ export default function FollowersModal({ userId, type, isOpen, onClose }: Follow
       setLoading(true);
       try {
         if (type === 'followers') {
-          // Get users who follow this user
-          const { data, error } = await supabase
+          // Step 1: Get follower IDs from follows table
+          const { data: followsData, error: followsError } = await supabase
             .from('follows')
-            .select(
-              `
-              follower_id,
-              profiles:follower_id (
-                id,
-                username,
-                full_name,
-                avatar_url
-              )
-            `
-            )
+            .select('follower_id')
             .eq('following_id', userId);
 
-          if (error) throw error;
+          if (followsError) throw followsError;
 
-          const profilesList = data
-            ?.map((item) => item.profiles as unknown as Profile)
-            .filter(Boolean);
-          setProfiles(profilesList || []);
+          const followerIds = followsData?.map((f) => f.follower_id) || [];
+
+          if (followerIds.length === 0) {
+            setProfiles([]);
+            return;
+          }
+
+          // Step 2: Get profiles for those IDs
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url')
+            .in('id', followerIds);
+
+          if (profilesError) throw profilesError;
+
+          setProfiles(profilesData || []);
         } else {
-          // Get users this user follows
-          const { data, error } = await supabase
+          // Step 1: Get following IDs from follows table
+          const { data: followsData, error: followsError } = await supabase
             .from('follows')
-            .select(
-              `
-              following_id,
-              profiles:following_id (
-                id,
-                username,
-                full_name,
-                avatar_url
-              )
-            `
-            )
+            .select('following_id')
             .eq('follower_id', userId);
 
-          if (error) throw error;
+          if (followsError) throw followsError;
 
-          const profilesList = data
-            ?.map((item) => item.profiles as unknown as Profile)
-            .filter(Boolean);
-          setProfiles(profilesList || []);
+          const followingIds = followsData?.map((f) => f.following_id) || [];
+
+          if (followingIds.length === 0) {
+            setProfiles([]);
+            return;
+          }
+
+          // Step 2: Get profiles for those IDs
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url')
+            .in('id', followingIds);
+
+          if (profilesError) throw profilesError;
+
+          setProfiles(profilesData || []);
         }
       } catch (error) {
         console.error('Error fetching profiles:', error);
