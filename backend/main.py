@@ -1527,6 +1527,49 @@ async def get_artist_songs_playlist(artist_id: str, country: str = "US"):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/artist/playlist-id")
+async def get_artist_playlist_id(q: str, country: str = "US"):
+    """아티스트 검색 -> 플레이리스트 ID만 반환 (초고속 엔드포인트)"""
+    if not q or len(q.strip()) < 1:
+        raise HTTPException(status_code=400, detail="Query required")
+
+    try:
+        ytmusic = get_ytmusic(country)
+
+        # 1. 아티스트 검색
+        artists = await run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=1)
+
+        if not artists:
+            return {"playlistId": None, "artist": None}
+
+        artist = artists[0]
+        artist_id = artist.get("browseId")
+        artist_name = artist.get("artist") or artist.get("name")
+
+        if not artist_id:
+            return {"playlistId": None, "artist": artist_name}
+
+        # 2. 아티스트 상세에서 songs.browseId만 추출
+        artist_detail = await run_in_thread(ytmusic.get_artist, artist_id)
+
+        songs_section = artist_detail.get("songs", {})
+        songs_browse_id = songs_section.get("browseId") if isinstance(songs_section, dict) else None
+
+        # VL 제거 -> 순수 플레이리스트 ID
+        playlist_id = None
+        if songs_browse_id:
+            playlist_id = songs_browse_id[2:] if songs_browse_id.startswith("VL") else songs_browse_id
+
+        return {
+            "playlistId": playlist_id,
+            "artist": artist_name
+        }
+
+    except Exception as e:
+        logger.error(f"Playlist ID search error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/artist/{artist_id}")
 async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = False):
     """아티스트 상세 정보"""
@@ -1771,63 +1814,6 @@ async def get_album(album_id: str, country: str = "US"):
     except Exception as e:
         logger.error(f"Album error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# =============================================================================
-# 아티스트 플레이리스트 ID만 검색 (초고속)
-# =============================================================================
-
-@app.get("/api/artist/playlist-id")
-async def get_artist_playlist_id(q: str, country: str = "US"):
-    """아티스트 검색 → 플레이리스트 ID만 반환 (다른 데이터 없음)"""
-    logger.info(f"[playlist-id] START q={q} country={country}")
-
-    if not q or len(q.strip()) < 1:
-        raise HTTPException(status_code=400, detail="Query required")
-
-    try:
-        # 기존 캐시된 인스턴스 사용
-        ytmusic = get_ytmusic(country)
-        logger.info(f"[playlist-id] Got ytmusic instance")
-
-        # 1. 아티스트 검색 (비동기)
-        logger.info(f"[playlist-id] Searching artist...")
-        artists = await run_in_thread(lambda: ytmusic.search(q.strip(), filter="artists", limit=1))
-        logger.info(f"[playlist-id] Found {len(artists) if artists else 0} artists")
-
-        if not artists:
-            return {"playlistId": None, "artist": None}
-
-        artist = artists[0]
-        artist_id = artist.get("browseId")
-        artist_name = artist.get("artist") or artist.get("name")
-        logger.info(f"[playlist-id] Artist: {artist_name}, ID: {artist_id}")
-
-        if not artist_id:
-            return {"playlistId": None, "artist": artist_name}
-
-        # 2. 아티스트 상세에서 songs.browseId만 추출 (비동기)
-        logger.info(f"[playlist-id] Getting artist detail...")
-        artist_detail = await run_in_thread(lambda: ytmusic.get_artist(artist_id))
-        logger.info(f"[playlist-id] Got artist detail")
-
-        songs_section = artist_detail.get("songs", {})
-        songs_browse_id = songs_section.get("browseId") if isinstance(songs_section, dict) else None
-        logger.info(f"[playlist-id] Songs browseId: {songs_browse_id}")
-
-        # VL 제거 → 순수 플레이리스트 ID
-        playlist_id = None
-        if songs_browse_id:
-            playlist_id = songs_browse_id[2:] if songs_browse_id.startswith("VL") else songs_browse_id
-
-        return {
-            "playlistId": playlist_id,
-            "artist": artist_name
-        }
-
-    except Exception as e:
-        logger.error(f"Playlist ID search error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 # =============================================================================
 # 플레이리스트 정보 API
