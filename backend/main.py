@@ -1603,6 +1603,20 @@ async def search_quick(request: Request, q: str, country: str = None):
                             "year": single.get("year"),
                             "type": "Single"
                         })
+
+                    # get_artist()의 related 섹션에서 비슷한 아티스트 추출
+                    related_section = artist_detail.get("related", {})
+                    if isinstance(related_section, dict):
+                        for ra in related_section.get("results", []):
+                            if len(similar_artists) >= 10:
+                                break
+                            ra_id = ra.get("browseId")
+                            if ra_id and ra_id != artist_id:
+                                similar_artists.append({
+                                    "browseId": ra_id,
+                                    "name": ra.get("title") or ra.get("name"),
+                                    "thumbnail": get_best_thumbnail(ra.get("thumbnails", []))
+                                })
                 except Exception as e:
                     logger.warning(f"Failed to get artist detail: {e}")
 
@@ -1613,13 +1627,17 @@ async def search_quick(request: Request, q: str, country: str = None):
                 "songsPlaylistId": songs_playlist_id
             }
 
-            # 나머지 아티스트는 비슷한 아티스트로 표시 (최대 10명)
+            # 검색 결과에서 추가 비슷한 아티스트 (10명 미만일 경우)
             for a in artists_results[1:11]:
-                similar_artists.append({
-                    "browseId": a.get("browseId"),
-                    "name": a.get("artist") or a.get("name"),
-                    "thumbnail": get_best_thumbnail(a.get("thumbnails", []))
-                })
+                if len(similar_artists) >= 10:
+                    break
+                a_id = a.get("browseId")
+                if a_id and not any(s.get("browseId") == a_id for s in similar_artists):
+                    similar_artists.append({
+                        "browseId": a_id,
+                        "name": a.get("artist") or a.get("name"),
+                        "thumbnail": get_best_thumbnail(a.get("thumbnails", []))
+                    })
 
             # 백그라운드에서 DB에 저장
             if supabase_client and artist_data.get("browseId"):
