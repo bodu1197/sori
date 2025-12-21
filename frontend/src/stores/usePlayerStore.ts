@@ -381,9 +381,9 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
   closeTrackPanel: () => set({ trackPanelOpen: false }),
   setTrackPanelLoading: (loading) => set({ trackPanelLoading: loading }),
 
-  // YouTube Playlist Actions
+  // YouTube Playlist Actions - IFrame API가 모든 것을 처리
   loadYouTubePlaylist: (playlistId, artistName) => {
-    const { playerRef, isReady } = get();
+    const { playerRef, isReady, openTrackPanel } = get();
 
     if (!playerRef || !isReady) {
       console.warn('Player not ready for playlist loading');
@@ -404,7 +404,6 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
         youtubePlaylistMode: true,
         isPlaying: true,
         isLoading: true,
-        // Set a temporary track while loading
         currentTrack: {
           videoId: '',
           title: artistName ? `${artistName} - All Songs` : 'Loading playlist...',
@@ -412,9 +411,98 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
         },
         playlist: [],
         currentIndex: 0,
+        trackPanelLoading: true,
       });
 
-      console.log(`Loading YouTube playlist: ${playlistId}`);
+      // 트랙 패널 먼저 열기 (로딩 상태)
+      openTrackPanel({
+        title: artistName ? `${artistName} - All Songs` : 'Playlist',
+        author: { name: 'Loading tracks...' },
+        tracks: [],
+        trackCount: 0,
+      });
+
+      // YouTube IFrame에서 playlist 로드 후 video ID 가져오기
+      const checkPlaylist = setInterval(async () => {
+        try {
+          const videoIds = playerRef.getPlaylist();
+          if (videoIds && videoIds.length > 0) {
+            clearInterval(checkPlaylist);
+
+            // noembed.com으로 각 video의 메타데이터 가져오기
+            const tracks: Track[] = [];
+            const batchSize = 10;
+
+            for (let i = 0; i < videoIds.length; i += batchSize) {
+              const batch = videoIds.slice(i, i + batchSize);
+              const batchPromises = batch.map(async (videoId: string) => {
+                const thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+                try {
+                  const res = await fetch(
+                    `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`,
+                    { signal: AbortSignal.timeout(5000) }
+                  );
+                  if (res.ok) {
+                    const data = await res.json();
+                    return {
+                      videoId,
+                      title: data.title || 'Unknown',
+                      artist:
+                        data.author_name?.replace(/\s*-\s*Topic$/, '').trim() ||
+                        artistName ||
+                        'Unknown',
+                      thumbnail,
+                    };
+                  }
+                } catch {
+                  // noembed 실패 시 기본값
+                }
+                return {
+                  videoId,
+                  title: `Track ${videoId.slice(0, 6)}`,
+                  artist: artistName || 'Unknown',
+                  thumbnail,
+                };
+              });
+
+              const batchResults = await Promise.all(batchPromises);
+              tracks.push(...batchResults);
+
+              // 진행 상황 업데이트
+              set({ playlist: [...tracks] });
+            }
+
+            // 트랙 패널 업데이트
+            openTrackPanel({
+              title: artistName ? `${artistName} - All Songs` : 'Playlist',
+              author: { name: `${tracks.length} tracks` },
+              tracks: tracks.map((t) => ({
+                videoId: t.videoId,
+                title: t.title,
+                artists: [{ name: t.artist || '' }],
+                thumbnails: t.thumbnail ? [{ url: t.thumbnail }] : [],
+              })),
+              trackCount: tracks.length,
+            });
+
+            set({
+              playlist: tracks,
+              isLoading: false,
+              trackPanelLoading: false,
+              currentTrack: tracks[0] || null,
+              currentIndex: 0,
+            });
+          }
+        } catch {
+          // 아직 로드 중
+        }
+      }, 500);
+
+      // 10초 타임아웃
+      setTimeout(() => {
+        clearInterval(checkPlaylist);
+        set({ isLoading: false, trackPanelLoading: false });
+      }, 10000);
     } catch (error) {
       console.error('Failed to load YouTube playlist:', error);
     }
