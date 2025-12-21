@@ -1533,10 +1533,9 @@ async def get_artist_songs_playlist(artist_id: str, country: str = "US"):
 
 @app.get("/api/search/quick")
 async def search_quick(request: Request, q: str, country: str = None):
-    """초고속 검색 - search()만 호출하여 1-2초 내 응답
+    """통합 검색 - 아티스트 + 전체 앨범/싱글 + 인기곡 5개 + 비슷한 아티스트 10명
 
-    get_artist()를 호출하지 않아 빠름.
-    상세 정보(앨범, 플레이리스트 ID 등)는 별도 API로 로드.
+    get_artist()로 전체 디스코그래피 조회.
     """
     if not q or len(q.strip()) < 1:
         raise HTTPException(status_code=400, detail="Query required")
@@ -1557,40 +1556,79 @@ async def search_quick(request: Request, q: str, country: str = None):
     try:
         ytmusic = get_ytmusic(country)
 
-        # 병렬로 아티스트, 노래, 앨범, 비슷한 아티스트 검색
-        future_artists = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=5)
+        # 병렬로 아티스트, 노래 검색 (비슷한 아티스트 10명 포함)
+        future_artists = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=11)
         future_songs = run_in_thread(ytmusic.search, q.strip(), filter="songs", limit=5)
-        future_albums = run_in_thread(ytmusic.search, q.strip(), filter="albums", limit=10)
-        artists_results, songs_results, albums_results = await asyncio.gather(
-            future_artists, future_songs, future_albums
-        )
+        artists_results, songs_results = await asyncio.gather(future_artists, future_songs)
 
         artist_data = None
         similar_artists = []
+        albums = []
+        songs_playlist_id = None
+
         if artists_results and len(artists_results) > 0:
             artist = artists_results[0]
+            artist_id = artist.get("browseId")
+
+            # 아티스트 상세 정보에서 전체 앨범/싱글 + 플레이리스트 ID 가져오기
+            if artist_id:
+                try:
+                    artist_detail = await run_in_thread(ytmusic.get_artist, artist_id)
+
+                    # 플레이리스트 ID 추출
+                    songs_section = artist_detail.get("songs", {})
+                    if isinstance(songs_section, dict):
+                        browse_id = songs_section.get("browseId")
+                        if browse_id:
+                            songs_playlist_id = browse_id[2:] if browse_id.startswith("VL") else browse_id
+
+                    # 전체 앨범 추출
+                    for album in artist_detail.get("albums", {}).get("results", []):
+                        albums.append({
+                            "browseId": album.get("browseId"),
+                            "title": album.get("title"),
+                            "artists": [{"name": artist.get("artist") or artist.get("name")}],
+                            "thumbnails": album.get("thumbnails", []),
+                            "year": album.get("year"),
+                            "type": "Album"
+                        })
+
+                    # 전체 싱글 추출
+                    for single in artist_detail.get("singles", {}).get("results", []):
+                        albums.append({
+                            "browseId": single.get("browseId"),
+                            "title": single.get("title"),
+                            "artists": [{"name": artist.get("artist") or artist.get("name")}],
+                            "thumbnails": single.get("thumbnails", []),
+                            "year": single.get("year"),
+                            "type": "Single"
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to get artist detail: {e}")
+
             artist_data = {
-                "browseId": artist.get("browseId"),
+                "browseId": artist_id,
                 "name": artist.get("artist") or artist.get("name"),
                 "thumbnail": get_best_thumbnail(artist.get("thumbnails", [])),
-                "songsPlaylistId": None  # 별도 API로 로드
+                "songsPlaylistId": songs_playlist_id
             }
 
-            # 나머지 아티스트는 비슷한 아티스트로 표시
-            for a in artists_results[1:5]:
+            # 나머지 아티스트는 비슷한 아티스트로 표시 (최대 10명)
+            for a in artists_results[1:11]:
                 similar_artists.append({
                     "browseId": a.get("browseId"),
                     "name": a.get("artist") or a.get("name"),
                     "thumbnail": get_best_thumbnail(a.get("thumbnails", []))
                 })
 
-            # 백그라운드에서 DB에 저장 (다음 검색 시 빠르게)
+            # 백그라운드에서 DB에 저장
             if supabase_client and artist_data.get("browseId"):
                 try:
                     supabase_client.table("music_artists").upsert({
                         "browse_id": artist_data["browseId"],
                         "name": artist_data["name"],
                         "thumbnail_url": artist_data["thumbnail"],
+                        "songs_playlist_id": songs_playlist_id,
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }, on_conflict="browse_id").execute()
                 except Exception:
@@ -1608,17 +1646,7 @@ async def search_quick(request: Request, q: str, country: str = None):
                 "album": s.get("album")
             })
 
-        # 앨범 결과 정리
-        albums = []
-        for a in (albums_results or [])[:10]:
-            albums.append({
-                "browseId": a.get("browseId"),
-                "title": a.get("title"),
-                "artists": a.get("artists", []),
-                "thumbnails": a.get("thumbnails", []),
-                "year": a.get("year"),
-                "type": a.get("type", "Album")
-            })
+        # 앨범은 위에서 get_artist()로 이미 추출됨 (전체 앨범 + 싱글)
 
         response = {
             "artist": artist_data,
