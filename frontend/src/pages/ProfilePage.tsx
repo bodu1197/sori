@@ -1,7 +1,18 @@
 import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Grid, Heart, Lock, Play, LogOut, Music, Shuffle, Trash2, Disc } from 'lucide-react';
+import {
+  Grid,
+  Heart,
+  Lock,
+  Play,
+  LogOut,
+  Music,
+  Shuffle,
+  Trash2,
+  Disc,
+  Settings,
+} from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useCountry from '../hooks/useCountry';
@@ -539,10 +550,18 @@ export default function ProfilePage() {
             {t('profile.editProfile')}
           </button>
           <button
-            onClick={signOut}
-            className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
+            onClick={() => navigate('/settings')}
+            className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            title="Settings"
           >
-            <LogOut size={16} /> {t('profile.signOut')}
+            <Settings size={18} />
+          </button>
+          <button
+            onClick={signOut}
+            className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
+            title="Sign Out"
+          >
+            <LogOut size={18} />
           </button>
         </div>
       </div>
