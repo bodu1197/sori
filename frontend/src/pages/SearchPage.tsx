@@ -481,73 +481,12 @@ export default function SearchPage() {
                       {searchArtist.subscribers || 'Artist'}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {/* YouTube Playlist Play - Fetches full playlist then plays via IFrame API */}
+                      {/* YouTube Playlist Play - Direct IFrame API, no backend fetch */}
                       {searchArtist.songsPlaylistId && (
                         <button
-                          onClick={async () => {
-                            // Show loading state
-                            setTrackPanelLoading(true);
-                            openTrackPanel({
-                              title: `${searchArtist.artist} - All Songs`,
-                              author: { name: 'Loading...' },
-                              thumbnails: searchArtist.thumbnails,
-                              tracks: [],
-                              trackCount: 0,
-                            });
-
-                            try {
-                              // Fetch full playlist tracks from backend
-                              const response = await fetch(
-                                `${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`
-                              );
-                              if (response.ok) {
-                                const data = await response.json();
-                                const playlist = data.playlist;
-                                const tracks = playlist?.tracks || [];
-
-                                // Update panel with full tracks
-                                openTrackPanel({
-                                  title: playlist?.title || `${searchArtist.artist} - All Songs`,
-                                  author: { name: `${tracks.length} tracks` },
-                                  thumbnails: playlist?.thumbnails || searchArtist.thumbnails,
-                                  tracks: tracks.map(
-                                    (track: AlbumTrack & { isAvailable?: boolean }) => ({
-                                      videoId: track.videoId,
-                                      title: track.title,
-                                      artists: track.artists,
-                                      thumbnails: track.thumbnails,
-                                      duration: track.duration,
-                                      isAvailable: track.isAvailable,
-                                    })
-                                  ),
-                                  trackCount: tracks.length,
-                                });
-
-                                // Start playback with full playlist
-                                const playerTracks = tracks
-                                  .filter(
-                                    (t: AlbumTrack & { isAvailable?: boolean }) =>
-                                      t.isAvailable !== false
-                                  )
-                                  .map((t: AlbumTrack) => ({
-                                    videoId: t.videoId,
-                                    title: t.title,
-                                    artist: t.artists?.[0]?.name || searchArtist.artist,
-                                    thumbnail: getBestThumbnail(t.thumbnails),
-                                  }));
-                                if (playerTracks.length > 0) {
-                                  startPlayback(playerTracks, 0);
-                                }
-                              }
-                            } catch {
-                              // Fallback to YouTube IFrame API if fetch fails
-                              loadYouTubePlaylist(
-                                searchArtist.songsPlaylistId!,
-                                searchArtist.artist
-                              );
-                            } finally {
-                              setTrackPanelLoading(false);
-                            }
+                          onClick={() => {
+                            // YouTube IFrame API handles everything - no backend call needed!
+                            loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist);
                           }}
                           className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-red-700 transition"
                           title="Play all songs via YouTube"
