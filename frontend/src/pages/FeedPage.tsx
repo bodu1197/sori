@@ -458,7 +458,8 @@ interface FeedPostProps {
 }
 
 function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPostProps) {
-  const user = post.profile;
+  const profile = post.profile;
+  const displayName = profile?.username || profile?.full_name || 'Unknown';
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const likeCountText = useLikeCountText(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
@@ -475,7 +476,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
     };
     openTrackPanel({
       title: post.title || 'Track',
-      author: { name: post.artist || user?.username || 'Unknown Artist' },
+      author: { name: post.artist || displayName },
       thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
       tracks: [panelTrack],
       trackCount: 1,
@@ -500,17 +501,17 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
       <div className="flex justify-between items-center px-3 py-3">
         <div className="flex items-center gap-2 cursor-pointer">
           <img
-            src={user?.avatar_url || 'https://via.placeholder.com/150'}
-            alt={user?.username}
+            src={profile?.avatar_url || 'https://via.placeholder.com/150'}
+            alt={displayName}
             className="w-8 h-8 rounded-full object-cover border border-gray-100"
           />
           <div className="flex flex-col">
             <span className="font-semibold text-sm leading-none hover:underline text-black dark:text-white">
-              {user?.username || 'Unknown'}
+              {displayName}
             </span>
-            {user?.location && (
+            {post.artist && (
               <span className="text-xs text-gray-500 dark:text-gray-400 leading-none mt-0.5">
-                {user.location}
+                {post.artist}
               </span>
             )}
           </div>
@@ -631,7 +632,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
       {/* Caption */}
       <div className="px-3 pt-1">
         <div className="text-sm">
-          <span className="font-semibold mr-2 text-black dark:text-white">{user?.username}</span>
+          <span className="font-semibold mr-2 text-black dark:text-white">{displayName}</span>
           <span className="text-gray-700 dark:text-gray-300">{post.caption}</span>
         </div>
         {(post.comment_count || 0) > 0 ? (
@@ -719,17 +720,22 @@ export default function FeedPage() {
         }
 
         // Step 2: Get unique user IDs
-        const userIds = [...new Set(postsData.map((p) => p.user_id))];
+        const userIds = [...new Set(postsData.map((p) => p.user_id).filter(Boolean))];
 
         // Step 3: Fetch profiles for those user IDs
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url, full_name')
-          .in('id', userIds);
+        let profilesMap = new Map<string, Profile>();
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url, full_name')
+            .in('id', userIds);
 
-        // Create a map for quick lookup
-        const profilesMap = new Map<string, Profile>();
-        profilesData?.forEach((p) => profilesMap.set(p.id, p as Profile));
+          if (profilesError) {
+            console.error('Error fetching profiles:', profilesError);
+          } else if (profilesData) {
+            profilesData.forEach((p) => profilesMap.set(p.id, p as Profile));
+          }
+        }
 
         // Step 4: Combine posts with profiles
         const postsWithProfiles: FeedPost[] = postsData.map((post) => ({

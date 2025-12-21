@@ -55,26 +55,41 @@ export default function LikeButton({
   }, [initialLikeCount]);
 
   const handleLikeToggle = async () => {
-    if (!user?.id || loading) return;
+    console.log('Like toggle clicked', { userId: user?.id, postId, loading, isLiked });
+
+    if (!user?.id) {
+      console.warn('No user logged in, cannot like');
+      return;
+    }
+    if (loading) {
+      console.warn('Already loading, skipping');
+      return;
+    }
 
     setLoading(true);
 
     try {
       if (isLiked) {
         // Unlike
+        console.log('Unliking post...');
         const { error } = await supabase
           .from('post_likes')
           .delete()
           .eq('user_id', user.id)
           .eq('post_id', postId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Unlike error:', error);
+          throw error;
+        }
 
         setIsLiked(false);
         setLikeCount((prev) => Math.max(0, prev - 1));
         onLikeChange?.(false, likeCount - 1);
+        console.log('Unlike successful');
       } else {
         // Like with animation
+        console.log('Liking post...');
         setAnimating(true);
 
         const { error } = await supabase.from('post_likes').insert({
@@ -82,11 +97,15 @@ export default function LikeButton({
           post_id: postId,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Like error:', error);
+          throw error;
+        }
 
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
         onLikeChange?.(true, likeCount + 1);
+        console.log('Like successful');
 
         // Reset animation after it completes
         setTimeout(() => setAnimating(false), 400);
