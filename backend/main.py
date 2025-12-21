@@ -277,9 +277,8 @@ def db_save_artist_full(artist_data: dict) -> bool:
         if not browse_id:
             return False
 
-        # 인기곡 플레이리스트 ID 추출
+        # 인기곡 플레이리스트 ID만 추출 (YouTube IFrame API용)
         songs_playlist_id = artist_data.get("songsPlaylistId")
-        songs_browse_id = artist_data.get("songsBrowseId")
 
         data = {
             "browse_id": browse_id,
@@ -290,7 +289,6 @@ def db_save_artist_full(artist_data: dict) -> bool:
             "top_songs_json": artist_data.get("topSongs") or [],
             "related_artists_json": artist_data.get("related") or [],
             "songs_playlist_id": songs_playlist_id,
-            "songs_browse_id": songs_browse_id,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "last_synced_at": datetime.now(timezone.utc).isoformat()
         }
@@ -500,9 +498,8 @@ def db_get_full_artist_data(browse_id: str) -> dict | None:
                 "thumbnails": [{"url": t.get("thumbnail_url")}] if t.get("thumbnail_url") else []
             } for t in all_tracks],
             "last_synced_at": artist.get("last_synced_at"),
-            # 인기곡 플레이리스트 ID (DB에 저장된 경우)
-            "songsPlaylistId": artist.get("songs_playlist_id"),
-            "songsBrowseId": artist.get("songs_browse_id")
+            # 인기곡 플레이리스트 ID만 반환 (YouTube IFrame API용)
+            "songsPlaylistId": artist.get("songs_playlist_id")
         }
     except Exception as e:
         logger.warning(f"DB get full artist data error: {e}")
@@ -1091,8 +1088,7 @@ async def save_full_artist_data_background(artist_id: str, artist_info: dict, co
             "description": artist_info.get("description") or "",
             "topSongs": top_songs,
             "related": related_artists,
-            "songsPlaylistId": songs_playlist_id,
-            "songsBrowseId": songs_browse_id
+            "songsPlaylistId": songs_playlist_id  # YouTube IFrame API용 플레이리스트 ID만
         }
 
         db_save_artist_full(artist_data)
@@ -2083,7 +2079,7 @@ async def search_summary(
                     s["resultType"] = "song"
                     top_songs.append(s)
 
-            # 응답 데이터 구성
+            # 응답 데이터 구성 - songsPlaylistId만 반환 (YouTube IFrame API용)
             artists_data.append({
                 "browseId": artist_id,
                 "artist": artist_name,
@@ -2095,9 +2091,7 @@ async def search_summary(
                 "related": related_list,
                 "albums": albums_list,
                 "allTracks": [],
-                # 핵심 추가: 인기곡 전체 플레이리스트 ID
-                "songsPlaylistId": songs_playlist_id,
-                "songsBrowseId": songs_browse_id
+                "songsPlaylistId": songs_playlist_id  # YouTube IFrame API용 플레이리스트 ID만
             })
             
             # 노래 리스트 합치기

@@ -41,9 +41,8 @@ interface SearchArtist {
   subscribers?: string;
   thumbnails?: Thumbnail[];
   related?: RelatedArtist[];
-  // YouTube Playlist ID for "View All" top songs
+  // YouTube Playlist ID for "View All" top songs (IFrame API용)
   songsPlaylistId?: string;
-  songsBrowseId?: string;
 }
 
 interface RelatedArtist {
