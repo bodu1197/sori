@@ -326,16 +326,120 @@ d63c26a Add playlist panel for Discover tab music playback
 2d0d662 Add player controls, song deletion, and context-based recommendations
 ```
 
-#### 남은 작업 (TODO)
+#### 남은 작업 (TODO) - 음악 기능
 
 | 우선순위 | 기능 | 상태 |
 |---------|------|------|
-| 높음 | 플레이리스트 CRUD (생성/수정/삭제) | ⏳ 미구현 |
-| 높음 | 곡 순서 변경 (드래그앤드롭) | ⏳ 미구현 |
-| 중간 | 다국어 지원 (i18n) | ⏳ 미구현 |
-| 중간 | 팔로우/팔로워 시스템 | ⏳ 미구현 |
-| 중간 | 좋아요/댓글 기능 | ⏳ 미구현 |
-| 낮음 | 알림 시스템 | ⏳ 미구현 |
+| 중간 | 플레이리스트 CRUD (생성/수정/삭제) | ⏳ 미구현 |
+| 낮음 | 곡 순서 변경 (드래그앤드롭) | ⏳ 미구현 |
+| 낮음 | 다국어 지원 (i18n) | ⏳ 미구현 |
+
+---
+
+### 2025-12-21 SNS 기능 개발 로드맵
+
+> **핵심 인식: SORI는 음악 플랫폼이 아닌 SNS 앱이다!**
+> Instagram과 동일한 SNS이지만, 이미지/영상 대신 음악을 공유하는 것이 차이점.
+
+#### SNS 현황 진단
+
+| 기능 | Instagram | SORI 현황 | 중요도 |
+|------|-----------|-----------|--------|
+| 팔로우/팔로워 | ✅ | ❌ 미구현 | 필수 |
+| 피드 (팔로잉 기반) | ✅ | ❌ 전체 게시물만 표시 | 필수 |
+| 게시물 좋아요 | ✅ | ❌ 미구현 | 필수 |
+| 댓글 | ✅ | ❌ 미구현 | 필수 |
+| 알림 | ✅ | ❌ 미구현 | 높음 |
+| 사용자 검색 | ✅ | ❌ 음악 검색만 | 높음 |
+| 스토리 | ✅ | ❌ 미구현 | 중간 |
+| DM | ✅ | ❌ 미구현 | 중간 |
+
+#### Phase 1: SNS 기초 (최우선)
+
+| 순서 | 기능 | DB 테이블 | 프론트엔드 | 상태 | 평가 |
+|------|------|-----------|------------|------|------|
+| 1-1 | 팔로우 시스템 | `follows` | FollowButton, FollowersModal | ⏳ 대기 | - |
+| 1-2 | 프로필 팔로워/팔로잉 수 | - | ProfilePage 수정 | ⏳ 대기 | - |
+| 1-3 | 게시물 좋아요 | `post_likes` | LikeButton (하트 애니메이션) | ⏳ 대기 | - |
+| 1-4 | 좋아요 수 표시 | playlists.likes_count | FeedPage 수정 | ⏳ 대기 | - |
+| 1-5 | 피드 필터링 | - | "팔로잉" vs "모두" 탭 | ⏳ 대기 | - |
+
+#### Phase 2: 상호작용
+
+| 순서 | 기능 | DB 테이블 | 프론트엔드 | 상태 | 평가 |
+|------|------|-----------|------------|------|------|
+| 2-1 | 댓글 시스템 | `comments` | CommentsModal, CommentInput | ⏳ 대기 | - |
+| 2-2 | 대댓글 | comments.parent_id | CommentItem (nested) | ⏳ 대기 | - |
+| 2-3 | 사용자 검색 | - | SearchPage 탭 추가 | ⏳ 대기 | - |
+
+#### Phase 3: 참여 유도
+
+| 순서 | 기능 | DB 테이블 | 프론트엔드 | 상태 | 평가 |
+|------|------|-----------|------------|------|------|
+| 3-1 | 알림 시스템 | `notifications` | NotificationsPage | ⏳ 대기 | - |
+| 3-2 | 실시간 알림 | Supabase Realtime | 알림 뱃지 | ⏳ 대기 | - |
+| 3-3 | 프로필 수정 | - | EditProfilePage | ⏳ 대기 | - |
+| 3-4 | 설정 페이지 | - | SettingsPage | ⏳ 대기 | - |
+
+#### Phase 4: 고급 기능 (추후)
+
+| 순서 | 기능 | 설명 | 상태 | 평가 |
+|------|------|------|------|------|
+| 4-1 | 스토리 | 24시간 임시 음악 공유 | ⏳ 대기 | - |
+| 4-2 | DM | 1:1 메시지 | ⏳ 대기 | - |
+| 4-3 | 해시태그 | 장르/무드 태그 | ⏳ 대기 | - |
+| 4-4 | 리포스트 | 게시물 공유 (리그램) | ⏳ 대기 | - |
+
+#### 필요한 DB 스키마
+
+```sql
+-- 1. 팔로우 시스템
+CREATE TABLE follows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  follower_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  following_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(follower_id, following_id)
+);
+
+-- 2. 게시물 좋아요
+CREATE TABLE post_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  post_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, post_id)
+);
+-- + playlists 테이블에 likes_count 컬럼 추가
+
+-- 3. 댓글 시스템
+CREATE TABLE comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  post_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES comments(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. 알림 시스템
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- 'like', 'comment', 'follow', 'mention'
+  reference_id UUID,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### 개발 완료 기록
+
+| 날짜 | 기능 | 커밋 | 평가 | 비고 |
+|------|------|------|------|------|
+| - | - | - | - | 개발 시작 전 |
 
 #### 주요 파일 구조
 
