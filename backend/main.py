@@ -1781,9 +1781,9 @@ async def get_album(album_id: str, country: str = "US"):
 # =============================================================================
 
 @app.get("/api/playlist/{playlist_id}")
-async def get_playlist(playlist_id: str, country: str = "US", limit: int = 100):
-    """플레이리스트 상세 정보 (트랙 목록 포함)"""
-    cache_key = f"playlist:{playlist_id}:{country}:{limit}"
+async def get_playlist(playlist_id: str, country: str = "US", limit: int = None):
+    """플레이리스트 상세 정보 (트랙 목록 포함) - limit=None이면 전체 트랙"""
+    cache_key = f"playlist:{playlist_id}:{country}:{limit or 'all'}"
 
     cached = cache_get(cache_key)
     if cached:
@@ -1791,6 +1791,7 @@ async def get_playlist(playlist_id: str, country: str = "US", limit: int = 100):
 
     try:
         ytmusic = get_ytmusic(country)
+        # limit=None이면 전체 트랙을 가져옴
         playlist = ytmusic.get_playlist(playlist_id, limit=limit)
 
         # 트랙에 썸네일이 없으면 플레이리스트 썸네일 추가
