@@ -94,7 +94,8 @@ export default function LikeButton({
           post_id: postId,
         });
 
-        if (error) throw error;
+        // 409 = already exists, treat as success
+        if (error && error.code !== '23505') throw error;
 
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
@@ -111,6 +112,7 @@ export default function LikeButton({
         .eq('post_id', postId)
         .maybeSingle();
       setIsLiked(!!data);
+      setAnimating(false);
     } finally {
       setLoading(false);
     }
