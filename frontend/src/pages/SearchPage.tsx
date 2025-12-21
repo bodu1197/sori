@@ -430,11 +430,100 @@ export default function SearchPage() {
     startPlayback(playlist, index);
   };
 
-  // Play all songs from search - opens popup
-  const handlePlayAllSongs = () => {
-    if (searchSongs.length === 0) return;
+  // Play all songs - fetches All Songs playlist and plays
+  const handlePlayAllSongs = async () => {
+    // If we already have All Songs tracks, use them
+    if (allSongsTracks.length > 0) {
+      const panelTracks: PlaylistTrackData[] = allSongsTracks.map((song) => ({
+        videoId: song.videoId,
+        title: song.title,
+        artists: song.artists,
+        thumbnails: song.thumbnails,
+        duration: song.duration,
+        album: song.album,
+      }));
+      openTrackPanel({
+        title: `${searchArtist?.artist || 'Artist'} - All Songs`,
+        author: { name: `${allSongsTracks.length} ${t('search.tracks')}` },
+        thumbnails: searchArtist?.thumbnails,
+        tracks: panelTracks,
+        trackCount: allSongsTracks.length,
+      });
 
-    // Open popup
+      const playlist = allSongsTracks.map((song) => ({
+        videoId: song.videoId,
+        title: song.title,
+        artist: song.artists?.[0]?.name || 'Unknown',
+        thumbnail: getBestThumbnail(song.thumbnails),
+      }));
+      startPlayback(playlist, 0);
+      return;
+    }
+
+    // Fetch All Songs playlist if available
+    if (searchArtist?.songsPlaylistId) {
+      setAllSongsLoading(true);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const tracks = (data.tracks || []).map(
+            (t: {
+              videoId: string;
+              title: string;
+              artists?: Artist[];
+              thumbnails?: Thumbnail[];
+              duration?: string;
+              album?: Album;
+            }) => ({
+              videoId: t.videoId,
+              title: t.title,
+              artists: t.artists,
+              thumbnails: t.thumbnails,
+              duration: t.duration,
+              album: t.album,
+            })
+          );
+          setAllSongsTracks(tracks);
+
+          if (tracks.length > 0) {
+            const panelTracks: PlaylistTrackData[] = tracks.map((song: SearchSong) => ({
+              videoId: song.videoId,
+              title: song.title,
+              artists: song.artists,
+              thumbnails: song.thumbnails,
+              duration: song.duration,
+              album: song.album,
+            }));
+            openTrackPanel({
+              title: `${searchArtist?.artist || 'Artist'} - All Songs`,
+              author: { name: `${tracks.length} ${t('search.tracks')}` },
+              thumbnails: searchArtist?.thumbnails,
+              tracks: panelTracks,
+              trackCount: tracks.length,
+            });
+
+            const playlist = tracks.map((song: SearchSong) => ({
+              videoId: song.videoId,
+              title: song.title,
+              artist: song.artists?.[0]?.name || 'Unknown',
+              thumbnail: getBestThumbnail(song.thumbnails),
+            }));
+            startPlayback(playlist, 0);
+          }
+        }
+      } catch {
+        // Error fetching playlist
+      } finally {
+        setAllSongsLoading(false);
+      }
+      return;
+    }
+
+    // Fallback to top tracks if no playlist available
+    if (searchSongs.length === 0) return;
     const panelTracks: PlaylistTrackData[] = searchSongs.map((song) => ({
       videoId: song.videoId,
       title: song.title,
@@ -460,11 +549,102 @@ export default function SearchPage() {
     startPlayback(playlist, 0);
   };
 
-  // Shuffle songs from search - opens popup
-  const handleShuffleSearchSongs = () => {
-    if (searchSongs.length === 0) return;
+  // Shuffle all songs - fetches All Songs playlist and shuffles
+  const handleShuffleSearchSongs = async () => {
+    // If we already have All Songs tracks, use them
+    if (allSongsTracks.length > 0) {
+      const panelTracks: PlaylistTrackData[] = allSongsTracks.map((song) => ({
+        videoId: song.videoId,
+        title: song.title,
+        artists: song.artists,
+        thumbnails: song.thumbnails,
+        duration: song.duration,
+        album: song.album,
+      }));
+      openTrackPanel({
+        title: `${searchArtist?.artist || 'Artist'} - All Songs`,
+        author: { name: `${allSongsTracks.length} ${t('search.tracks')}` },
+        thumbnails: searchArtist?.thumbnails,
+        tracks: panelTracks,
+        trackCount: allSongsTracks.length,
+      });
 
-    // Open popup
+      const playlist = allSongsTracks.map((song) => ({
+        videoId: song.videoId,
+        title: song.title,
+        artist: song.artists?.[0]?.name || 'Unknown',
+        thumbnail: getBestThumbnail(song.thumbnails),
+      }));
+      const shuffled = [...playlist].sort(() => Math.random() - 0.5);
+      startPlayback(shuffled, 0);
+      return;
+    }
+
+    // Fetch All Songs playlist if available
+    if (searchArtist?.songsPlaylistId) {
+      setAllSongsLoading(true);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const tracks = (data.tracks || []).map(
+            (t: {
+              videoId: string;
+              title: string;
+              artists?: Artist[];
+              thumbnails?: Thumbnail[];
+              duration?: string;
+              album?: Album;
+            }) => ({
+              videoId: t.videoId,
+              title: t.title,
+              artists: t.artists,
+              thumbnails: t.thumbnails,
+              duration: t.duration,
+              album: t.album,
+            })
+          );
+          setAllSongsTracks(tracks);
+
+          if (tracks.length > 0) {
+            const panelTracks: PlaylistTrackData[] = tracks.map((song: SearchSong) => ({
+              videoId: song.videoId,
+              title: song.title,
+              artists: song.artists,
+              thumbnails: song.thumbnails,
+              duration: song.duration,
+              album: song.album,
+            }));
+            openTrackPanel({
+              title: `${searchArtist?.artist || 'Artist'} - All Songs`,
+              author: { name: `${tracks.length} ${t('search.tracks')}` },
+              thumbnails: searchArtist?.thumbnails,
+              tracks: panelTracks,
+              trackCount: tracks.length,
+            });
+
+            const playlist = tracks.map((song: SearchSong) => ({
+              videoId: song.videoId,
+              title: song.title,
+              artist: song.artists?.[0]?.name || 'Unknown',
+              thumbnail: getBestThumbnail(song.thumbnails),
+            }));
+            const shuffled = [...playlist].sort(() => Math.random() - 0.5);
+            startPlayback(shuffled, 0);
+          }
+        }
+      } catch {
+        // Error fetching playlist
+      } finally {
+        setAllSongsLoading(false);
+      }
+      return;
+    }
+
+    // Fallback to top tracks if no playlist available
+    if (searchSongs.length === 0) return;
     const panelTracks: PlaylistTrackData[] = searchSongs.map((song) => ({
       videoId: song.videoId,
       title: song.title,
