@@ -1785,24 +1785,31 @@ def get_artist_playlist_id(q: str, country: str = "US"):
     try:
         # 기존 캐시된 인스턴스 사용
         ytmusic = get_ytmusic(country)
+        logger.info(f"[playlist-id] Searching artist: {q}")
 
         # 1. 아티스트 검색
         artists = ytmusic.search(q.strip(), filter="artists", limit=1)
+        logger.info(f"[playlist-id] Found {len(artists) if artists else 0} artists")
+
         if not artists:
             return {"playlistId": None, "artist": None}
 
         artist = artists[0]
         artist_id = artist.get("browseId")
         artist_name = artist.get("artist") or artist.get("name")
+        logger.info(f"[playlist-id] Artist: {artist_name}, ID: {artist_id}")
 
         if not artist_id:
             return {"playlistId": None, "artist": artist_name}
 
         # 2. 아티스트 상세에서 songs.browseId만 추출
+        logger.info(f"[playlist-id] Getting artist detail...")
         artist_detail = ytmusic.get_artist(artist_id)
+        logger.info(f"[playlist-id] Got artist detail, keys: {list(artist_detail.keys()) if artist_detail else 'None'}")
 
         songs_section = artist_detail.get("songs", {})
         songs_browse_id = songs_section.get("browseId") if isinstance(songs_section, dict) else None
+        logger.info(f"[playlist-id] Songs browseId: {songs_browse_id}")
 
         # VL 제거 → 순수 플레이리스트 ID
         playlist_id = None
@@ -1815,7 +1822,7 @@ def get_artist_playlist_id(q: str, country: str = "US"):
         }
 
     except Exception as e:
-        logger.error(f"Playlist ID search error: {e}")
+        logger.error(f"Playlist ID search error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
