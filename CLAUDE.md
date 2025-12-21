@@ -354,15 +354,15 @@ d63c26a Add playlist panel for Discover tab music playback
 | 스토리 | ✅ | ❌ 미구현 | 중간 |
 | DM | ✅ | ❌ 미구현 | 중간 |
 
-#### Phase 1: SNS 기초 (최우선)
+#### Phase 1: SNS 기초 (최우선) - COMPLETED
 
 | 순서 | 기능 | DB 테이블 | 프론트엔드 | 상태 | 평가 |
 |------|------|-----------|------------|------|------|
-| 1-1 | 팔로우 시스템 | `follows` | FollowButton, FollowersModal | ⏳ 대기 | - |
-| 1-2 | 프로필 팔로워/팔로잉 수 | - | ProfilePage 수정 | ⏳ 대기 | - |
-| 1-3 | 게시물 좋아요 | `post_likes` | LikeButton (하트 애니메이션) | ⏳ 대기 | - |
-| 1-4 | 좋아요 수 표시 | playlists.likes_count | FeedPage 수정 | ⏳ 대기 | - |
-| 1-5 | 피드 필터링 | - | "팔로잉" vs "모두" 탭 | ⏳ 대기 | - |
+| 1-1 | 팔로우 시스템 | `follows` | FollowButton, FollowersModal | ✅ 완료 | RLS 정책, 자동 카운트 트리거 포함 |
+| 1-2 | 프로필 팔로워/팔로잉 수 | profiles 컬럼 추가 | ProfilePage 수정 | ✅ 완료 | 클릭하면 모달 표시 |
+| 1-3 | 게시물 좋아요 | `post_likes` | LikeButton (하트 애니메이션) | ✅ 완료 | Instagram 스타일 하트 + ping 효과 |
+| 1-4 | 좋아요 수 표시 | playlists.likes_count | FeedPage 수정 | ✅ 완료 | 실시간 카운트 업데이트 |
+| 1-5 | 피드 필터링 | - | Following/For You 탭 | ✅ 완료 | 팔로우한 사용자 필터링 |
 
 #### Phase 2: 상호작용
 
@@ -439,7 +439,9 @@ CREATE TABLE notifications (
 
 | 날짜 | 기능 | 커밋 | 평가 | 비고 |
 |------|------|------|------|------|
-| - | - | - | - | 개발 시작 전 |
+| 2025-12-21 | Phase 1-1,1-2: 팔로우 시스템 | bfd0bca | A | follows 테이블 + FollowButton + FollowersModal + ProfilePage 통합 |
+| 2025-12-21 | Phase 1-3,1-4: 좋아요 시스템 | d68900c | A | post_likes 테이블 + LikeButton (하트 애니메이션) + FeedPage 통합 |
+| 2025-12-21 | Phase 1-5: 피드 필터링 | 0b7fd88 | A | Following/For You 탭 + 팔로우한 사용자 게시물 필터링 |
 
 #### 주요 파일 구조
 
@@ -450,9 +452,14 @@ frontend/src/
 │   │   ├── MobileLayout.jsx    # 메인 레이아웃 (데모 트랙 삭제됨)
 │   │   ├── TopNav.jsx          # 상단 네비게이션
 │   │   └── BottomNav.jsx       # 하단 네비게이션
-│   └── player/
-│       ├── MiniPlayer.jsx      # 미니 플레이어 (볼륨/반복/셔플 추가)
-│       └── YouTubePlayer.jsx   # YouTube IFrame 플레이어
+│   ├── player/
+│   │   ├── MiniPlayer.jsx      # 미니 플레이어 (볼륨/반복/셔플 추가)
+│   │   └── YouTubePlayer.jsx   # YouTube IFrame 플레이어
+│   └── social/                 # SNS 컴포넌트 (Phase 1 신규)
+│       ├── FollowButton.tsx    # 팔로우/언팔로우 버튼
+│       ├── FollowersModal.tsx  # 팔로워/팔로잉 목록 모달
+│       ├── LikeButton.tsx      # 좋아요 버튼 (하트 애니메이션)
+│       └── index.ts            # 컴포넌트 export
 ├── hooks/
 │   ├── useCountry.js           # 국가 감지
 │   └── useContextRecommendation.js  # 시간/날씨 기반 추천 (신규)
@@ -463,11 +470,11 @@ frontend/src/
 │   ├── supabase.js             # Supabase 클라이언트
 │   └── api.js                  # API 유틸리티 (신규)
 └── pages/
-    ├── FeedPage.jsx            # 메인 피드 (For You 섹션 추가)
+    ├── FeedPage.tsx            # 메인 피드 (For You + Following/All 탭)
     ├── SearchPage.jsx          # 검색 페이지
     ├── CreatePage.jsx          # 플레이리스트 생성
     ├── ChartsPage.jsx          # 차트 (실제 API 연결)
-    ├── ProfilePage.jsx         # 프로필 (Your Music, 삭제 기능)
+    ├── ProfilePage.tsx         # 프로필 (팔로우 + 좋아요 통합)
     └── AuthPage.jsx            # 로그인/회원가입
 ```
 
