@@ -1,6 +1,16 @@
 import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Play, Shuffle, Heart, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Search,
+  Play,
+  Shuffle,
+  Heart,
+  X,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  ListMusic,
+} from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
@@ -31,6 +41,9 @@ interface SearchArtist {
   subscribers?: string;
   thumbnails?: Thumbnail[];
   related?: RelatedArtist[];
+  // YouTube Playlist ID for "View All" top songs
+  songsPlaylistId?: string;
+  songsBrowseId?: string;
 }
 
 interface RelatedArtist {
@@ -71,8 +84,14 @@ interface AlbumTrack {
 export default function SearchPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { startPlayback, currentTrack, isPlaying, openTrackPanel, setTrackPanelLoading } =
-    usePlayerStore();
+  const {
+    startPlayback,
+    currentTrack,
+    isPlaying,
+    openTrackPanel,
+    setTrackPanelLoading,
+    loadYouTubePlaylist,
+  } = usePlayerStore();
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -452,6 +471,18 @@ export default function SearchPage() {
                       {searchArtist.subscribers || 'Artist'}
                     </p>
                     <div className="flex flex-wrap gap-2">
+                      {/* YouTube Playlist Play - Uses YouTube IFrame API directly */}
+                      {searchArtist.songsPlaylistId && (
+                        <button
+                          onClick={() =>
+                            loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist)
+                          }
+                          className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-red-700 transition"
+                          title="Play all songs via YouTube"
+                        >
+                          <ListMusic size={14} /> All Songs
+                        </button>
+                      )}
                       <button
                         onClick={handlePlayAllSongs}
                         className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-sm font-semibold hover:opacity-80 transition"

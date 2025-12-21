@@ -37,6 +37,16 @@ interface YouTubePlayer {
   setVolume: (volume: number) => void;
   mute: () => void;
   unMute: () => void;
+  // Playlist API
+  loadPlaylist: (options: {
+    list: string;
+    listType: 'playlist' | 'user_uploads';
+    index?: number;
+    startSeconds?: number;
+  }) => void;
+  getPlaylist: () => string[];
+  getPlaylistIndex: () => number;
+  playVideoAt: (index: number) => void;
 }
 
 interface PlayerState {
@@ -51,6 +61,10 @@ interface PlayerState {
 
   // Playlist
   playlist: Track[];
+
+  // YouTube Playlist Mode
+  youtubePlaylistId: string | null;
+  youtubePlaylistMode: boolean;
 
   // Modes
   shuffleMode: boolean;
@@ -98,6 +112,10 @@ interface PlayerState {
   openTrackPanel: (playlist: TrackPanelPlaylist) => void;
   closeTrackPanel: () => void;
   setTrackPanelLoading: (loading: boolean) => void;
+
+  // YouTube Playlist Actions
+  loadYouTubePlaylist: (playlistId: string, artistName?: string) => void;
+  exitYouTubePlaylistMode: () => void;
 }
 
 const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -112,6 +130,10 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
 
   // Playlist
   playlist: [],
+
+  // YouTube Playlist Mode
+  youtubePlaylistId: null,
+  youtubePlaylistMode: false,
 
   // Modes
   shuffleMode: false,
@@ -358,6 +380,52 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
   openTrackPanel: (playlist) => set({ trackPanelOpen: true, trackPanelPlaylist: playlist }),
   closeTrackPanel: () => set({ trackPanelOpen: false }),
   setTrackPanelLoading: (loading) => set({ trackPanelLoading: loading }),
+
+  // YouTube Playlist Actions
+  loadYouTubePlaylist: (playlistId, artistName) => {
+    const { playerRef, isReady } = get();
+
+    if (!playerRef || !isReady) {
+      console.warn('Player not ready for playlist loading');
+      return;
+    }
+
+    try {
+      // YouTube IFrame API loadPlaylist
+      playerRef.loadPlaylist({
+        list: playlistId,
+        listType: 'playlist',
+        index: 0,
+        startSeconds: 0,
+      });
+
+      set({
+        youtubePlaylistId: playlistId,
+        youtubePlaylistMode: true,
+        isPlaying: true,
+        isLoading: true,
+        // Set a temporary track while loading
+        currentTrack: {
+          videoId: '',
+          title: artistName ? `${artistName} - All Songs` : 'Loading playlist...',
+          artist: artistName || 'YouTube Music',
+        },
+        playlist: [],
+        currentIndex: 0,
+      });
+
+      console.log(`Loading YouTube playlist: ${playlistId}`);
+    } catch (error) {
+      console.error('Failed to load YouTube playlist:', error);
+    }
+  },
+
+  exitYouTubePlaylistMode: () => {
+    set({
+      youtubePlaylistId: null,
+      youtubePlaylistMode: false,
+    });
+  },
 }));
 
 export default usePlayerStore;

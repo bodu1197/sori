@@ -52,6 +52,24 @@ interface YTPlayer {
   getCurrentTime: () => number;
   getDuration: () => number;
   destroy: () => void;
+  // Playlist API
+  loadPlaylist: (options: {
+    list: string;
+    listType: 'playlist' | 'user_uploads';
+    index?: number;
+    startSeconds?: number;
+  }) => void;
+  cuePlaylist: (options: {
+    list: string;
+    listType: 'playlist' | 'user_uploads';
+    index?: number;
+    startSeconds?: number;
+  }) => void;
+  getPlaylist: () => string[];
+  getPlaylistIndex: () => number;
+  nextVideo: () => void;
+  previousVideo: () => void;
+  playVideoAt: (index: number) => void;
 }
 
 interface YTPlayerEvent {
