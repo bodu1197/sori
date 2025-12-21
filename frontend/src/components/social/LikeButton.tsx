@@ -28,16 +28,12 @@ export default function LikeButton({
       if (!user?.id || !postId) return;
 
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('post_likes')
           .select('id')
           .eq('user_id', user.id)
           .eq('post_id', postId)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          // PGRST116 = no rows found, which is expected when not liked
-        }
+          .maybeSingle();
 
         setIsLiked(!!data);
       } catch {

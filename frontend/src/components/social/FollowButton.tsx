@@ -28,17 +28,12 @@ export default function FollowButton({
       }
 
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('follows')
           .select('id')
           .eq('follower_id', user.id)
           .eq('following_id', userId)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          // PGRST116 = no rows found (not following)
-          console.error('Error checking follow status:', error);
-        }
+          .maybeSingle();
 
         setIsFollowing(!!data);
       } catch {
