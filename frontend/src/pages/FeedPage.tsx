@@ -571,9 +571,10 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
           </div>
         </div>
 
-        {/* Playlist Tag */}
-        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2">
+        {/* Song Info Tag */}
+        <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2">
           <span className="text-xs font-medium text-white">{post.title}</span>
+          {post.artist && <span className="text-xs text-gray-300">- {post.artist}</span>}
         </div>
       </div>
 
