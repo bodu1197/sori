@@ -203,7 +203,7 @@ export default function CommentsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60">
       <div className="bg-white dark:bg-gray-900 rounded-t-xl w-full max-w-lg h-[70vh] flex flex-col animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
