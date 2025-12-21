@@ -924,7 +924,7 @@ export default function SearchPage() {
                         <span className="text-sm text-gray-500">{t('search.loadingTracks')}</span>
                       </div>
                     ) : allSongsTracks.length > 0 ? (
-                      <div className="max-h-80 overflow-y-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      <div>
                         {allSongsTracks.map((song, i) => (
                           <div
                             key={song.videoId || i}
