@@ -114,6 +114,9 @@ export default function SearchPage() {
   // Albums expansion state
   const [showAllAlbums, setShowAllAlbums] = useState(false);
 
+  // Liked songs state (for heart icon)
+  const [likedSongs, setLikedSongs] = useState<Set<string>>(new Set());
+
   // Placeholder image for artist/album
   const PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
@@ -716,6 +719,9 @@ export default function SearchPage() {
   const handleAddToLiked = async (item: SearchSong | AlbumTrack, albumThumbnails?: Thumbnail[]) => {
     if (!item.videoId || !user) return;
 
+    // Already liked
+    if (likedSongs.has(item.videoId)) return;
+
     try {
       const thumbnails = item.thumbnails || albumThumbnails;
       const { error } = await supabase.from('playlists').insert({
@@ -727,6 +733,9 @@ export default function SearchPage() {
       });
 
       if (error) throw error;
+
+      // Update liked state
+      setLikedSongs((prev) => new Set(prev).add(item.videoId));
     } catch {
       // Error adding to liked
     }
@@ -857,9 +866,12 @@ export default function SearchPage() {
                           e.stopPropagation();
                           handleAddToLiked(song);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-red-500"
+                        className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                       >
-                        <Heart size={16} />
+                        <Heart
+                          size={16}
+                          fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
+                        />
                       </button>
                     </div>
                   ))}
@@ -951,9 +963,12 @@ export default function SearchPage() {
                                 e.stopPropagation();
                                 handleAddToLiked(song);
                               }}
-                              className="p-1.5 text-gray-400 hover:text-red-500"
+                              className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                             >
-                              <Heart size={16} />
+                              <Heart
+                                size={16}
+                                fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
+                              />
                             </button>
                           </div>
                         ))}
@@ -1071,9 +1086,12 @@ export default function SearchPage() {
                                       e.stopPropagation();
                                       handleAddToLiked(track, album.thumbnails);
                                     }}
-                                    className="p-1 text-gray-400 hover:text-red-500"
+                                    className={`p-1 ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                   >
-                                    <Heart size={14} />
+                                    <Heart
+                                      size={14}
+                                      fill={likedSongs.has(track.videoId) ? 'currentColor' : 'none'}
+                                    />
                                   </button>
                                 </div>
                               ))}
