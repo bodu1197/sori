@@ -1786,7 +1786,7 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
         ytmusic = get_ytmusic(country)
 
         # 1. 아티스트 검색 (비동기)
-        artists = await run_in_thread(ytmusic.search, q.strip(), "artists", 1)
+        artists = await run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=1)
         if not artists:
             return {"playlistId": None, "artist": None}
 
