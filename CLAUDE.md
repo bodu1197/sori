@@ -188,6 +188,19 @@ GET /api/playlist/{id}       # 플레이리스트 트랙 목록
 - **Project ID**: `nrtkbulkzhhlstaomvas`
 - **API URL**: `https://nrtkbulkzhhlstaomvas.supabase.co`
 - **Dashboard**: https://supabase.com/dashboard/project/nrtkbulkzhhlstaomvas
+- **Access Token (PAT)**: `sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296`
+
+### Supabase Management API 사용법
+
+DB 스키마 변경, 정책 추가 등 관리 작업 시:
+
+```bash
+# SQL 실행 예시
+curl -X POST "https://api.supabase.com/v1/projects/nrtkbulkzhhlstaomvas/database/query" \
+  -H "Authorization: Bearer sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "YOUR_SQL_HERE"}'
+```
 
 ---
 
