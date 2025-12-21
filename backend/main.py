@@ -1783,9 +1783,8 @@ def get_artist_playlist_id(q: str, country: str = "US"):
         raise HTTPException(status_code=400, detail="Query required")
 
     try:
-        from ytmusicapi import YTMusic
-        lang = COUNTRY_LANGUAGE_MAP.get(country.upper(), 'en')
-        ytmusic = YTMusic(language=lang, location=country.upper())
+        # 기존 캐시된 인스턴스 사용
+        ytmusic = get_ytmusic(country)
 
         # 1. 아티스트 검색
         artists = ytmusic.search(q.strip(), filter="artists", limit=1)
