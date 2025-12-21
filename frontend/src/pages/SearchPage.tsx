@@ -111,6 +111,63 @@ export default function SearchPage() {
   const [userResults, setUserResults] = useState<UserProfile[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
 
+  // Suggested users (shown when no search)
+  const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
+  const [newUsers, setNewUsers] = useState<UserProfile[]>([]);
+  const [suggestedLoading, setSuggestedLoading] = useState(false);
+
+  // Fetch suggested users (popular + new users)
+  const fetchSuggestedUsers = async () => {
+    if (!user) return;
+
+    setSuggestedLoading(true);
+    try {
+      // Get users I'm already following
+      const { data: followingData } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id);
+
+      const followingIds = new Set(followingData?.map((f) => f.following_id) || []);
+      followingIds.add(user.id); // Exclude self
+
+      // Fetch popular users (by followers count, excluding already followed)
+      const { data: popularData } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, bio, followers_count')
+        .order('followers_count', { ascending: false })
+        .limit(30);
+
+      // Filter out already followed users
+      const popular = (popularData || []).filter((u) => !followingIds.has(u.id)).slice(0, 10);
+
+      setSuggestedUsers(popular);
+
+      // Fetch newest users
+      const { data: newData } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, bio, followers_count')
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      // Filter out already followed users and self
+      const newFiltered = (newData || []).filter((u) => !followingIds.has(u.id)).slice(0, 10);
+
+      setNewUsers(newFiltered);
+    } catch (err) {
+      console.error('Error fetching suggested users:', err);
+    } finally {
+      setSuggestedLoading(false);
+    }
+  };
+
+  // Load suggested users when Users tab is active
+  useEffect(() => {
+    if (activeTab === 'users' && suggestedUsers.length === 0 && !suggestedLoading) {
+      fetchSuggestedUsers();
+    }
+  }, [activeTab]);
+
   // Artist search data
   const [searchArtist, setSearchArtist] = useState<SearchArtist | null>(null);
   const [searchAlbums, setSearchAlbums] = useState<SearchAlbum[]>([]);
@@ -1003,6 +1060,91 @@ export default function SearchPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : suggestedLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={32} className="animate-spin text-gray-500" />
+              </div>
+            ) : suggestedUsers.length > 0 || newUsers.length > 0 ? (
+              <div className="space-y-6">
+                {/* Popular Users */}
+                {suggestedUsers.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold mb-3 text-black dark:text-white flex items-center gap-2">
+                      Suggested for you
+                    </h3>
+                    <div className="space-y-2">
+                      {suggestedUsers.map((profile) => (
+                        <div
+                          key={profile.id}
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer"
+                          onClick={() => navigate(`/profile/${profile.id}`)}
+                        >
+                          <img
+                            src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                            alt={profile.username}
+                            className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-black dark:text-white truncate">
+                              {profile.username}
+                            </p>
+                            {profile.full_name && (
+                              <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
+                            )}
+                            {profile.followers_count !== undefined &&
+                              profile.followers_count > 0 && (
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {profile.followers_count} followers
+                                </p>
+                              )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <FollowButton userId={profile.id} size="sm" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Users */}
+                {newUsers.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                      New to SORI
+                    </h3>
+                    <div className="space-y-2">
+                      {newUsers.map((profile) => (
+                        <div
+                          key={profile.id}
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer"
+                          onClick={() => navigate(`/profile/${profile.id}`)}
+                        >
+                          <img
+                            src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                            alt={profile.username}
+                            className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-black dark:text-white truncate">
+                              {profile.username}
+                            </p>
+                            {profile.full_name && (
+                              <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
+                            )}
+                            {profile.bio && (
+                              <p className="text-xs text-gray-400 truncate mt-0.5">{profile.bio}</p>
+                            )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <FollowButton userId={profile.id} size="sm" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-16 text-gray-500">
