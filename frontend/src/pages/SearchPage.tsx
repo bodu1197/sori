@@ -111,6 +111,9 @@ export default function SearchPage() {
   const [allSongsTracks, setAllSongsTracks] = useState<SearchSong[]>([]);
   const [allSongsLoading, setAllSongsLoading] = useState(false);
 
+  // Albums expansion state
+  const [showAllAlbums, setShowAllAlbums] = useState(false);
+
   // Placeholder image for artist/album
   const PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
@@ -320,6 +323,7 @@ export default function SearchPage() {
     setShowAllSongs(false);
     setAllSongsExpanded(false);
     setAllSongsTracks([]);
+    setShowAllAlbums(false);
   };
 
   // Toggle All Songs expansion and fetch tracks
@@ -553,8 +557,7 @@ export default function SearchPage() {
   return (
     <div className="bg-white dark:bg-black min-h-screen pb-20">
       {/* Search Header */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-black px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
-        <h1 className="text-xl font-bold mb-3 text-black dark:text-white">{t('search.title')}</h1>
+      <div className="sticky top-0 z-10 bg-white dark:bg-black px-4 py-3 border-b border-gray-100 dark:border-gray-800">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -707,14 +710,16 @@ export default function SearchPage() {
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
                 <button
                   onClick={toggleAllSongs}
-                  className="w-full flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-                      <ListMusic size={20} className="text-white" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center">
+                      <ListMusic size={16} className="text-white" />
                     </div>
                     <div className="text-left">
-                      <div className="font-semibold text-black dark:text-white">All Songs</div>
+                      <div className="text-sm font-semibold text-black dark:text-white">
+                        All Songs
+                      </div>
                       <div className="text-xs text-gray-500">
                         {allSongsTracks.length > 0
                           ? `${allSongsTracks.length} ${t('search.tracks')}`
@@ -723,11 +728,11 @@ export default function SearchPage() {
                     </div>
                   </div>
                   {allSongsLoading ? (
-                    <Loader2 size={20} className="animate-spin text-gray-400" />
+                    <Loader2 size={18} className="animate-spin text-gray-400" />
                   ) : allSongsExpanded ? (
-                    <ChevronUp size={20} className="text-gray-400" />
+                    <ChevronUp size={18} className="text-gray-400" />
                   ) : (
-                    <ChevronDown size={20} className="text-gray-400" />
+                    <ChevronDown size={18} className="text-gray-400" />
                   )}
                 </button>
 
@@ -790,7 +795,7 @@ export default function SearchPage() {
                   {t('search.albumsAndSingles')} ({searchAlbums.length})
                 </h3>
                 <div className="space-y-3">
-                  {searchAlbums.map((album) => {
+                  {(showAllAlbums ? searchAlbums : searchAlbums.slice(0, 4)).map((album) => {
                     const albumId = album.browseId || `album-${album.title}`;
                     const isExpanded = expandedAlbums.has(albumId);
                     const isLoading = loadingAlbums.has(albumId);
@@ -914,6 +919,24 @@ export default function SearchPage() {
                     );
                   })}
                 </div>
+                {searchAlbums.length > 4 && (
+                  <button
+                    onClick={() => setShowAllAlbums(!showAllAlbums)}
+                    className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    {showAllAlbums ? (
+                      <>
+                        <ChevronUp size={16} />
+                        {t('search.showLess')}
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={16} />
+                        {t('search.showMore')} ({searchAlbums.length - 4})
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             )}
 
