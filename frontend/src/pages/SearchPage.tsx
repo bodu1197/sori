@@ -134,7 +134,7 @@ export default function SearchPage() {
       // Fetch popular users (by followers count, excluding already followed)
       const { data: popularData } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, bio, followers_count')
+        .select('id, username, full_name, avatar_url, followers_count')
         .order('followers_count', { ascending: false })
         .limit(30);
 
@@ -143,11 +143,11 @@ export default function SearchPage() {
 
       setSuggestedUsers(popular);
 
-      // Fetch newest users
+      // Fetch newest users (by updated_at since created_at doesn't exist)
       const { data: newData } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, bio, followers_count')
-        .order('created_at', { ascending: false })
+        .select('id, username, full_name, avatar_url, followers_count')
+        .order('updated_at', { ascending: false, nullsFirst: false })
         .limit(30);
 
       // Filter out already followed users and self
@@ -1082,14 +1082,14 @@ export default function SearchPage() {
                         >
                           <img
                             src={profile.avatar_url || 'https://via.placeholder.com/150'}
-                            alt={profile.username}
+                            alt={profile.username || profile.full_name || 'User'}
                             className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
                           />
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-black dark:text-white truncate">
-                              {profile.username}
+                              {profile.username || profile.full_name || 'User'}
                             </p>
-                            {profile.full_name && (
+                            {profile.username && profile.full_name && (
                               <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
                             )}
                             {profile.followers_count !== undefined &&
@@ -1123,18 +1123,15 @@ export default function SearchPage() {
                         >
                           <img
                             src={profile.avatar_url || 'https://via.placeholder.com/150'}
-                            alt={profile.username}
+                            alt={profile.username || profile.full_name || 'User'}
                             className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
                           />
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-black dark:text-white truncate">
-                              {profile.username}
+                              {profile.username || profile.full_name || 'User'}
                             </p>
-                            {profile.full_name && (
+                            {profile.username && profile.full_name && (
                               <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
-                            )}
-                            {profile.bio && (
-                              <p className="text-xs text-gray-400 truncate mt-0.5">{profile.bio}</p>
                             )}
                           </div>
                           <div onClick={(e) => e.stopPropagation()}>
