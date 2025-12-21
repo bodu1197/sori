@@ -1777,18 +1777,21 @@ async def get_album(album_id: str, country: str = "US"):
 # =============================================================================
 
 @app.get("/api/artist/playlist-id")
-def get_artist_playlist_id(q: str, country: str = "US"):
+async def get_artist_playlist_id(q: str, country: str = "US"):
     """아티스트 검색 → 플레이리스트 ID만 반환 (다른 데이터 없음)"""
+    logger.info(f"[playlist-id] START q={q} country={country}")
+
     if not q or len(q.strip()) < 1:
         raise HTTPException(status_code=400, detail="Query required")
 
     try:
         # 기존 캐시된 인스턴스 사용
         ytmusic = get_ytmusic(country)
-        logger.info(f"[playlist-id] Searching artist: {q}")
+        logger.info(f"[playlist-id] Got ytmusic instance")
 
-        # 1. 아티스트 검색
-        artists = ytmusic.search(q.strip(), filter="artists", limit=1)
+        # 1. 아티스트 검색 (비동기)
+        logger.info(f"[playlist-id] Searching artist...")
+        artists = await run_in_thread(lambda: ytmusic.search(q.strip(), filter="artists", limit=1))
         logger.info(f"[playlist-id] Found {len(artists) if artists else 0} artists")
 
         if not artists:
@@ -1802,10 +1805,10 @@ def get_artist_playlist_id(q: str, country: str = "US"):
         if not artist_id:
             return {"playlistId": None, "artist": artist_name}
 
-        # 2. 아티스트 상세에서 songs.browseId만 추출
+        # 2. 아티스트 상세에서 songs.browseId만 추출 (비동기)
         logger.info(f"[playlist-id] Getting artist detail...")
-        artist_detail = ytmusic.get_artist(artist_id)
-        logger.info(f"[playlist-id] Got artist detail, keys: {list(artist_detail.keys()) if artist_detail else 'None'}")
+        artist_detail = await run_in_thread(lambda: ytmusic.get_artist(artist_id))
+        logger.info(f"[playlist-id] Got artist detail")
 
         songs_section = artist_detail.get("songs", {})
         songs_browse_id = songs_section.get("browseId") if isinstance(songs_section, dict) else None
