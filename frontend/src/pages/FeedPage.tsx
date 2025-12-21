@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
 import useCountry from '../hooks/useCountry';
+import { LikeButton, useLikeCountText } from '../components/social';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
@@ -111,6 +112,7 @@ interface PlaylistPost {
   cover_url?: string;
   video_id?: string;
   created_at: string;
+  likes_count?: number;
   profiles?: Profile;
 }
 
@@ -430,11 +432,13 @@ function StoryRail() {
 
 interface PlaylistPostProps {
   post: PlaylistPost;
+  onLikeChange?: (postId: string, newCount: number) => void;
 }
 
-function PlaylistPostComponent({ post }: PlaylistPostProps) {
+function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
   const user = post.profiles;
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
+  const likeCountText = useLikeCountText(post.likes_count || 0);
 
   const handlePlayClick = () => {
     if (!post.video_id) return;
@@ -557,9 +561,14 @@ function PlaylistPostComponent({ post }: PlaylistPostProps) {
       {/* Action Bar */}
       <div className="flex justify-between items-center px-3 pt-3 pb-2">
         <div className="flex gap-4">
-          <button className="hover:opacity-60 text-black dark:text-white">
-            <Heart size={26} />
-          </button>
+          <LikeButton
+            postId={post.id}
+            initialLikeCount={post.likes_count || 0}
+            size={26}
+            onLikeChange={(_isLiked, count) => {
+              onLikeChange?.(post.id, count);
+            }}
+          />
           <button className="hover:opacity-60 text-black dark:text-white">
             <MessageCircle size={26} />
           </button>
@@ -574,7 +583,7 @@ function PlaylistPostComponent({ post }: PlaylistPostProps) {
 
       {/* Likes */}
       <div className="px-3">
-        <span className="font-semibold text-sm text-black dark:text-white">0 likes</span>
+        <span className="font-semibold text-sm text-black dark:text-white">{likeCountText}</span>
       </div>
 
       {/* Caption */}
@@ -607,8 +616,15 @@ export default function FeedPage() {
           .from('playlists')
           .select(
             `
-            *,
+            id,
+            title,
+            description,
+            cover_url,
+            video_id,
+            created_at,
+            likes_count,
             profiles:user_id (
+              id,
               username,
               avatar_url,
               full_name
@@ -618,7 +634,8 @@ export default function FeedPage() {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setPosts((data as PlaylistPost[]) || []);
+        // Supabase returns profiles as object, cast properly
+        setPosts((data as unknown as PlaylistPost[]) || []);
       } catch {
         // Error fetching posts
       } finally {
@@ -627,6 +644,13 @@ export default function FeedPage() {
     }
     fetchPosts();
   }, []);
+
+  // Handle like count update in local state
+  const handleLikeChange = (postId: string, newCount: number) => {
+    setPosts((prevPosts) =>
+      prevPosts.map((post) => (post.id === postId ? { ...post, likes_count: newCount } : post))
+    );
+  };
 
   if (loading) return <div className="p-10 text-center">Loading feed...</div>;
 
@@ -641,7 +665,9 @@ export default function FeedPage() {
       {/* Posts */}
       <div className="space-y-2 mt-2">
         {posts.length > 0 ? (
-          posts.map((post) => <PlaylistPostComponent key={post.id} post={post} />)
+          posts.map((post) => (
+            <PlaylistPostComponent key={post.id} post={post} onLikeChange={handleLikeChange} />
+          ))
         ) : (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>No posts yet.</p>
