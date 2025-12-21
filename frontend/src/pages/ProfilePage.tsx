@@ -5,6 +5,7 @@ import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useCountry from '../hooks/useCountry';
 import { supabase } from '../lib/supabase';
+import FollowersModal from '../components/social/FollowersModal';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
@@ -133,6 +134,8 @@ interface Profile {
   full_name?: string;
   avatar_url?: string;
   website?: string;
+  followers_count?: number;
+  following_count?: number;
 }
 
 interface Playlist {
@@ -181,6 +184,10 @@ export default function ProfilePage() {
   const [homeData, setHomeData] = useState<HomeData | null>(null);
   const [homeLoading, setHomeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Follow modal states
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -501,8 +508,12 @@ export default function ProfilePage() {
 
           <div className="flex flex-1 justify-around ml-4">
             <StatItem count={playlists.length} label={t('profile.playlists')} />
-            <StatItem count={likedSongs.length} label={t('profile.liked')} />
-            <StatItem count={0} label={t('profile.following')} />
+            <button onClick={() => setShowFollowersModal(true)} className="text-center">
+              <StatItem count={profile?.followers_count || 0} label="Followers" />
+            </button>
+            <button onClick={() => setShowFollowingModal(true)} className="text-center">
+              <StatItem count={profile?.following_count || 0} label="Following" />
+            </button>
           </div>
         </div>
 
@@ -752,6 +763,24 @@ export default function ProfilePage() {
           <Lock size={48} className="mx-auto mb-2 opacity-50" />
           <p>{t('profile.private')}</p>
         </div>
+      )}
+
+      {/* Followers/Following Modals */}
+      {profile?.id && (
+        <>
+          <FollowersModal
+            userId={profile.id}
+            type="followers"
+            isOpen={showFollowersModal}
+            onClose={() => setShowFollowersModal(false)}
+          />
+          <FollowersModal
+            userId={profile.id}
+            type="following"
+            isOpen={showFollowingModal}
+            onClose={() => setShowFollowingModal(false)}
+          />
+        </>
       )}
     </div>
   );
