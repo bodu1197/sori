@@ -2036,7 +2036,8 @@ async def search_summary(
                 artist_full = db_get_full_artist_data(browse_id)
                 if artist_full:
                     artists_data.append(artist_full)
-                    for song in artist_full.get("topSongs", []):
+                    # 인기곡 5개만 (나머지는 YouTube IFrame API에서 로드)
+                    for song in artist_full.get("topSongs", [])[:5]:
                         song["artist_bid"] = browse_id
                         song["resultType"] = "song"
                         all_songs.append(song)
@@ -2067,9 +2068,9 @@ async def search_summary(
     try:
         ytmusic = get_ytmusic(country)
         
-        # Parallel Search
+        # Parallel Search (인기곡 5개만)
         future_artists = run_in_thread(ytmusic.search, q, filter="artists", limit=5)
-        future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=20)
+        future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=5)
         artists_results, direct_song_results = await asyncio.gather(future_artists, future_songs)
         
         artists_search = artists_results or []
@@ -2153,7 +2154,8 @@ async def search_summary(
                 elif songs_browse_id:
                     songs_playlist_id = songs_browse_id
 
-                for s in songs_section.get("results", []):
+                # 인기곡 5개만 추출 (빠른 응답)
+                for s in songs_section.get("results", [])[:5]:
                     s["artist_bid"] = artist_id
                     s["resultType"] = "song"
                     top_songs.append(s)
@@ -2173,37 +2175,8 @@ async def search_summary(
                 "songsPlaylistId": songs_playlist_id  # YouTube IFrame API용 플레이리스트 ID만
             })
             
-            # 노래 리스트 합치기
-            seen_video_ids = set()
-            final_songs = []
-            
-            for s in top_songs:
-                vid = s.get("videoId")
-                if vid and vid not in seen_video_ids:
-                    seen_video_ids.add(vid)
-                    final_songs.append(s)
-
-            target_name = artist_name.lower()
-            temp_search_songs = []
-            
-            for s in songs_search:
-                s_artists = s.get("artists") or []
-                if any(a.get("name", "").lower() == target_name for a in s_artists):
-                    vid = s.get("videoId")
-                    if vid and vid not in seen_video_ids:
-                        seen_video_ids.add(vid)
-                        temp_search_songs.append(s)
-            
-            if len(temp_search_songs) < 5:
-                 for s in songs_search:
-                    vid = s.get("videoId")
-                    if vid and vid not in seen_video_ids:
-                        seen_video_ids.add(vid)
-                        temp_search_songs.append(s)
-            
-            # 최종 노래 목록: 인기곡 + 검색곡
-            # 이렇게 하면 앨범 안의 노래는 없지만, 검색 가능한 인기 노래는 30~40개 확보됨
-            songs_search = final_songs + temp_search_songs
+            # 인기곡 5개만 반환 (나머지는 YouTube IFrame API에서 로드)
+            songs_search = top_songs[:5]
 
             # 백그라운드 저장 (전체 트랙 Fetch는 여기서 수행)
             if artist_id:
