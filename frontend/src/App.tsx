@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage';
 import MessagesPage from './pages/MessagesPage';
 import ChatPage from './pages/ChatPage';
 import HashtagPage from './pages/HashtagPage';
+import CreatePostPage from './pages/CreatePostPage';
 import useAuthStore from './stores/useAuthStore';
 
 interface ProtectedRouteProps {
@@ -68,6 +69,7 @@ function App() {
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/messages/:conversationId" element={<ChatPage />} />
           <Route path="/hashtag/:tag" element={<HashtagPage />} />
+          <Route path="/create" element={<CreatePostPage />} />
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

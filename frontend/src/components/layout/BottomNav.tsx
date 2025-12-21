@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Search, PlayCircle, User, LucideIcon } from 'lucide-react';
+import { Home, Search, PlusSquare, PlayCircle, User, LucideIcon } from 'lucide-react';
 
 interface NavItem {
   icon: LucideIcon;
@@ -11,6 +11,7 @@ export default function BottomNav() {
   const navItems: NavItem[] = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
+    { icon: PlusSquare, label: 'Create', path: '/create' },
     { icon: PlayCircle, label: 'Charts', path: '/charts' },
     { icon: User, label: 'Profile', path: '/profile' },
   ];
@@ -34,7 +35,10 @@ export default function BottomNav() {
               size={26}
               strokeWidth={isActive ? 2.8 : 2}
               fill={
-                isActive && item.label !== 'Search' && item.label !== 'Charts'
+                isActive &&
+                item.label !== 'Search' &&
+                item.label !== 'Charts' &&
+                item.label !== 'Create'
                   ? 'currentColor'
                   : 'none'
               }
