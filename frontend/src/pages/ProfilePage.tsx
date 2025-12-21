@@ -1,4 +1,5 @@
 import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Grid, Heart, Lock, Play, LogOut, Music, Shuffle, Trash2, Disc } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
@@ -170,6 +171,7 @@ interface HomeData {
 
 export default function ProfilePage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user, signOut } = useAuthStore();
   const { setTrack, startPlayback, currentTrack, isPlaying, openTrackPanel, setTrackPanelLoading } =
     usePlayerStore();
@@ -530,7 +532,10 @@ export default function ProfilePage() {
 
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
-          <button className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+          <button
+            onClick={() => navigate('/edit-profile')}
+            className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+          >
             {t('profile.editProfile')}
           </button>
           <button
