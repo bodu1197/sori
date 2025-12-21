@@ -1785,8 +1785,8 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
     try:
         ytmusic = get_ytmusic(country)
 
-        # 1. 아티스트 검색
-        artists = ytmusic.search(q.strip(), filter="artists", limit=1)
+        # 1. 아티스트 검색 (비동기)
+        artists = await run_in_thread(ytmusic.search, q.strip(), "artists", 1)
         if not artists:
             return {"playlistId": None, "artist": None}
 
@@ -1797,8 +1797,8 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
         if not artist_id:
             return {"playlistId": None, "artist": artist_name}
 
-        # 2. 아티스트 상세에서 songs.browseId만 추출
-        artist_detail = ytmusic.get_artist(artist_id)
+        # 2. 아티스트 상세에서 songs.browseId만 추출 (비동기)
+        artist_detail = await run_in_thread(ytmusic.get_artist, artist_id)
 
         songs_section = artist_detail.get("songs", {})
         songs_browse_id = songs_section.get("browseId") if isinstance(songs_section, dict) else None
