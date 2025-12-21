@@ -156,8 +156,8 @@ DECLARE
 BEGIN
     SELECT user_id INTO post_owner_id FROM posts WHERE id = NEW.post_id;
     IF post_owner_id IS NOT NULL AND post_owner_id != NEW.user_id THEN
-        INSERT INTO notifications (user_id, type, actor_id, post_id, message)
-        VALUES (post_owner_id, 'like', NEW.user_id, NEW.post_id, 'liked your post');
+        INSERT INTO notifications (user_id, actor_id, type, reference_id, reference_type, content)
+        VALUES (post_owner_id, NEW.user_id, 'like', NEW.post_id, 'post', 'liked your post');
     END IF;
     RETURN NEW;
 END;
@@ -176,8 +176,8 @@ DECLARE
 BEGIN
     SELECT user_id INTO post_owner_id FROM posts WHERE id = NEW.post_id;
     IF post_owner_id IS NOT NULL AND post_owner_id != NEW.user_id THEN
-        INSERT INTO notifications (user_id, type, actor_id, post_id, comment_id, message)
-        VALUES (post_owner_id, 'comment', NEW.user_id, NEW.post_id, NEW.id, 'commented on your post');
+        INSERT INTO notifications (user_id, actor_id, type, reference_id, reference_type, content)
+        VALUES (post_owner_id, NEW.user_id, 'comment', NEW.post_id, 'post', 'commented on your post');
     END IF;
     RETURN NEW;
 END;

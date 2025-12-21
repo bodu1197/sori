@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
+import React, { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
 import {
   MessageCircle,
   Send,
@@ -461,8 +461,15 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
   const profile = post.profile;
   const displayName = profile?.username || profile?.full_name || 'Unknown';
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
+  const { user } = useAuthStore();
   const likeCountText = useLikeCountText(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
+
+  const handleOpenComments = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowComments(true);
+  };
 
   const handlePlayClick = () => {
     if (!post.video_id) return;
@@ -605,7 +612,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
             }}
           />
           <button
-            onClick={() => setShowComments(true)}
+            onClick={handleOpenComments}
             className="hover:opacity-60 text-black dark:text-white"
           >
             <MessageCircle size={26} />
@@ -633,14 +640,14 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
         </div>
         {(post.comment_count || 0) > 0 ? (
           <button
-            onClick={() => setShowComments(true)}
+            onClick={handleOpenComments}
             className="text-gray-500 dark:text-gray-400 text-sm mt-1"
           >
             View all {post.comment_count} comments
           </button>
         ) : (
           <button
-            onClick={() => setShowComments(true)}
+            onClick={handleOpenComments}
             className="text-gray-500 dark:text-gray-400 text-sm mt-1"
           >
             Add a comment...

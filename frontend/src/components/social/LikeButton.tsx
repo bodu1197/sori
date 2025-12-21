@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
@@ -36,8 +36,7 @@ export default function LikeButton({
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          // PGRST116 = no rows found
-          console.error('Error checking like status:', error);
+          // PGRST116 = no rows found, which is expected when not liked
         }
 
         setIsLiked(!!data);
@@ -54,15 +53,15 @@ export default function LikeButton({
     setLikeCount(initialLikeCount);
   }, [initialLikeCount]);
 
-  const handleLikeToggle = async () => {
-    console.log('Like toggle clicked', { userId: user?.id, postId, loading, isLiked });
+  const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     if (!user?.id) {
-      console.warn('No user logged in, cannot like');
+      alert('Please log in to like posts');
       return;
     }
     if (loading) {
-      console.warn('Already loading, skipping');
       return;
     }
 
@@ -71,25 +70,19 @@ export default function LikeButton({
     try {
       if (isLiked) {
         // Unlike
-        console.log('Unliking post...');
         const { error } = await supabase
           .from('post_likes')
           .delete()
           .eq('user_id', user.id)
           .eq('post_id', postId);
 
-        if (error) {
-          console.error('Unlike error:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         setIsLiked(false);
         setLikeCount((prev) => Math.max(0, prev - 1));
         onLikeChange?.(false, likeCount - 1);
-        console.log('Unlike successful');
       } else {
         // Like with animation
-        console.log('Liking post...');
         setAnimating(true);
 
         const { error } = await supabase.from('post_likes').insert({
@@ -97,21 +90,17 @@ export default function LikeButton({
           post_id: postId,
         });
 
-        if (error) {
-          console.error('Like error:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
         onLikeChange?.(true, likeCount + 1);
-        console.log('Like successful');
 
         // Reset animation after it completes
         setTimeout(() => setAnimating(false), 400);
       }
-    } catch (error) {
-      console.error('Error toggling like:', error);
+    } catch {
+      // Error toggling like
     } finally {
       setLoading(false);
     }
@@ -120,8 +109,8 @@ export default function LikeButton({
   return (
     <button
       onClick={handleLikeToggle}
-      disabled={loading || !user}
-      className={`relative transition-transform active:scale-90 ${loading ? 'opacity-50' : ''}`}
+      disabled={loading}
+      className={`relative transition-transform active:scale-90 ${loading ? 'opacity-50' : ''} ${!user ? 'cursor-not-allowed' : 'cursor-pointer'}`}
       aria-label={isLiked ? 'Unlike' : 'Like'}
     >
       <Heart

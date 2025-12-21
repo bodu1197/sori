@@ -62,15 +62,19 @@ function getNotificationText(notification: Notification): string {
 
   switch (notification.type) {
     case 'like':
-      return `${username} liked your playlist`;
+      return `${username} liked your post`;
     case 'comment':
-      return `${username} commented: "${notification.content?.slice(0, 50)}${(notification.content?.length || 0) > 50 ? '...' : ''}"`;
+      return notification.content
+        ? `${username} commented: "${notification.content.slice(0, 50)}${notification.content.length > 50 ? '...' : ''}"`
+        : `${username} commented on your post`;
     case 'follow':
       return `${username} started following you`;
     case 'mention':
       return `${username} mentioned you in a comment`;
     case 'reply':
-      return `${username} replied: "${notification.content?.slice(0, 50)}${(notification.content?.length || 0) > 50 ? '...' : ''}"`;
+      return notification.content
+        ? `${username} replied: "${notification.content.slice(0, 50)}${notification.content.length > 50 ? '...' : ''}"`
+        : `${username} replied to your comment`;
     default:
       return `${username} interacted with you`;
   }
