@@ -1527,6 +1527,112 @@ async def get_artist_songs_playlist(artist_id: str, country: str = "US"):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# 초고속 검색 API (search()만 호출, get_artist() 건너뛰기)
+# =============================================================================
+
+@app.get("/api/search/quick")
+async def search_quick(request: Request, q: str, country: str = None):
+    """초고속 검색 - search()만 호출하여 1-2초 내 응답
+
+    get_artist()를 호출하지 않아 빠름.
+    상세 정보(앨범, 플레이리스트 ID 등)는 별도 API로 로드.
+    """
+    if not q or len(q.strip()) < 1:
+        raise HTTPException(status_code=400, detail="Query required")
+
+    if not country:
+        country = request.headers.get("CF-IPCountry", "US")
+
+    cache_key = f"quick:{country}:{q.strip().lower()}"
+
+    # 1. Redis 캐시 확인
+    cached = cache_get(cache_key)
+    if cached:
+        cached["source"] = "cache"
+        return cached
+
+    # 2. Supabase DB 확인
+    if supabase_client:
+        try:
+            result = supabase_client.table("music_artists").select(
+                "browse_id, name, thumbnail_url, songs_playlist_id"
+            ).ilike("name", f"%{q.strip()}%").limit(1).execute()
+
+            if result.data and result.data[0]:
+                db_artist = result.data[0]
+                response = {
+                    "artist": {
+                        "browseId": db_artist.get("browse_id"),
+                        "name": db_artist.get("name"),
+                        "thumbnail": db_artist.get("thumbnail_url"),
+                        "songsPlaylistId": db_artist.get("songs_playlist_id")
+                    },
+                    "songs": [],
+                    "source": "database"
+                }
+                cache_set(cache_key, response, ttl=1800)
+                return response
+        except Exception as db_err:
+            logger.warning(f"DB quick search error: {db_err}")
+
+    # 3. ytmusicapi 검색 (search()만 호출 - 빠름!)
+    try:
+        ytmusic = get_ytmusic(country)
+
+        # 병렬로 아티스트와 노래 검색
+        future_artists = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=1)
+        future_songs = run_in_thread(ytmusic.search, q.strip(), filter="songs", limit=5)
+        artists_results, songs_results = await asyncio.gather(future_artists, future_songs)
+
+        artist_data = None
+        if artists_results and len(artists_results) > 0:
+            artist = artists_results[0]
+            artist_data = {
+                "browseId": artist.get("browseId"),
+                "name": artist.get("artist") or artist.get("name"),
+                "thumbnail": get_best_thumbnail(artist.get("thumbnails", [])),
+                "songsPlaylistId": None  # 별도 API로 로드
+            }
+
+            # 백그라운드에서 DB에 저장 (다음 검색 시 빠르게)
+            if supabase_client and artist_data.get("browseId"):
+                try:
+                    supabase_client.table("music_artists").upsert({
+                        "browse_id": artist_data["browseId"],
+                        "name": artist_data["name"],
+                        "thumbnail_url": artist_data["thumbnail"],
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }, on_conflict="browse_id").execute()
+                except Exception:
+                    pass
+
+        # 노래 결과 정리
+        songs = []
+        for s in (songs_results or [])[:5]:
+            songs.append({
+                "videoId": s.get("videoId"),
+                "title": s.get("title"),
+                "artists": s.get("artists", []),
+                "thumbnails": s.get("thumbnails", []),
+                "duration": s.get("duration"),
+                "album": s.get("album")
+            })
+
+        response = {
+            "artist": artist_data,
+            "songs": songs,
+            "source": "api"
+        }
+
+        cache_set(cache_key, response, ttl=1800)
+        return response
+
+    except Exception as e:
+        logger.error(f"Quick search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/artist/playlist-id")
 async def get_artist_playlist_id(q: str, country: str = "US"):
     """아티스트 검색 -> 플레이리스트 ID만 반환 (초고속 엔드포인트)

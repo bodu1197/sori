@@ -210,21 +210,50 @@ export default function SearchPage() {
   };
 
   // Search function - only called on Enter key or button click
+  // Uses /api/search/quick for fast response (1-2 seconds instead of 5-10)
   const performSearch = async () => {
     if (searchQuery.trim().length < 2) return;
 
     setSearchLoading(true);
     try {
+      // 1단계: 초고속 검색 (search()만 호출)
       const response = await fetch(
-        `${API_BASE_URL}/api/search/summary?q=${encodeURIComponent(searchQuery.trim())}`
+        `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(searchQuery.trim())}`
       );
 
       if (response.ok) {
         const data = await response.json();
-        const artist = data.artists?.[0] || null;
+
+        // artist 데이터를 기존 형식에 맞게 변환
+        const artist = data.artist
+          ? {
+              browseId: data.artist.browseId,
+              artist: data.artist.name,
+              name: data.artist.name,
+              thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
+              songsPlaylistId: data.artist.songsPlaylistId,
+            }
+          : null;
+
         setSearchArtist(artist);
-        setSearchAlbums(data.albums2 || []);
+        setSearchAlbums([]); // 앨범은 필요 시 별도 로드
         setSearchSongs(data.songs || []);
+
+        // 2단계: 플레이리스트 ID 병렬 로드 (All Songs 버튼용)
+        if (artist?.browseId && !artist.songsPlaylistId) {
+          fetch(
+            `${API_BASE_URL}/api/artist/playlist-id?q=${encodeURIComponent(searchQuery.trim())}`
+          )
+            .then((res) => res.json())
+            .then((playlistData) => {
+              if (playlistData.playlistId) {
+                setSearchArtist((prev) =>
+                  prev ? { ...prev, songsPlaylistId: playlistData.playlistId } : null
+                );
+              }
+            })
+            .catch(() => {});
+        }
       } else {
         setSearchArtist(null);
         setSearchAlbums([]);
