@@ -1621,8 +1621,11 @@ async def get_album(album_id: str, country: str = "US"):
 
             logger.info(f"Album tracks saved to DB: {album_id} ({len(tracks)} tracks)")
 
-        # Redis 캐시 (6시간)
-        cache_set(cache_key, album, ttl=21600)
+        # 트랙에 썸네일이 없으면 앨범 썸네일 추가
+        album_thumbnails = album.get("thumbnails", [])
+        for track in album.get("tracks", []):
+            if not track.get("thumbnails") and album_thumbnails:
+                track["thumbnails"] = album_thumbnails
 
         return {"source": "api", "album": album}
     except Exception as e:
@@ -1646,8 +1649,11 @@ async def get_playlist(playlist_id: str, country: str = "US", limit: int = 100):
         ytmusic = get_ytmusic(country)
         playlist = ytmusic.get_playlist(playlist_id, limit=limit)
 
-        # 1시간 캐시
-        cache_set(cache_key, playlist, ttl=3600)
+        # 트랙에 썸네일이 없으면 플레이리스트 썸네일 추가
+        playlist_thumbnails = playlist.get("thumbnails", [])
+        for track in playlist.get("tracks", []):
+            if not track.get("thumbnails") and playlist_thumbnails:
+                track["thumbnails"] = playlist_thumbnails
 
         return {"source": "api", "playlist": playlist}
     except Exception as e:
