@@ -116,6 +116,8 @@ export default function SearchPage() {
 
   // Liked songs state (for heart icon)
   const [likedSongs, setLikedSongs] = useState<Set<string>>(new Set());
+  const [likedAlbums, setLikedAlbums] = useState<Set<string>>(new Set());
+  const [savingAlbums, setSavingAlbums] = useState<Set<string>>(new Set());
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
@@ -741,6 +743,50 @@ export default function SearchPage() {
     }
   };
 
+  // Add album to liked (save all tracks)
+  const handleAddAlbumToLiked = async (album: SearchAlbum) => {
+    const albumId = album.browseId || `album-${album.title}`;
+    if (!user || likedAlbums.has(albumId) || savingAlbums.has(albumId)) return;
+
+    setSavingAlbums((prev) => new Set(prev).add(albumId));
+
+    try {
+      // Get tracks if not already loaded
+      let tracks = getAlbumTracks(album);
+      if (tracks.length === 0 && album.browseId) {
+        const response = await fetch(`${API_BASE_URL}/api/album/${album.browseId}`);
+        if (response.ok) {
+          const data = await response.json();
+          tracks = data.album?.tracks || [];
+        }
+      }
+
+      // Save all tracks
+      for (const track of tracks) {
+        if (track.videoId && !likedSongs.has(track.videoId)) {
+          await supabase.from('playlists').insert({
+            user_id: user.id,
+            title: track.title,
+            video_id: track.videoId,
+            cover_url: getBestThumbnail(track.thumbnails || album.thumbnails),
+            is_public: true,
+          });
+          setLikedSongs((prev) => new Set(prev).add(track.videoId));
+        }
+      }
+
+      setLikedAlbums((prev) => new Set(prev).add(albumId));
+    } catch {
+      // Error saving album
+    } finally {
+      setSavingAlbums((prev) => {
+        const next = new Set(prev);
+        next.delete(albumId);
+        return next;
+      });
+    }
+  };
+
   const hasResults = searchArtist || searchSongs.length > 0 || searchAlbums.length > 0;
 
   return (
@@ -1036,6 +1082,22 @@ export default function SearchPage() {
                               </span>
                             </div>
                           </div>
+                          <button
+                            onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                              e.stopPropagation();
+                              handleAddAlbumToLiked(album);
+                            }}
+                            className={`p-2 flex-shrink-0 ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                          >
+                            {savingAlbums.has(albumId) ? (
+                              <Loader2 size={20} className="animate-spin" />
+                            ) : (
+                              <Heart
+                                size={20}
+                                fill={likedAlbums.has(albumId) ? 'currentColor' : 'none'}
+                              />
+                            )}
+                          </button>
                         </div>
 
                         {isExpanded && trackCount > 0 && (
