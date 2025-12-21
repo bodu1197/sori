@@ -106,6 +106,11 @@ export default function SearchPage() {
   const [loadingAlbums, setLoadingAlbums] = useState<Set<string>>(new Set());
   const [showAllSongs, setShowAllSongs] = useState(false);
 
+  // All Songs (YouTube Playlist) State
+  const [allSongsExpanded, setAllSongsExpanded] = useState(false);
+  const [allSongsTracks, setAllSongsTracks] = useState<SearchSong[]>([]);
+  const [allSongsLoading, setAllSongsLoading] = useState(false);
+
   // Placeholder image for artist/album
   const PLACEHOLDER =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
@@ -313,6 +318,83 @@ export default function SearchPage() {
     setAlbumTracks({});
     setLoadingAlbums(new Set());
     setShowAllSongs(false);
+    setAllSongsExpanded(false);
+    setAllSongsTracks([]);
+  };
+
+  // Toggle All Songs expansion and fetch tracks
+  const toggleAllSongs = async () => {
+    if (allSongsExpanded) {
+      setAllSongsExpanded(false);
+      return;
+    }
+
+    setAllSongsExpanded(true);
+
+    // Already have tracks
+    if (allSongsTracks.length > 0) return;
+
+    // Fetch tracks from playlist
+    if (!searchArtist?.songsPlaylistId) return;
+
+    setAllSongsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const tracks = data.tracks || [];
+        setAllSongsTracks(
+          tracks.map(
+            (t: {
+              videoId: string;
+              title: string;
+              artists?: Artist[];
+              thumbnails?: Thumbnail[];
+              duration?: string;
+              album?: Album;
+            }) => ({
+              videoId: t.videoId,
+              title: t.title,
+              artists: t.artists,
+              thumbnails: t.thumbnails,
+              duration: t.duration,
+              album: t.album,
+            })
+          )
+        );
+      }
+    } catch {
+      // Error fetching playlist
+    } finally {
+      setAllSongsLoading(false);
+    }
+  };
+
+  // Play track from All Songs list
+  const handlePlayAllSongsTrack = (track: SearchSong, index: number) => {
+    const panelTracks: PlaylistTrackData[] = allSongsTracks.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artists: song.artists,
+      thumbnails: song.thumbnails,
+      duration: song.duration,
+      album: song.album,
+    }));
+    openTrackPanel({
+      title: `${searchArtist?.artist || 'Artist'} - All Songs`,
+      author: { name: `${allSongsTracks.length} ${t('search.tracks')}` },
+      thumbnails: searchArtist?.thumbnails,
+      tracks: panelTracks,
+      trackCount: allSongsTracks.length,
+    });
+
+    const playlist = allSongsTracks.map((song) => ({
+      videoId: song.videoId,
+      title: song.title,
+      artist: song.artists?.[0]?.name || 'Unknown',
+      thumbnail: getBestThumbnail(song.thumbnails),
+    }));
+    startPlayback(playlist, index);
   };
 
   // Play a single track from search - opens popup with all songs
@@ -617,23 +699,91 @@ export default function SearchPage() {
                     )}
                   </button>
                 )}
+              </div>
+            )}
 
-                {/* All Songs 버튼 - YouTube Playlist 전체 재생 */}
-                {searchArtist?.songsPlaylistId && (
-                  <button
-                    onClick={() => {
-                      loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist);
-                    }}
-                    className="w-full mt-3 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl text-sm font-semibold hover:from-red-700 hover:to-red-600 transition flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
-                  >
-                    <ListMusic size={18} />
-                    Play All Songs (YouTube Playlist)
-                  </button>
+            {/* 3. All Songs - 펼침 리스트 */}
+            {searchArtist?.songsPlaylistId && (
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
+                <button
+                  onClick={toggleAllSongs}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                      <ListMusic size={20} className="text-white" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold text-black dark:text-white">All Songs</div>
+                      <div className="text-xs text-gray-500">
+                        {allSongsTracks.length > 0
+                          ? `${allSongsTracks.length} ${t('search.tracks')}`
+                          : t('search.clickToViewTracks')}
+                      </div>
+                    </div>
+                  </div>
+                  {allSongsLoading ? (
+                    <Loader2 size={20} className="animate-spin text-gray-400" />
+                  ) : allSongsExpanded ? (
+                    <ChevronUp size={20} className="text-gray-400" />
+                  ) : (
+                    <ChevronDown size={20} className="text-gray-400" />
+                  )}
+                </button>
+
+                {allSongsExpanded && (
+                  <div className="border-t border-gray-200 dark:border-gray-700">
+                    {allSongsLoading ? (
+                      <div className="p-4 flex items-center justify-center gap-2">
+                        <Loader2 size={20} className="animate-spin text-gray-400" />
+                        <span className="text-sm text-gray-500">{t('search.loadingTracks')}</span>
+                      </div>
+                    ) : allSongsTracks.length > 0 ? (
+                      <div className="max-h-80 overflow-y-auto">
+                        {allSongsTracks.map((song, i) => (
+                          <div
+                            key={song.videoId || i}
+                            onClick={() => handlePlayAllSongsTrack(song, i)}
+                            className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                          >
+                            <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
+                            <img
+                              src={getBestThumbnail(song.thumbnails)}
+                              alt={song.title}
+                              className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-black dark:text-white truncate">
+                                {song.title}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {song.artists?.[0]?.name}
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-400">{song.duration}</span>
+                            <button
+                              onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                e.stopPropagation();
+                                handleAddToLiked(song);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-500"
+                            >
+                              <Heart size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        {t('search.noTracksAvailable')}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
-            {/* 3. Albums & Singles */}
+            {/* 4. Albums & Singles */}
             {searchAlbums.length > 0 && (
               <div>
                 <h3 className="text-base font-bold mb-3 text-black dark:text-white">
@@ -767,7 +917,7 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* 4. Similar Artists */}
+            {/* 5. Similar Artists */}
             {searchArtist?.related && searchArtist.related.length > 0 && (
               <div>
                 <h3 className="text-base font-bold mb-3 text-black dark:text-white">
