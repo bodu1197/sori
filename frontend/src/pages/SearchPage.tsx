@@ -514,11 +514,12 @@ export default function SearchPage() {
           </div>
         ) : hasResults ? (
           <div className="space-y-6">
-            {/* 1. Artist Card */}
+            {/* 1. Artist Card - 2층 구조 */}
             {searchArtist && (
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
+                {/* 2층: 사진, 이름, 좋아요 버튼 */}
+                <div className="flex items-center gap-4 p-4">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
                     <img
                       src={getBestThumbnail(searchArtist.thumbnails)}
                       alt={searchArtist.artist}
@@ -529,43 +530,30 @@ export default function SearchPage() {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-xl font-bold text-black dark:text-white mb-1">
+                    <h2 className="text-xl font-bold text-black dark:text-white truncate">
                       {searchArtist.artist}
                     </h2>
-                    <p className="text-sm text-gray-500 mb-3">
-                      {searchArtist.subscribers || 'Artist'}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {/* YouTube Playlist Play - Direct IFrame API, no backend fetch */}
-                      {searchArtist.songsPlaylistId && (
-                        <button
-                          onClick={() => {
-                            // YouTube IFrame API handles everything - no backend call needed!
-                            loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist);
-                          }}
-                          className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-red-700 transition"
-                          title="Play all songs via YouTube"
-                        >
-                          <ListMusic size={14} /> All Songs
-                        </button>
-                      )}
-                      <button
-                        onClick={handlePlayAllSongs}
-                        className="flex items-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-sm font-semibold hover:opacity-80 transition"
-                      >
-                        <Play size={14} fill="currentColor" /> {t('player.playAll')}
-                      </button>
-                      <button
-                        onClick={handleShuffleSearchSongs}
-                        className="flex items-center gap-1.5 border border-gray-300 dark:border-gray-600 px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                      >
-                        <Shuffle size={14} /> {t('player.shufflePlay')}
-                      </button>
-                      <button className="p-1.5 text-gray-400 hover:text-red-500">
-                        <Heart size={20} />
-                      </button>
-                    </div>
+                    <p className="text-sm text-gray-500">{searchArtist.subscribers || 'Artist'}</p>
                   </div>
+                  <button className="p-2 text-gray-400 hover:text-red-500 transition">
+                    <Heart size={24} />
+                  </button>
+                </div>
+
+                {/* 1층: 버튼들 */}
+                <div className="flex items-center gap-2 px-4 pb-4">
+                  <button
+                    onClick={handlePlayAllSongs}
+                    className="flex-1 flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 transition"
+                  >
+                    <Play size={16} fill="currentColor" /> {t('player.playAll')}
+                  </button>
+                  <button
+                    onClick={handleShuffleSearchSongs}
+                    className="flex-1 flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition text-black dark:text-white"
+                  >
+                    <Shuffle size={16} /> {t('player.shufflePlay')}
+                  </button>
                 </div>
               </div>
             )}
@@ -577,7 +565,7 @@ export default function SearchPage() {
                   {t('search.topTracks')} ({searchSongs.length})
                 </h3>
                 <div className="space-y-1">
-                  {(showAllSongs ? searchSongs : searchSongs.slice(0, 10)).map((song, i) => (
+                  {(showAllSongs ? searchSongs : searchSongs.slice(0, 5)).map((song, i) => (
                     <div
                       key={song.videoId || i}
                       onClick={() => handlePlayTrackFromSearch(song, i)}
@@ -611,7 +599,7 @@ export default function SearchPage() {
                     </div>
                   ))}
                 </div>
-                {searchSongs.length > 10 && (
+                {searchSongs.length > 5 && (
                   <button
                     onClick={() => setShowAllSongs(!showAllSongs)}
                     className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
@@ -624,9 +612,22 @@ export default function SearchPage() {
                     ) : (
                       <>
                         <ChevronDown size={16} />
-                        {t('search.showMore')} ({searchSongs.length - 10})
+                        {t('search.showMore')} ({searchSongs.length - 5})
                       </>
                     )}
+                  </button>
+                )}
+
+                {/* All Songs 버튼 - YouTube Playlist 전체 재생 */}
+                {searchArtist?.songsPlaylistId && (
+                  <button
+                    onClick={() => {
+                      loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist);
+                    }}
+                    className="w-full mt-3 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl text-sm font-semibold hover:from-red-700 hover:to-red-600 transition flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                  >
+                    <ListMusic size={18} />
+                    Play All Songs (YouTube Playlist)
                   </button>
                 )}
               </div>
