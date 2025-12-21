@@ -1,4 +1,4 @@
-import { useEffect, useState, SyntheticEvent } from 'react';
+import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
@@ -65,6 +65,30 @@ function ForYouSection() {
   const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(true);
+
+  // PC drag scroll
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseLeave = () => setIsDragging(false);
 
   useEffect(() => {
     async function fetchRecommendations() {
@@ -152,7 +176,14 @@ function ForYouSection() {
       </div>
 
       {/* Horizontal Scroll Recommendations */}
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
+      <div
+        ref={scrollRef}
+        className={`flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      >
         {loadingRecs ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex-shrink-0 w-32">
@@ -164,16 +195,23 @@ function ForYouSection() {
         ) : recommendations.length > 0 ? (
           recommendations.map((track, idx) => {
             const isCurrentlyPlaying = currentTrack?.videoId === track.videoId && isPlaying;
+            // Use high-res thumbnail from videoId
+            const thumbnailUrl = track.videoId
+              ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
+              : track.thumbnail;
             return (
               <div
                 key={track.videoId || idx}
-                onClick={() => handlePlay(track, idx)}
-                className="flex-shrink-0 w-32 cursor-pointer group"
+                onClick={() => !isDragging && handlePlay(track, idx)}
+                className="flex-shrink-0 w-32 cursor-pointer group select-none"
               >
-                <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md">
+                <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md bg-gray-800">
                   <img
-                    src={track.thumbnail}
+                    src={thumbnailUrl}
                     alt={track.title}
+                    width={320}
+                    height={180}
+                    loading="lazy"
                     className="w-full h-full object-cover"
                     onError={(e: SyntheticEvent<HTMLImageElement>) => {
                       e.currentTarget.src =
