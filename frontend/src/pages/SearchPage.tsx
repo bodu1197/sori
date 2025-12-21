@@ -210,44 +210,43 @@ export default function SearchPage() {
     startPlayback(playlist, trackIndex);
   };
 
-  // Comprehensive Music Search via Cloud Run API (ytmusicapi)
-  useEffect(() => {
-    if (searchQuery.length > 1) {
-      setSearchLoading(true);
+  // Search function - only called on Enter key or button click
+  const performSearch = async () => {
+    if (searchQuery.trim().length < 2) return;
 
-      const timer = setTimeout(async () => {
-        try {
-          const response = await fetch(
-            `${API_BASE_URL}/api/search/summary?q=${encodeURIComponent(searchQuery)}`
-          );
+    setSearchLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/search/summary?q=${encodeURIComponent(searchQuery.trim())}`
+      );
 
-          if (response.ok) {
-            const data = await response.json();
-            const artist = data.artists?.[0] || null;
-            setSearchArtist(artist);
-            setSearchAlbums(data.albums2 || []);
-            setSearchSongs(data.songs || []);
-          } else {
-            setSearchArtist(null);
-            setSearchAlbums([]);
-            setSearchSongs([]);
-          }
-        } catch {
-          setSearchArtist(null);
-          setSearchAlbums([]);
-          setSearchSongs([]);
-        } finally {
-          setSearchLoading(false);
-        }
-      }, 500);
-
-      return () => clearTimeout(timer);
-    } else {
+      if (response.ok) {
+        const data = await response.json();
+        const artist = data.artists?.[0] || null;
+        setSearchArtist(artist);
+        setSearchAlbums(data.albums2 || []);
+        setSearchSongs(data.songs || []);
+      } else {
+        setSearchArtist(null);
+        setSearchAlbums([]);
+        setSearchSongs([]);
+      }
+    } catch {
       setSearchArtist(null);
       setSearchAlbums([]);
       setSearchSongs([]);
+    } finally {
+      setSearchLoading(false);
     }
-  }, [searchQuery]);
+  };
+
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      performSearch();
+    }
+  };
 
   // Clear search
   const clearSearch = () => {
@@ -419,25 +418,36 @@ export default function SearchPage() {
       {/* Search Header */}
       <div className="sticky top-0 z-10 bg-white dark:bg-black px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
         <h1 className="text-xl font-bold mb-3 text-black dark:text-white">{t('search.title')}</h1>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder={t('search.placeholder')}
-            className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            autoFocus
-          />
-          {searchQuery && (
-            <button
-              onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <X size={18} />
-            </button>
-          )}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder={t('search.placeholder')}
+              className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={performSearch}
+            disabled={searchQuery.trim().length < 2 || searchLoading}
+            className="px-4 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+          >
+            {searchLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            {t('search.search')}
+          </button>
         </div>
       </div>
 
@@ -740,15 +750,11 @@ export default function SearchPage() {
               </div>
             )}
           </div>
-        ) : searchQuery.length > 1 ? (
-          <div className="text-center py-16 text-gray-500">
-            <Search size={48} className="mx-auto mb-4 opacity-50" />
-            <p>{t('search.noResults')}</p>
-          </div>
         ) : (
           <div className="text-center py-16 text-gray-500">
             <Search size={48} className="mx-auto mb-4 opacity-50" />
             <p>{t('search.hint')}</p>
+            <p className="text-sm mt-2 text-gray-400">{t('search.pressEnter')}</p>
           </div>
         )}
       </div>

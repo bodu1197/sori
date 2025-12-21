@@ -35,6 +35,12 @@
     "private": "비공개 섹션입니다."
   },
   "search": {
+    "title": "검색",
+    "placeholder": "아티스트, 노래, 앨범 검색...",
+    "search": "검색",
+    "hint": "좋아하는 음악을 검색하세요",
+    "pressEnter": "Enter 키 또는 검색 버튼을 누르세요",
+    "noResults": "검색 결과가 없습니다",
     "topTracks": "인기곡",
     "albumsAndSingles": "앨범 & 싱글",
     "similarArtists": "비슷한 아티스트",

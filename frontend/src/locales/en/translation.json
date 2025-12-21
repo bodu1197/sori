@@ -35,6 +35,12 @@
     "private": "This section is private."
   },
   "search": {
+    "title": "Search",
+    "placeholder": "Search artists, songs, albums...",
+    "search": "Search",
+    "hint": "Search for your favorite music",
+    "pressEnter": "Press Enter or click Search button",
+    "noResults": "No results found",
     "topTracks": "Top Tracks",
     "albumsAndSingles": "Albums & Singles",
     "similarArtists": "Similar Artists",
