@@ -309,15 +309,15 @@ function PlaylistPostComponent({ post }: PlaylistPostProps) {
         </button>
       </div>
 
-      {/* Playlist Visual (Square) */}
+      {/* Playlist Visual (16:9 YouTube ratio) */}
       <div
-        className="relative w-full aspect-square bg-gray-100 cursor-pointer group overflow-hidden"
+        className="relative w-full aspect-video bg-gray-100 cursor-pointer group overflow-hidden"
         onClick={handlePlayClick}
       >
         <img
           src={
             post.cover_url ||
-            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=600&fit=crop'
+            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&h=338&fit=crop'
           }
           alt={post.title}
           className="w-full h-full object-cover"
