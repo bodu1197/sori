@@ -7,6 +7,62 @@ import useContextRecommendation from '../hooks/useContextRecommendation';
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
+// Country code to name mapping (commonly used countries)
+const COUNTRY_NAMES: Record<string, string> = {
+  US: 'United States',
+  GB: 'United Kingdom',
+  KR: 'South Korea',
+  JP: 'Japan',
+  DE: 'Germany',
+  FR: 'France',
+  CA: 'Canada',
+  AU: 'Australia',
+  BR: 'Brazil',
+  MX: 'Mexico',
+  ES: 'Spain',
+  IT: 'Italy',
+  IN: 'India',
+  ID: 'Indonesia',
+  TW: 'Taiwan',
+  TH: 'Thailand',
+  VN: 'Vietnam',
+  PH: 'Philippines',
+  SG: 'Singapore',
+  MY: 'Malaysia',
+  NL: 'Netherlands',
+  PL: 'Poland',
+  SE: 'Sweden',
+  NO: 'Norway',
+  DK: 'Denmark',
+  FI: 'Finland',
+  RU: 'Russia',
+  UA: 'Ukraine',
+  TR: 'Turkey',
+  ZA: 'South Africa',
+  EG: 'Egypt',
+  SA: 'Saudi Arabia',
+  AE: 'UAE',
+  IL: 'Israel',
+  AR: 'Argentina',
+  CL: 'Chile',
+  CO: 'Colombia',
+  PE: 'Peru',
+  NG: 'Nigeria',
+  KE: 'Kenya',
+  PK: 'Pakistan',
+  BD: 'Bangladesh',
+  NZ: 'New Zealand',
+  IE: 'Ireland',
+  AT: 'Austria',
+  CH: 'Switzerland',
+  BE: 'Belgium',
+  PT: 'Portugal',
+  GR: 'Greece',
+  CZ: 'Czechia',
+  HU: 'Hungary',
+  RO: 'Romania',
+};
+
 // Get high resolution YouTube thumbnail (maxresdefault or hqdefault)
 const getHighResThumbnail = (videoId?: string, coverUrl?: string): string => {
   // If we have a video ID, use YouTube's max resolution thumbnail
@@ -58,13 +114,15 @@ interface PlaylistPost {
 }
 
 /**
- * For You Section - Context-based recommendations
+ * For You Section - Chart-based recommendations (global)
+ * Uses country charts for latest popular songs with time-based variety
  */
 function ForYouSection() {
   const context = useContextRecommendation();
   const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(true);
+  const [countryName, setCountryName] = useState<string>('');
 
   // PC drag scroll
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -91,28 +149,79 @@ function ForYouSection() {
   const handleMouseLeave = () => setIsDragging(false);
 
   useEffect(() => {
-    async function fetchRecommendations() {
-      if (context.loading || !context.recommendation) return;
-
+    async function fetchChartRecommendations() {
       try {
         setLoadingRecs(true);
-        const response = await fetch(
-          `${API_BASE_URL}/api/search?q=${encodeURIComponent(context.recommendation.searchQuery)}&filter=songs&limit=5`
-        );
+
+        // Fetch charts (backend auto-detects country via CF-IPCountry header)
+        const response = await fetch(`${API_BASE_URL}/api/charts`);
 
         if (response.ok) {
           const data = await response.json();
-          setRecommendations(data.results || data || []);
+          // Backend returns: { country, source, charts: { songs: { items: [...] } } }
+          const songs = data.charts?.songs?.items || data.charts?.songs || [];
+
+          if (songs.length > 0) {
+            // Time-based offset for variety (changes every few minutes)
+            const now = new Date();
+            const seed = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
+            const maxOffset = Math.max(0, songs.length - 5);
+            const offset = seed % (maxOffset + 1);
+
+            // Select 5 songs from offset
+            const selected = songs.slice(offset, offset + 5);
+
+            // If not enough, wrap around
+            const finalSelection =
+              selected.length < 5
+                ? [...selected, ...songs.slice(0, 5 - selected.length)]
+                : selected;
+
+            setRecommendations(
+              finalSelection.map(
+                (song: {
+                  videoId: string;
+                  title: string;
+                  artists?: Artist[];
+                  thumbnails?: { url: string }[];
+                }) => ({
+                  videoId: song.videoId,
+                  title: song.title,
+                  artists: song.artists,
+                  thumbnail: song.thumbnails?.[0]?.url,
+                })
+              )
+            );
+          }
+
+          // Get country name from response (convert code to readable name)
+          if (data.country) {
+            const code = data.country.toUpperCase();
+            setCountryName(COUNTRY_NAMES[code] || data.country);
+          }
         }
       } catch {
-        // Failed to fetch recommendations
+        // Failed to fetch charts, fallback to search
+        if (context.recommendation?.searchQuery) {
+          try {
+            const fallbackResponse = await fetch(
+              `${API_BASE_URL}/api/search?q=${encodeURIComponent(context.recommendation.searchQuery)}&filter=songs&limit=5`
+            );
+            if (fallbackResponse.ok) {
+              const fallbackData = await fallbackResponse.json();
+              setRecommendations(fallbackData.results || fallbackData || []);
+            }
+          } catch {
+            // Both failed
+          }
+        }
       } finally {
         setLoadingRecs(false);
       }
     }
 
-    fetchRecommendations();
-  }, [context.loading, context.recommendation]);
+    fetchChartRecommendations();
+  }, [context.recommendation?.searchQuery]);
 
   const handlePlay = (track: RecommendationTrack, index: number) => {
     // Open popup with all recommendations
@@ -168,7 +277,7 @@ function ForYouSection() {
       {/* Recommendation Label */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          {context.recommendation?.genre}
+          {countryName ? `Trending in ${countryName}` : 'Top Hits'}
         </span>
         <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white">
           See all
