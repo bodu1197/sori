@@ -1,10 +1,13 @@
-import { useEffect, useState, useRef, SyntheticEvent, MouseEvent } from 'react';
+import { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
 import { MessageCircle, Send, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
 import useCountry from '../hooks/useCountry';
+import useAuthStore from '../stores/useAuthStore';
 import { LikeButton, useLikeCountText } from '../components/social';
+
+type FeedFilter = 'following' | 'all';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
@@ -113,6 +116,7 @@ interface PlaylistPost {
   video_id?: string;
   created_at: string;
   likes_count?: number;
+  user_id?: string;
   profiles?: Profile;
 }
 
@@ -606,9 +610,36 @@ function PlaylistPostComponent({ post, onLikeChange }: PlaylistPostProps) {
 }
 
 export default function FeedPage() {
+  const { user } = useAuthStore();
   const [posts, setPosts] = useState<PlaylistPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FeedFilter>('all');
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
 
+  // Fetch list of users the current user follows
+  useEffect(() => {
+    async function fetchFollowing() {
+      if (!user?.id) {
+        setFollowingIds([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id);
+
+        if (error) throw error;
+        setFollowingIds(data?.map((f) => f.following_id) || []);
+      } catch {
+        setFollowingIds([]);
+      }
+    }
+    fetchFollowing();
+  }, [user?.id]);
+
+  // Fetch posts
   useEffect(() => {
     async function fetchPosts() {
       try {
@@ -623,6 +654,7 @@ export default function FeedPage() {
             video_id,
             created_at,
             likes_count,
+            user_id,
             profiles:user_id (
               id,
               username,
@@ -646,11 +678,17 @@ export default function FeedPage() {
   }, []);
 
   // Handle like count update in local state
-  const handleLikeChange = (postId: string, newCount: number) => {
+  const handleLikeChange = useCallback((postId: string, newCount: number) => {
     setPosts((prevPosts) =>
       prevPosts.map((post) => (post.id === postId ? { ...post, likes_count: newCount } : post))
     );
-  };
+  }, []);
+
+  // Filter posts based on selected tab
+  const filteredPosts =
+    filter === 'following' && followingIds.length > 0
+      ? posts.filter((post) => post.user_id && followingIds.includes(post.user_id))
+      : posts;
 
   if (loading) return <div className="p-10 text-center">Loading feed...</div>;
 
@@ -659,15 +697,46 @@ export default function FeedPage() {
       {/* For You - Context-based Recommendations */}
       <ForYouSection />
 
+      {/* Feed Filter Tabs */}
+      {user && (
+        <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-black z-10">
+          <button
+            onClick={() => setFilter('following')}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              filter === 'following'
+                ? 'text-black dark:text-white border-b-2 border-black dark:border-white'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            Following
+          </button>
+          <button
+            onClick={() => setFilter('all')}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              filter === 'all'
+                ? 'text-black dark:text-white border-b-2 border-black dark:border-white'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            For You
+          </button>
+        </div>
+      )}
+
       {/* Story Rail */}
       <StoryRail />
 
       {/* Posts */}
       <div className="space-y-2 mt-2">
-        {posts.length > 0 ? (
-          posts.map((post) => (
+        {filteredPosts.length > 0 ? (
+          filteredPosts.map((post) => (
             <PlaylistPostComponent key={post.id} post={post} onLikeChange={handleLikeChange} />
           ))
+        ) : filter === 'following' ? (
+          <div className="py-20 text-center text-gray-500 dark:text-gray-400">
+            <p>No posts from people you follow.</p>
+            <p className="text-sm mt-1">Follow some musicians to see their playlists here!</p>
+          </div>
         ) : (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>No posts yet.</p>
