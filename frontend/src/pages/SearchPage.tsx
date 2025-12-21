@@ -484,9 +484,24 @@ export default function SearchPage() {
                       {/* YouTube Playlist Play - Uses YouTube IFrame API directly */}
                       {searchArtist.songsPlaylistId && (
                         <button
-                          onClick={() =>
-                            loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist)
-                          }
+                          onClick={() => {
+                            // Open track panel with artist info
+                            openTrackPanel({
+                              title: `${searchArtist.artist} - All Songs`,
+                              author: { name: 'YouTube Music Playlist' },
+                              thumbnails: searchArtist.thumbnails,
+                              tracks: searchSongs.map((song) => ({
+                                videoId: song.videoId,
+                                title: song.title,
+                                artists: song.artists,
+                                thumbnails: song.thumbnails,
+                                duration: song.duration,
+                              })),
+                              trackCount: searchSongs.length,
+                            });
+                            // Load YouTube playlist
+                            loadYouTubePlaylist(searchArtist.songsPlaylistId!, searchArtist.artist);
+                          }}
                           className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold hover:bg-red-700 transition"
                           title="Play all songs via YouTube"
                         >
