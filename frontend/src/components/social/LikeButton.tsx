@@ -64,8 +64,16 @@ export default function LikeButton({
     setLoading(true);
 
     try {
-      if (isLiked) {
-        // Unlike
+      // First check current like status from DB
+      const { data: existingLike } = await supabase
+        .from('post_likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('post_id', postId)
+        .maybeSingle();
+
+      if (existingLike) {
+        // Unlike - record exists, delete it
         const { error } = await supabase
           .from('post_likes')
           .delete()
@@ -78,7 +86,7 @@ export default function LikeButton({
         setLikeCount((prev) => Math.max(0, prev - 1));
         onLikeChange?.(false, likeCount - 1);
       } else {
-        // Like with animation
+        // Like - record doesn't exist, insert it
         setAnimating(true);
 
         const { error } = await supabase.from('post_likes').insert({
@@ -92,11 +100,17 @@ export default function LikeButton({
         setLikeCount((prev) => prev + 1);
         onLikeChange?.(true, likeCount + 1);
 
-        // Reset animation after it completes
         setTimeout(() => setAnimating(false), 400);
       }
     } catch {
-      // Error toggling like
+      // On error, re-sync state from DB
+      const { data } = await supabase
+        .from('post_likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('post_id', postId)
+        .maybeSingle();
+      setIsLiked(!!data);
     } finally {
       setLoading(false);
     }
