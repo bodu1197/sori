@@ -26,6 +26,29 @@
 2. ☐ **작업 일지 확인** - 이전 세션 작업 내용 파악
 3. ☐ **git status 확인** - 현재 코드 상태 파악
 
+---
+
+## SUPABASE ACCESS TOKEN (SQL 실행용)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  SUPABASE MANAGEMENT API ACCESS TOKEN                               │
+│                                                                     │
+│  Token: sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296                │
+│  Project ID: nrtkbulkzhhlstaomvas                                   │
+│  발급일: 2025-12-20                                                 │
+│                                                                     │
+│  사용법:                                                            │
+│  curl -X POST \                                                     │
+│    "https://api.supabase.com/v1/projects/nrtkbulkzhhlstaomvas/database/query" \
+│    -H "Authorization: Bearer sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296" \
+│    -H "Content-Type: application/json" \                            │
+│    -d '{"query": "SELECT 1"}'                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ### ⚠️ 작업 완료 시 필수 (MANDATORY)
 
 ```
