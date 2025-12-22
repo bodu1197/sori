@@ -182,17 +182,26 @@ export default function MessagesPage() {
 
       setSearchingUsers(true);
       try {
+        // Sanitize search query to prevent SQL injection
+        const sanitizedQuery = userSearchQuery.trim().replace(/[%_'"\\]/g, '');
+        if (!sanitizedQuery) {
+          setSearchedUsers([]);
+          setSearchingUsers(false);
+          return;
+        }
+
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username, full_name, avatar_url')
           .neq('id', user.id)
-          .or(`username.ilike.%${userSearchQuery}%,full_name.ilike.%${userSearchQuery}%`)
+          .or(`username.ilike.%${sanitizedQuery}%,full_name.ilike.%${sanitizedQuery}%`)
           .limit(20);
 
         if (error) throw error;
         setSearchedUsers(data || []);
       } catch (error) {
         console.error('Error searching users:', error);
+        setSearchedUsers([]);
       } finally {
         setSearchingUsers(false);
       }
@@ -280,8 +289,8 @@ export default function MessagesPage() {
     const query = searchQuery.toLowerCase();
     return conv.participants.some(
       (p) =>
-        p.profiles.username.toLowerCase().includes(query) ||
-        p.profiles.full_name?.toLowerCase().includes(query)
+        p.profiles?.username?.toLowerCase().includes(query) ||
+        p.profiles?.full_name?.toLowerCase().includes(query)
     );
   });
 
