@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Image, Music, Loader2, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -34,8 +34,20 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Reset parent scroll position on mount
+  useLayoutEffect(() => {
+    // Find and reset the parent main scroll container
+    const mainElement = document.querySelector('main');
+    if (mainElement) {
+      mainElement.scrollTop = 0;
+    }
+    // Also reset body scroll
+    window.scrollTo(0, 0);
+  }, [conversationId]);
 
   // Scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -209,14 +221,17 @@ export default function ChatPage() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white dark:bg-black">
+      <div className="flex items-center justify-center h-full bg-white dark:bg-black">
         <p className="text-gray-500">Please log in to view messages</p>
       </div>
     );
   }
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-white dark:bg-black">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 flex flex-col bg-white dark:bg-black overflow-hidden"
+    >
       {/* Header */}
       <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
         <button onClick={() => navigate('/messages')} className="p-1 text-black dark:text-white">
