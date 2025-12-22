@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   MessageCircle,
   Send,
@@ -415,6 +416,7 @@ function ForYouSection() {
 }
 
 function StoryRail() {
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
@@ -430,7 +432,11 @@ function StoryRail() {
   return (
     <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide">
       {profiles.map((profile) => (
-        <div key={profile.id} className="flex flex-col items-center flex-shrink-0 cursor-pointer">
+        <button
+          key={profile.id}
+          onClick={() => navigate(`/profile/${profile.id}`)}
+          className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+        >
           <div
             className={`rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500`}
           >
@@ -445,7 +451,7 @@ function StoryRail() {
           <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-[64px] text-center">
             {profile.username}
           </span>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -458,12 +464,19 @@ interface FeedPostProps {
 }
 
 function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPostProps) {
+  const navigate = useNavigate();
   const profile = post.profile;
   const displayName = profile?.username || profile?.full_name || 'Unknown';
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const { user } = useAuthStore();
   const likeCountText = useLikeCountText(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
+
+  const handleProfileClick = () => {
+    if (profile?.id) {
+      navigate(`/profile/${profile.id}`);
+    }
+  };
 
   const handleOpenComments = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -506,18 +519,18 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
     <article className="pb-4 border-b border-gray-100 dark:border-gray-800">
       {/* Header */}
       <div className="flex justify-between items-center px-3 py-3">
-        <div className="flex items-center gap-2 cursor-pointer">
+        <button onClick={handleProfileClick} className="flex items-center gap-2 cursor-pointer">
           <img
             src={profile?.avatar_url || 'https://via.placeholder.com/150'}
             alt={displayName}
             className="w-8 h-8 rounded-full object-cover border border-gray-100"
           />
           <div className="flex flex-col">
-            <span className="font-semibold text-sm leading-none hover:underline text-black dark:text-white">
+            <span className="font-semibold text-sm leading-none hover:underline text-black dark:text-white text-left">
               {displayName}
             </span>
           </div>
-        </div>
+        </button>
         <button className="text-gray-500 dark:text-gray-400">
           <MoreHorizontal size={20} />
         </button>

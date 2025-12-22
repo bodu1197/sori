@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, UserPlus, AtSign, Reply, Check, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
@@ -82,10 +83,21 @@ function getNotificationText(notification: Notification): string {
 }
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAllRead, setMarkingAllRead] = useState(false);
+
+  // Navigate to actor's profile
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.is_read) {
+      markAsRead(notification.id);
+    }
+    if (notification.actor_id) {
+      navigate(`/profile/${notification.actor_id}`);
+    }
+  };
 
   // Fetch notifications
   useEffect(() => {
@@ -300,7 +312,7 @@ export default function NotificationsPage() {
               {items.map((notification) => (
                 <div
                   key={notification.id}
-                  onClick={() => !notification.is_read && markAsRead(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
                   className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition ${
                     !notification.is_read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
                   }`}
@@ -329,7 +341,9 @@ export default function NotificationsPage() {
 
                   {/* Action button for follow notifications */}
                   {notification.type === 'follow' && notification.actor && (
-                    <FollowButton userId={notification.actor.id} size="sm" />
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <FollowButton userId={notification.actor.id} size="sm" />
+                    </div>
                   )}
 
                   {/* Unread indicator */}

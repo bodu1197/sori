@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import FollowButton from './FollowButton';
@@ -18,8 +19,14 @@ interface FollowersModalProps {
 }
 
 export default function FollowersModal({ userId, type, isOpen, onClose }: FollowersModalProps) {
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleProfileClick = (profileId: string) => {
+    onClose();
+    navigate(`/profile/${profileId}`);
+  };
 
   useEffect(() => {
     async function fetchProfiles() {
@@ -123,7 +130,10 @@ export default function FollowersModal({ userId, type, isOpen, onClose }: Follow
                   key={profile.id}
                   className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleProfileClick(profile.id)}
+                    className="flex items-center gap-3 flex-1 text-left"
+                  >
                     <img
                       src={profile.avatar_url || 'https://via.placeholder.com/150'}
                       alt={profile.username}
@@ -137,7 +147,7 @@ export default function FollowersModal({ userId, type, isOpen, onClose }: Follow
                         <p className="text-sm text-gray-500">{profile.full_name}</p>
                       )}
                     </div>
-                  </div>
+                  </button>
                   <FollowButton userId={profile.id} size="sm" />
                 </div>
               ))}
