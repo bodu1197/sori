@@ -482,6 +482,112 @@ frontend/src/
 
 ---
 
+## SonarCloud 코드 품질 분석
+
+### 프로젝트 정보
+
+| 항목 | 값 |
+|------|-----|
+| Organization | `bodu1197` |
+| Project Key | `bodu1197_sori` |
+| Project Name | `sori` |
+| Dashboard | https://sonarcloud.io/project/overview?id=bodu1197_sori |
+
+### 대시보드 접속
+
+1. **웹 브라우저**: https://sonarcloud.io/project/overview?id=bodu1197_sori
+2. **Issues 목록**: https://sonarcloud.io/project/issues?id=bodu1197_sori
+3. **Security Hotspots**: https://sonarcloud.io/project/security_hotspots?id=bodu1197_sori
+4. **Code Smells**: https://sonarcloud.io/project/issues?id=bodu1197_sori&types=CODE_SMELL
+
+### API 접속 방법
+
+SonarCloud API를 통해 프로그래밍 방식으로 데이터 조회 가능:
+
+```bash
+# API 토큰 (환경변수로 설정 권장)
+SONAR_TOKEN="<토큰값>"
+
+# 프로젝트 메트릭 조회
+curl -u "$SONAR_TOKEN:" \
+  "https://sonarcloud.io/api/measures/component?component=bodu1197_sori&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,duplicated_lines_density"
+
+# Issues 목록 조회
+curl -u "$SONAR_TOKEN:" \
+  "https://sonarcloud.io/api/issues/search?componentKeys=bodu1197_sori&types=BUG,VULNERABILITY,CODE_SMELL"
+
+# Security Hotspots 조회
+curl -u "$SONAR_TOKEN:" \
+  "https://sonarcloud.io/api/hotspots/search?projectKey=bodu1197_sori"
+```
+
+### MCP 도구 사용법
+
+Claude Code에서 SonarQube MCP 도구로 직접 조회 가능:
+
+```
+# 프로젝트 목록 조회
+mcp__sonarqube__projects
+
+# Issues 조회 (버그, 취약점, 코드 스멜)
+mcp__sonarqube__issues with project_key="bodu1197_sori"
+
+# Security Hotspots 조회
+mcp__sonarqube__hotspots with project_key="bodu1197_sori"
+
+# 품질 게이트 상태 확인
+mcp__sonarqube__quality_gate_status with project_key="bodu1197_sori"
+
+# 메트릭 조회
+mcp__sonarqube__measures_component with component="bodu1197_sori", metric_keys=["bugs", "vulnerabilities", "code_smells"]
+```
+
+### 자동 스캔 설정
+
+GitHub Actions를 통해 push/PR 시 자동 스캔:
+
+```yaml
+# .github/workflows/sonarcloud.yml
+name: SonarCloud
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+```
+
+### 프로젝트 설정 파일
+
+`sonar-project.properties` 파일로 분석 범위 설정:
+
+```properties
+sonar.projectKey=bodu1197_sori
+sonar.organization=bodu1197
+sonar.projectName=sori
+sonar.sources=frontend/src,backend
+
+# 번역 파일 제외 (오탐 방지)
+sonar.exclusions=**/locales/**,**/translations.*,**/i18n/**
+
+# 테스트 파일 중복 검사 제외
+sonar.cpd.exclusions=**/*.test.*,**/*.spec.*,**/__tests__/**
+```
+
+---
+
 ## 코드 품질 필수 규칙 (MANDATORY)
 
 ```
