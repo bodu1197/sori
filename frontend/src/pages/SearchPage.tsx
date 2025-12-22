@@ -884,9 +884,10 @@ export default function SearchPage() {
             ) : hasUserResults ? (
               <div className="space-y-2">
                 {userResults.map((profile) => (
-                  <div
+                  <button
+                    type="button"
                     key={profile.id}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer"
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer w-full text-left"
                     onClick={() => navigate(`/profile/${profile.id}`)}
                   >
                     <img
@@ -905,10 +906,10 @@ export default function SearchPage() {
                         <p className="text-xs text-gray-400 truncate mt-0.5">{profile.bio}</p>
                       )}
                     </div>
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <span onClick={(e) => e.stopPropagation()}>
                       <FollowButton userId={profile.id} size="sm" />
-                    </div>
-                  </div>
+                    </span>
+                  </button>
                 ))}
               </div>
             ) : suggestedLoading ? (
@@ -925,9 +926,10 @@ export default function SearchPage() {
                     </h3>
                     <div className="space-y-2">
                       {suggestedUsers.map((profile) => (
-                        <div
+                        <button
+                          type="button"
                           key={profile.id}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer"
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer w-full text-left"
                           onClick={() => navigate(`/profile/${profile.id}`)}
                         >
                           <img
@@ -949,10 +951,10 @@ export default function SearchPage() {
                                 </p>
                               )}
                           </div>
-                          <div onClick={(e) => e.stopPropagation()}>
+                          <span onClick={(e) => e.stopPropagation()}>
                             <FollowButton userId={profile.id} size="sm" />
-                          </div>
-                        </div>
+                          </span>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -966,9 +968,10 @@ export default function SearchPage() {
                     </h3>
                     <div className="space-y-2">
                       {newUsers.map((profile) => (
-                        <div
+                        <button
+                          type="button"
                           key={profile.id}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer"
+                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer w-full text-left"
                           onClick={() => navigate(`/profile/${profile.id}`)}
                         >
                           <img
@@ -984,10 +987,10 @@ export default function SearchPage() {
                               <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
                             )}
                           </div>
-                          <div onClick={(e) => e.stopPropagation()}>
+                          <span onClick={(e) => e.stopPropagation()}>
                             <FollowButton userId={profile.id} size="sm" />
-                          </div>
-                        </div>
+                          </span>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -1066,10 +1069,11 @@ export default function SearchPage() {
                     </h3>
                     <div className="space-y-1">
                       {(showAllSongs ? searchSongs : searchSongs.slice(0, 5)).map((song, i) => (
-                        <div
+                        <button
+                          type="button"
                           key={song.videoId || i}
                           onClick={() => handlePlayTrackFromSearch(song, i)}
-                          className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                          className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
                         >
                           <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
                           <img
@@ -1087,8 +1091,8 @@ export default function SearchPage() {
                             </div>
                           </div>
                           <span className="text-xs text-gray-400">{song.duration}</span>
-                          <button
-                            onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                          <span
+                            onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                               e.stopPropagation();
                               handleToggleLike(song);
                             }}
@@ -1098,8 +1102,8 @@ export default function SearchPage() {
                               size={16}
                               fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
                             />
-                          </button>
-                        </div>
+                          </span>
+                        </button>
                       ))}
                     </div>
                     {searchSongs.length > 5 && (
@@ -1166,10 +1170,11 @@ export default function SearchPage() {
                         ) : allSongsTracks.length > 0 ? (
                           <div>
                             {allSongsTracks.map((song, i) => (
-                              <div
+                              <button
+                                type="button"
                                 key={song.videoId || i}
                                 onClick={() => handlePlayAllSongsTrack(song, i)}
-                                className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                                className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
                               >
                                 <span className="w-6 text-center text-sm text-gray-400">
                                   {i + 1}
@@ -1188,8 +1193,8 @@ export default function SearchPage() {
                                   </div>
                                 </div>
                                 <span className="text-xs text-gray-400">{song.duration}</span>
-                                <button
-                                  onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                <span
+                                  onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                     e.stopPropagation();
                                     handleToggleLike(song);
                                   }}
@@ -1199,8 +1204,8 @@ export default function SearchPage() {
                                     size={16}
                                     fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
                                   />
-                                </button>
-                              </div>
+                                </span>
+                              </button>
                             ))}
                           </div>
                         ) : (
@@ -1232,9 +1237,10 @@ export default function SearchPage() {
                             key={albumId}
                             className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
                           >
-                            <div
+                            <button
+                              type="button"
                               onClick={() => handleShowAlbumPanel(album)}
-                              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
                             >
                               <img
                                 src={getBestThumbnail(album.thumbnails)}
@@ -1266,8 +1272,8 @@ export default function SearchPage() {
                                   </span>
                                 </div>
                               </div>
-                              <button
-                                onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                              <span
+                                onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                   e.stopPropagation();
                                   handleToggleAlbumLike(album);
                                 }}
@@ -1281,8 +1287,8 @@ export default function SearchPage() {
                                     fill={likedAlbums.has(albumId) ? 'currentColor' : 'none'}
                                   />
                                 )}
-                              </button>
-                            </div>
+                              </span>
+                            </button>
 
                             {isExpanded && trackCount > 0 && (
                               <div className="border-t border-gray-200 dark:border-gray-700">
@@ -1308,13 +1314,11 @@ export default function SearchPage() {
                                 </div>
                                 <div className="px-3 py-2">
                                   {tracks.map((track, trackIdx) => (
-                                    <div
+                                    <button
+                                      type="button"
                                       key={track.videoId || trackIdx}
-                                      onClick={(e: MouseEvent<HTMLDivElement>) => {
-                                        e.stopPropagation();
-                                        handlePlayAlbumTrack(album, trackIdx);
-                                      }}
-                                      className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
+                                      onClick={() => handlePlayAlbumTrack(album, trackIdx)}
+                                      className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2 w-full text-left"
                                     >
                                       <span className="w-5 text-center text-xs text-gray-400">
                                         {trackIdx + 1}
@@ -1327,8 +1331,8 @@ export default function SearchPage() {
                                       <span className="text-xs text-gray-400">
                                         {track.duration || ''}
                                       </span>
-                                      <button
-                                        onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                                      <span
+                                        onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                           e.stopPropagation();
                                           handleToggleLike(track, album.thumbnails);
                                         }}
@@ -1340,8 +1344,8 @@ export default function SearchPage() {
                                             likedSongs.has(track.videoId) ? 'currentColor' : 'none'
                                           }
                                         />
-                                      </button>
-                                    </div>
+                                      </span>
+                                    </button>
                                   ))}
                                 </div>
                               </div>

@@ -343,9 +343,9 @@ export default function NotificationsPage() {
 
                   {/* Action button for follow notifications */}
                   {notification.type === 'follow' && notification.actor && (
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <span onClick={(e) => e.stopPropagation()}>
                       <FollowButton userId={notification.actor.id} size="sm" />
-                    </div>
+                    </span>
                   )}
 
                   {/* Unread indicator */}

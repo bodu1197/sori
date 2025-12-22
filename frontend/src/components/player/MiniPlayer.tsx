@@ -17,7 +17,7 @@ import {
 import usePlayerStore from '../../stores/usePlayerStore';
 
 function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds)) return '0:00';
+  if (!seconds || Number.isNaN(seconds)) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -54,7 +54,7 @@ export default function MiniPlayer() {
     return (currentTime / duration) * 100;
   }, [currentTime, duration]);
 
-  const handleProgressClick = (e: MouseEvent<HTMLDivElement>) => {
+  const handleProgressClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percent = (clickX / rect.width) * 100;
@@ -62,7 +62,7 @@ export default function MiniPlayer() {
   };
 
   const handleVolumeChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setVolume(parseInt(e.target.value, 10));
+    setVolume(Number.parseInt(e.target.value, 10));
   };
 
   const thumbnailUrl =
@@ -191,9 +191,11 @@ export default function MiniPlayer() {
           </button>
         </div>
 
-        <div
-          className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-200 dark:bg-gray-800 cursor-pointer group"
+        <button
+          type="button"
+          className="absolute bottom-0 left-0 w-full h-[3px] bg-gray-200 dark:bg-gray-800 cursor-pointer group p-0 border-0"
           onClick={handleProgressClick}
+          aria-label="Seek progress bar"
         >
           <div
             className="h-full bg-black dark:bg-white transition-all duration-100"
@@ -203,7 +205,7 @@ export default function MiniPlayer() {
             className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-black dark:bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
             style={{ left: `calc(${progressPercent}% - 6px)` }}
           />
-        </div>
+        </button>
       </div>
 
       {isExpanded && (

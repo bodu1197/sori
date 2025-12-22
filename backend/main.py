@@ -1035,7 +1035,7 @@ async def get_home_feed(request: Request, country: str = None, limit: int = 6):
 # Summary Search API - 정규화 DB 사용 (전체 디스코그래피)
 # =============================================================================
 
-async def save_full_artist_data_background(artist_id: str, artist_info: dict, country: str):
+def save_full_artist_data_background(artist_id: str, artist_info: dict, country: str):
     """백그라운드에서 아티스트의 전체 앨범/싱글/트랙 정보를 가져와 DB에 저장"""
     try:
         ytmusic = get_ytmusic(country)
