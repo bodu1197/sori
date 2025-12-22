@@ -114,17 +114,10 @@ export default function MiniPlayer() {
     >
       <div className="h-[60px] flex items-center px-4 justify-between">
         {/* Clickable area to open playlist popup */}
-        <div
-          role="button"
-          tabIndex={0}
-          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+        <button
+          type="button"
+          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left"
           onClick={handleOpenPlaylist}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleOpenPlaylist();
-            }
-          }}
         >
           <img
             src={thumbnailUrl}
@@ -143,7 +136,7 @@ export default function MiniPlayer() {
               {currentTrack.artist || 'Unknown Artist'}
             </span>
           </div>
-        </div>
+        </button>
 
         <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mx-4">
           <span>{formatTime(currentTime)}</span>
