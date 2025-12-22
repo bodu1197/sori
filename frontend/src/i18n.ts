@@ -20,6 +20,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
+    supportedLngs: Object.keys(translations),
     debug: false,
 
     detection: {
