@@ -90,13 +90,13 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
   };
 
   return (
-    <div className="absolute inset-x-0 bottom-0 h-[75vh] md:h-[600px] md:w-[400px] md:right-4 md:left-auto bg-gray-900 md:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-300 z-[60] border-t border-gray-700">
+    // Simplified container: Matches parent width (max 480px) automatically
+    <div className="absolute inset-x-0 bottom-0 h-[75vh] bg-gray-900 rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-300 z-[60] border-t border-gray-700">
       {/* Header */}
-      <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 md:rounded-t-3xl rounded-t-3xl">
+      <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 rounded-t-3xl">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
-              {/* Removed Bot icon, using dynamic initials or just generic user icon without 'Bot' implication */}
               <span className="text-white font-bold text-lg">
                 {artistName ? artistName[0].toUpperCase() : 'A'}
               </span>
@@ -106,7 +106,6 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
           <div>
             <h3 className="text-white font-bold flex items-center gap-2 text-sm">
               {artistName}
-              {/* Blue check for verification feel instead of AI badge */}
               <span className="flex items-center justify-center w-3.5 h-3.5 rounded-full bg-blue-500 text-[8px] text-white">
                 ✓
               </span>
@@ -128,7 +127,6 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900/50">
         {loading && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500 animate-pulse">
-            {/* Removed Bot Icon */}
             <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
               <MessageSquare size={24} className="text-gray-400" />
             </div>
