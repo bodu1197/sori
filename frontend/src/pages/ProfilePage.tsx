@@ -738,18 +738,12 @@ export default function ProfilePage() {
             )}
             {/* Highlight items - Show user's playlists as highlights */}
             {playlists.slice(0, 8).map((playlist) => (
-              <div
+              <button
+                type="button"
                 key={playlist.id}
-                role="button"
-                tabIndex={0}
                 className="flex flex-col items-center flex-shrink-0 cursor-pointer"
                 onClick={() => playlist.video_id && handlePlayPlaylist(playlist)}
-                onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && playlist.video_id) {
-                    e.preventDefault();
-                    handlePlayPlaylist(playlist);
-                  }
-                }}
+                disabled={!playlist.video_id}
               >
                 <div className="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-600 p-0.5">
                   <img
@@ -766,7 +760,7 @@ export default function ProfilePage() {
                 <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-16 text-center">
                   {playlist.title?.slice(0, 10) || t('profile.playlist')}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -857,17 +851,10 @@ export default function ProfilePage() {
             posts.map((post) => {
               const isCurrentlyPlaying = currentTrack?.videoId === post.video_id && isPlaying;
               return (
-                <div
+                <button
+                  type="button"
                   key={post.id}
-                  role="button"
-                  tabIndex={0}
                   onClick={() => handlePlayPost(post)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handlePlayPost(post);
-                    }
-                  }}
                   className="aspect-square relative group bg-gray-100 cursor-pointer"
                 >
                   <img
@@ -921,7 +908,7 @@ export default function ProfilePage() {
                       {post.title}
                     </span>
                   </div>
-                </div>
+                </button>
               );
             })
           ) : (
@@ -946,10 +933,11 @@ export default function ProfilePage() {
                 {/* Horizontal Scroll Content */}
                 <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
                   {section.contents.slice(0, 12).map((item, itemIndex) => (
-                    <div
+                    <button
+                      type="button"
                       key={item.videoId || item.playlistId || itemIndex}
                       onClick={() => handlePlayHomeItem(item, section, itemIndex)}
-                      className="flex-shrink-0 w-36 cursor-pointer group"
+                      className="flex-shrink-0 w-36 cursor-pointer group text-left"
                     >
                       {/* Thumbnail */}
                       <div className="relative">
@@ -989,7 +977,7 @@ export default function ProfilePage() {
                             ''}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>

@@ -461,22 +461,16 @@ export default function TrackListPanel({
                 const isTrackPlaying = isCurrentTrack && isPlaying;
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={track.videoId || index}
-                    role="button"
-                    tabIndex={0}
                     onClick={() => track.videoId && onPlayTrack(track, index, playlist.tracks)}
-                    onKeyDown={(e) => {
-                      if ((e.key === 'Enter' || e.key === ' ') && track.videoId) {
-                        e.preventDefault();
-                        onPlayTrack(track, index, playlist.tracks);
-                      }
-                    }}
-                    className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                    className={`flex items-center gap-3 p-3 cursor-pointer transition-colors w-full text-left ${
                       isCurrentTrack
                         ? 'bg-gray-50 dark:bg-gray-800'
                         : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     } ${!track.videoId || track.isAvailable === false ? 'opacity-50' : ''}`}
+                    disabled={!track.videoId || track.isAvailable === false}
                   >
                     {/* Index / Playing Indicator */}
                     <div className="w-6 flex-shrink-0 text-center">
@@ -530,7 +524,7 @@ export default function TrackListPanel({
                     <button className="p-1 text-gray-400 hover:text-black dark:hover:text-white">
                       <ChevronRight size={16} />
                     </button>
-                  </div>
+                  </button>
                 );
               })}
             </div>

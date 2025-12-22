@@ -43,20 +43,11 @@ export default function TrackItem({
   onToggleLike,
   getBestThumbnail,
 }: TrackItemProps) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onPlay();
-    }
-  };
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={onPlay}
-      onKeyDown={handleKeyDown}
-      className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+      className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
     >
       <span className="w-6 text-center text-sm text-gray-400">{index + 1}</span>
       <img
@@ -80,6 +71,6 @@ export default function TrackItem({
       >
         <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
       </button>
-    </div>
+    </button>
   );
 }
