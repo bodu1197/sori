@@ -12,8 +12,6 @@ import {
   Trash2,
   Disc,
   Settings,
-  MessageCircle,
-  ChevronDown,
   UserPlus,
   Plus,
 } from 'lucide-react';
@@ -27,8 +25,8 @@ import FollowButton from '../components/social/FollowButton';
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
 interface StatItemProps {
-  count: number;
-  label: string;
+  readonly count: number;
+  readonly label: string;
 }
 
 function StatItem({ count, label }: StatItemProps) {
@@ -51,12 +49,12 @@ interface LikedTrack {
 }
 
 interface TrackItemProps {
-  track: LikedTrack;
-  index: number;
-  onPlay: (track: LikedTrack, index: number) => void;
-  onDelete?: (track: LikedTrack) => void;
-  isPlaying: boolean;
-  isCurrentTrack: boolean;
+  readonly track: LikedTrack;
+  readonly index: number;
+  readonly onPlay: (track: LikedTrack, index: number) => void;
+  readonly onDelete?: (track: LikedTrack) => void;
+  readonly isPlaying: boolean;
+  readonly isCurrentTrack: boolean;
 }
 
 // Track Item Component for Your Music list
@@ -741,8 +739,16 @@ export default function ProfilePage() {
             {playlists.slice(0, 8).map((playlist) => (
               <div
                 key={playlist.id}
+                role="button"
+                tabIndex={0}
                 className="flex flex-col items-center flex-shrink-0 cursor-pointer"
                 onClick={() => playlist.video_id && handlePlayPlaylist(playlist)}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && playlist.video_id) {
+                    e.preventDefault();
+                    handlePlayPlaylist(playlist);
+                  }
+                }}
               >
                 <div className="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-600 p-0.5">
                   <img
@@ -852,7 +858,15 @@ export default function ProfilePage() {
               return (
                 <div
                   key={post.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handlePlayPost(post)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handlePlayPost(post);
+                    }
+                  }}
                   className="aspect-square relative group bg-gray-100 cursor-pointer"
                 >
                   <img

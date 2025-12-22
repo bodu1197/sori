@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { MoreHorizontal, X, Trash2, Flag, Link2, UserMinus, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Flag, Link2, UserMinus, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 interface PostOptionsMenuProps {
-  postId: string;
-  authorId?: string;
-  onDelete?: () => void;
+  readonly postId: string;
+  readonly authorId?: string;
+  readonly onDelete?: () => void;
 }
 
 export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOptionsMenuProps) {
@@ -46,7 +46,7 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
 
   const handleCopyLink = async () => {
     try {
-      const url = `${window.location.origin}/post/${postId}`;
+      const url = `${globalThis.location.origin}/post/${postId}`;
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => {

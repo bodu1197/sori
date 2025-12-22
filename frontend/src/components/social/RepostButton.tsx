@@ -4,11 +4,11 @@ import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 interface RepostButtonProps {
-  postId: string;
-  initialReposted?: boolean;
-  initialCount?: number;
-  onRepost?: (reposted: boolean) => void;
-  size?: 'sm' | 'md';
+  readonly postId: string;
+  readonly initialReposted?: boolean;
+  readonly initialCount?: number;
+  readonly onRepost?: (reposted: boolean) => void;
+  readonly size?: 'sm' | 'md';
 }
 
 export default function RepostButton({

@@ -4,9 +4,9 @@ import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 interface BookmarkButtonProps {
-  postId: string;
-  size?: number;
-  onBookmarkChange?: (isBookmarked: boolean) => void;
+  readonly postId: string;
+  readonly size?: number;
+  readonly onBookmarkChange?: (isBookmarked: boolean) => void;
 }
 
 export default function BookmarkButton({
@@ -82,9 +82,7 @@ export default function BookmarkButton({
     <button
       onClick={handleToggleBookmark}
       disabled={loading}
-      className={`hover:opacity-60 transition ${
-        isBookmarked ? 'text-black dark:text-white' : 'text-black dark:text-white'
-      } disabled:opacity-50`}
+      className="hover:opacity-60 transition text-black dark:text-white disabled:opacity-50"
     >
       {loading ? (
         <Loader2 size={size} className="animate-spin" />

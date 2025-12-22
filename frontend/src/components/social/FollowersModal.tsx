@@ -12,10 +12,10 @@ interface Profile {
 }
 
 interface FollowersModalProps {
-  userId: string;
-  type: 'followers' | 'following';
-  isOpen: boolean;
-  onClose: () => void;
+  readonly userId: string;
+  readonly type: 'followers' | 'following';
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
 }
 
 export default function FollowersModal({ userId, type, isOpen, onClose }: FollowersModalProps) {

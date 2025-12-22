@@ -109,6 +109,38 @@ export default function ChatPage() {
     fetchData();
   }, [conversationId, user?.id]);
 
+  // Check if message is a temporary duplicate
+  const isTemporaryDuplicate = useCallback(
+    (existingMsg: Message, newMsg: Message) =>
+      existingMsg.id.startsWith('temp-') &&
+      existingMsg.content === newMsg.content &&
+      existingMsg.sender_id === newMsg.sender_id,
+    []
+  );
+
+  // Replace temporary message with real one
+  const replaceTempMessage = useCallback(
+    (msg: Message, newMsg: Message) => (isTemporaryDuplicate(msg, newMsg) ? newMsg : msg),
+    [isTemporaryDuplicate]
+  );
+
+  // Handle new message from realtime subscription
+  const handleNewMessage = useCallback(
+    (newMsg: Message) => {
+      setMessages((prev) => {
+        const exists = prev.some(
+          (msg) => msg.id === newMsg.id || isTemporaryDuplicate(msg, newMsg)
+        );
+        if (exists) {
+          return prev.map((msg) => replaceTempMessage(msg, newMsg));
+        }
+        return [...prev, newMsg];
+      });
+      scrollToBottom();
+    },
+    [isTemporaryDuplicate, replaceTempMessage, scrollToBottom]
+  );
+
   // Realtime subscription for new messages
   useEffect(() => {
     if (!conversationId) return;
@@ -124,29 +156,7 @@ export default function ChatPage() {
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          const newMsg = payload.new as Message;
-          // Prevent duplicate: check if message already exists (from optimistic UI or same sender)
-          setMessages((prev) => {
-            const exists = prev.some(
-              (msg) =>
-                msg.id === newMsg.id ||
-                (msg.id.startsWith('temp-') &&
-                  msg.content === newMsg.content &&
-                  msg.sender_id === newMsg.sender_id)
-            );
-            if (exists) {
-              // Replace temp message with real one
-              return prev.map((msg) =>
-                msg.id.startsWith('temp-') &&
-                msg.content === newMsg.content &&
-                msg.sender_id === newMsg.sender_id
-                  ? newMsg
-                  : msg
-              );
-            }
-            return [...prev, newMsg];
-          });
-          scrollToBottom();
+          handleNewMessage(payload.new as Message);
         }
       )
       .subscribe();
@@ -154,7 +164,7 @@ export default function ChatPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [conversationId, scrollToBottom]);
+  }, [conversationId, handleNewMessage]);
 
   // Scroll to bottom on new messages
   useEffect(() => {

@@ -4,10 +4,10 @@ import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 interface LikeButtonProps {
-  postId: string;
-  initialLikeCount?: number;
-  size?: number;
-  onLikeChange?: (isLiked: boolean, count: number) => void;
+  readonly postId: string;
+  readonly initialLikeCount?: number;
+  readonly size?: number;
+  readonly onLikeChange?: (isLiked: boolean, count: number) => void;
 }
 
 export default function LikeButton({

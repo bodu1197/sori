@@ -22,10 +22,10 @@ interface Comment {
 }
 
 interface CommentsModalProps {
-  postId: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onCommentCountChange?: (count: number) => void;
+  readonly postId: string;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onCommentCountChange?: (count: number) => void;
 }
 
 export default function CommentsModal({

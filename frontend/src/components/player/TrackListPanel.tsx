@@ -106,15 +106,15 @@ export interface PlaylistData {
 }
 
 interface TrackListPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  playlist: PlaylistData | null;
-  loading: boolean;
-  onPlayTrack: (track: PlaylistTrack, index: number, allTracks: PlaylistTrack[]) => void;
-  onPlayAll: () => void;
-  onShuffleAll: () => void;
-  currentVideoId?: string;
-  isPlaying: boolean;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly playlist: PlaylistData | null;
+  readonly loading: boolean;
+  readonly onPlayTrack: (track: PlaylistTrack, index: number, allTracks: PlaylistTrack[]) => void;
+  readonly onPlayAll: () => void;
+  readonly onShuffleAll: () => void;
+  readonly currentVideoId?: string;
+  readonly isPlaying: boolean;
 }
 
 function getBestThumbnail(
@@ -463,7 +463,15 @@ export default function TrackListPanel({
                 return (
                   <div
                     key={track.videoId || index}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => track.videoId && onPlayTrack(track, index, playlist.tracks)}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ' ') && track.videoId) {
+                        e.preventDefault();
+                        onPlayTrack(track, index, playlist.tracks);
+                      }
+                    }}
                     className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
                       isCurrentTrack
                         ? 'bg-gray-50 dark:bg-gray-800'

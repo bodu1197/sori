@@ -4,11 +4,11 @@ import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 interface FollowButtonProps {
-  userId: string;
-  onFollowChange?: (isFollowing: boolean) => void;
-  size?: 'sm' | 'md' | 'lg';
-  className?: string;
-  showDropdown?: boolean;
+  readonly userId: string;
+  readonly onFollowChange?: (isFollowing: boolean) => void;
+  readonly size?: 'sm' | 'md' | 'lg';
+  readonly className?: string;
+  readonly showDropdown?: boolean;
 }
 
 export default function FollowButton({

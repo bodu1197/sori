@@ -5,11 +5,11 @@ import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 interface ShareButtonProps {
-  postId: string;
-  postTitle?: string;
-  postArtist?: string;
-  postThumbnail?: string;
-  size?: number;
+  readonly postId: string;
+  readonly postTitle?: string;
+  readonly postArtist?: string;
+  readonly postThumbnail?: string;
+  readonly size?: number;
 }
 
 interface UserToShare {
@@ -259,15 +259,13 @@ export default function ShareButton({
                               : 'bg-blue-500 text-white hover:bg-blue-600'
                           } disabled:opacity-50`}
                         >
-                          {isSending ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : isSent ? (
+                          {isSending && <Loader2 size={16} className="animate-spin" />}
+                          {!isSending && isSent && (
                             <span className="flex items-center gap-1">
                               <Check size={14} /> {t('share.sent')}
                             </span>
-                          ) : (
-                            t('share.send')
                           )}
+                          {!isSending && !isSent && t('share.send')}
                         </button>
                       </div>
                     );

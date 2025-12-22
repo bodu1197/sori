@@ -20,10 +20,10 @@ interface Comment {
 }
 
 interface CommentItemProps {
-  comment: Comment;
-  onReply: (parentId: string, username: string) => void;
-  onDelete: (commentId: string) => void;
-  isReply?: boolean;
+  readonly comment: Comment;
+  readonly onReply: (parentId: string, username: string) => void;
+  readonly onDelete: (commentId: string) => void;
+  readonly isReply?: boolean;
 }
 
 function formatTimeAgo(dateString: string): string {

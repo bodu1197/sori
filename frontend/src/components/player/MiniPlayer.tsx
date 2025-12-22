@@ -115,8 +115,16 @@ export default function MiniPlayer() {
       <div className="h-[60px] flex items-center px-4 justify-between">
         {/* Clickable area to open playlist popup */}
         <div
+          role="button"
+          tabIndex={0}
           className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
           onClick={handleOpenPlaylist}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleOpenPlaylist();
+            }
+          }}
         >
           <img
             src={thumbnailUrl}
@@ -158,13 +166,9 @@ export default function MiniPlayer() {
             disabled={isLoading}
             title={isPlaying ? 'Pause' : 'Play'}
           >
-            {isLoading ? (
-              <Loader2 size={24} className="animate-spin" />
-            ) : isPlaying ? (
-              <Pause size={24} fill="currentColor" />
-            ) : (
-              <Play size={24} fill="currentColor" />
-            )}
+            {isLoading && <Loader2 size={24} className="animate-spin" />}
+            {!isLoading && isPlaying && <Pause size={24} fill="currentColor" />}
+            {!isLoading && !isPlaying && <Play size={24} fill="currentColor" />}
           </button>
 
           <button

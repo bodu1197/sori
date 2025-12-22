@@ -460,9 +460,9 @@ function StoryRail() {
 }
 
 interface FeedPostProps {
-  post: FeedPost;
-  onLikeChange?: (postId: string, newCount: number) => void;
-  onCommentCountChange?: (postId: string, newCount: number) => void;
+  readonly post: FeedPost;
+  readonly onLikeChange?: (postId: string, newCount: number) => void;
+  readonly onCommentCountChange?: (postId: string, newCount: number) => void;
 }
 
 function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPostProps) {
@@ -844,7 +844,7 @@ export default function FeedPage() {
 
       {/* Posts */}
       <div className="space-y-2 mt-2">
-        {filteredPosts.length > 0 ? (
+        {filteredPosts.length > 0 &&
           filteredPosts.map((post) => (
             <FeedPostComponent
               key={post.id}
@@ -852,13 +852,14 @@ export default function FeedPage() {
               onLikeChange={handleLikeChange}
               onCommentCountChange={handleCommentCountChange}
             />
-          ))
-        ) : filter === 'following' ? (
+          ))}
+        {filteredPosts.length === 0 && filter === 'following' && (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>{t('feed.noFollowingPosts')}</p>
             <p className="text-sm mt-1">{t('feed.followHint')}</p>
           </div>
-        ) : (
+        )}
+        {filteredPosts.length === 0 && filter !== 'following' && (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
             <p>{t('feed.noPosts')}</p>
             <p className="text-sm">{t('feed.createPostHint')}</p>
