@@ -144,19 +144,46 @@ export default function ChatPage() {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !conversationId || !user?.id || sending) return;
 
+    const messageContent = newMessage.trim();
+    const tempId = `temp-${Date.now()}`;
+
+    // Optimistically add message to UI immediately
+    const optimisticMessage: Message = {
+      id: tempId,
+      sender_id: user.id,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setNewMessage('');
+    scrollToBottom();
+
     setSending(true);
     try {
-      const { error } = await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        sender_id: user.id,
-        content: newMessage.trim(),
-      });
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          content: messageContent,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
-      setNewMessage('');
+
+      // Replace temp message with real one from database
+      if (data) {
+        setMessages((prev) => prev.map((msg) => (msg.id === tempId ? data : msg)));
+      }
+
       inputRef.current?.focus();
     } catch (error) {
       console.error('Error sending message:', error);
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      setNewMessage(messageContent); // Restore the message
     } finally {
       setSending(false);
     }
