@@ -155,101 +155,132 @@ export default function useContextRecommendation(): ContextState {
   return context;
 }
 
+interface MoodConfig {
+  mood: Mood;
+  genre: string;
+  emoji: string;
+  message: string;
+}
+
+function getTimeBasedMood(timeOfDay: TimeOfDay): MoodConfig {
+  const configs: Record<TimeOfDay, MoodConfig> = {
+    morning: {
+      mood: 'energetic',
+      genre: 'Morning Motivation',
+      emoji: '',
+      message: 'Start your day with energy!',
+    },
+    afternoon: { mood: 'focused', genre: 'Focus & Work', emoji: '', message: 'Stay productive!' },
+    evening: { mood: 'relaxed', genre: 'Evening Chill', emoji: '', message: 'Wind down your day.' },
+    night: {
+      mood: 'calm',
+      genre: 'Late Night Vibes',
+      emoji: '',
+      message: 'Perfect for late nights.',
+    },
+    day: { mood: 'upbeat', genre: 'Pop Hits', emoji: '', message: 'Enjoy your day!' },
+  };
+  return configs[timeOfDay] || configs.day;
+}
+
+function getWeatherBasedMood(
+  weather: WeatherCondition,
+  timeOfDay: TimeOfDay,
+  locationName: string
+): MoodConfig | null {
+  if (!weather) return null;
+
+  const weatherConfigs: Partial<Record<NonNullable<WeatherCondition>, MoodConfig>> = {
+    rainy: {
+      mood: 'chill',
+      genre: 'Rainy Day Jazz',
+      emoji: '',
+      message: locationName
+        ? `Rainy in ${locationName}? Perfect for chill vibes.`
+        : 'Rainy day vibes.',
+    },
+    snowy: { mood: 'cozy', genre: 'Cozy Winter', emoji: '', message: 'Stay warm with cozy tunes.' },
+    stormy: {
+      mood: 'intense',
+      genre: 'Epic & Cinematic',
+      emoji: '',
+      message: 'Epic music for stormy weather.',
+    },
+  };
+
+  if (weatherConfigs[weather]) {
+    return weatherConfigs[weather]!;
+  }
+
+  // Clear weather special handling
+  if (weather === 'clear') {
+    if (timeOfDay === 'morning') {
+      return {
+        mood: 'energetic',
+        genre: 'Sunny Morning',
+        emoji: '',
+        message: 'Beautiful day ahead!',
+      };
+    }
+    if (timeOfDay === 'evening') {
+      return { mood: 'relaxed', genre: 'Sunset Vibes', emoji: '', message: 'Enjoy the sunset.' };
+    }
+  }
+
+  return null;
+}
+
+function getTemperatureBasedMood(temperature: number | null): MoodConfig | null {
+  if (temperature === null) return null;
+
+  if (temperature >= 30) {
+    return {
+      mood: 'tropical',
+      genre: 'Summer Hits',
+      emoji: '',
+      message: `It's ${temperature}C! Cool down with summer jams.`,
+    };
+  }
+  if (temperature <= 5) {
+    return {
+      mood: 'cozy',
+      genre: 'Warm & Cozy',
+      emoji: '',
+      message: `Brrr, ${temperature}C! Stay warm with cozy music.`,
+    };
+  }
+
+  return null;
+}
+
 function getMoodAndRecommendation(
   timeOfDay: TimeOfDay,
   weather: WeatherCondition,
   temperature: number | null,
   locationName: string
 ): { mood: Mood; recommendation: Recommendation } {
-  let mood: Mood = 'upbeat';
-  let genre = 'Pop Hits';
-  let emoji = '';
-  let message = '';
+  // Start with time-based mood as default
+  let config = getTimeBasedMood(timeOfDay);
 
-  switch (timeOfDay) {
-    case 'morning':
-      mood = 'energetic';
-      genre = 'Morning Motivation';
-      emoji = '';
-      message = 'Start your day with energy!';
-      break;
-    case 'afternoon':
-      mood = 'focused';
-      genre = 'Focus & Work';
-      emoji = '';
-      message = 'Stay productive!';
-      break;
-    case 'evening':
-      mood = 'relaxed';
-      genre = 'Evening Chill';
-      emoji = '';
-      message = 'Wind down your day.';
-      break;
-    case 'night':
-      mood = 'calm';
-      genre = 'Late Night Vibes';
-      emoji = '';
-      message = 'Perfect for late nights.';
-      break;
+  // Override with weather-based mood if applicable
+  const weatherConfig = getWeatherBasedMood(weather, timeOfDay, locationName);
+  if (weatherConfig) {
+    config = weatherConfig;
   }
 
-  if (weather) {
-    switch (weather) {
-      case 'rainy':
-        mood = 'chill';
-        genre = 'Rainy Day Jazz';
-        emoji = '';
-        message = locationName
-          ? `Rainy in ${locationName}? Perfect for chill vibes.`
-          : 'Rainy day vibes.';
-        break;
-      case 'snowy':
-        mood = 'cozy';
-        genre = 'Cozy Winter';
-        emoji = '';
-        message = 'Stay warm with cozy tunes.';
-        break;
-      case 'stormy':
-        mood = 'intense';
-        genre = 'Epic & Cinematic';
-        emoji = '';
-        message = 'Epic music for stormy weather.';
-        break;
-      case 'clear':
-        if (timeOfDay === 'morning') {
-          genre = 'Sunny Morning';
-          emoji = '';
-          message = 'Beautiful day ahead!';
-        } else if (timeOfDay === 'evening') {
-          genre = 'Sunset Vibes';
-          emoji = '';
-          message = 'Enjoy the sunset.';
-        }
-        break;
-    }
-  }
-
-  if (temperature !== null) {
-    if (temperature >= 30) {
-      mood = 'tropical';
-      genre = 'Summer Hits';
-      emoji = '';
-      message = `It's ${temperature}C! Cool down with summer jams.`;
-    } else if (temperature <= 5) {
-      mood = 'cozy';
-      genre = 'Warm & Cozy';
-      emoji = '';
-      message = `Brrr, ${temperature}C! Stay warm with cozy music.`;
-    }
+  // Override with temperature-based mood if extreme
+  const tempConfig = getTemperatureBasedMood(temperature);
+  if (tempConfig) {
+    config = tempConfig;
   }
 
   return {
-    mood,
+    mood: config.mood,
     recommendation: {
-      genre,
-      emoji,
-      message,
-      searchQuery: genre,
+      genre: config.genre,
+      emoji: config.emoji,
+      message: config.message,
+      searchQuery: config.genre,
     },
   };
 }
