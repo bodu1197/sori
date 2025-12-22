@@ -124,7 +124,28 @@ export default function ChatPage() {
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          const newMsg = payload.new as Message;
+          // Prevent duplicate: check if message already exists (from optimistic UI or same sender)
+          setMessages((prev) => {
+            const exists = prev.some(
+              (msg) =>
+                msg.id === newMsg.id ||
+                (msg.id.startsWith('temp-') &&
+                  msg.content === newMsg.content &&
+                  msg.sender_id === newMsg.sender_id)
+            );
+            if (exists) {
+              // Replace temp message with real one
+              return prev.map((msg) =>
+                msg.id.startsWith('temp-') &&
+                msg.content === newMsg.content &&
+                msg.sender_id === newMsg.sender_id
+                  ? newMsg
+                  : msg
+              );
+            }
+            return [...prev, newMsg];
+          });
           scrollToBottom();
         }
       )

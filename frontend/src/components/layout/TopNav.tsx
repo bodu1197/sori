@@ -1,14 +1,46 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Heart, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 export default function TopNav() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+
+  // Function to fetch unread message count
+  const fetchUnreadMessages = useCallback(async () => {
+    if (!user?.id) return;
+
+    const { data: participantData } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, last_read_at')
+      .eq('user_id', user.id);
+
+    if (participantData && participantData.length > 0) {
+      let unread = 0;
+      for (const p of participantData) {
+        const { count } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', p.conversation_id)
+          .neq('sender_id', user.id)
+          .gt('created_at', p.last_read_at || '1970-01-01');
+        unread += count || 0;
+      }
+      setUnreadMessages(unread);
+    } else {
+      setUnreadMessages(0);
+    }
+  }, [user?.id]);
+
+  // Refetch when route changes (e.g., leaving chat page)
+  useEffect(() => {
+    fetchUnreadMessages();
+  }, [location.pathname, fetchUnreadMessages]);
 
   // Fetch unread counts
   useEffect(() => {
@@ -24,25 +56,8 @@ export default function TopNav() {
 
       setUnreadNotifications(notifCount || 0);
 
-      // Unread messages - check conversations with unread messages
-      const { data: participantData } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id, last_read_at')
-        .eq('user_id', user.id);
-
-      if (participantData && participantData.length > 0) {
-        let unread = 0;
-        for (const p of participantData) {
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', p.conversation_id)
-            .neq('sender_id', user.id)
-            .gt('created_at', p.last_read_at || '1970-01-01');
-          unread += count || 0;
-        }
-        setUnreadMessages(unread);
-      }
+      // Fetch unread messages
+      await fetchUnreadMessages();
     }
 
     fetchUnreadCounts();
@@ -69,7 +84,6 @@ export default function TopNav() {
           filter: `user_id=eq.${user?.id}`,
         },
         (payload) => {
-          // When notification is marked as read, decrease count
           if (payload.new && payload.old) {
             const wasUnread = !payload.old.is_read;
             const isNowRead = payload.new.is_read;
@@ -81,10 +95,53 @@ export default function TopNav() {
       )
       .subscribe();
 
+    // Subscribe to new messages (increment unread count)
+    const msgChannel = supabase
+      .channel('topnav-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as { sender_id: string; conversation_id: string };
+          // Only increment if message is from someone else and user is not in that chat
+          if (newMsg.sender_id !== user?.id) {
+            const isInChat = location.pathname.includes(`/messages/${newMsg.conversation_id}`);
+            if (!isInChat) {
+              setUnreadMessages((prev) => prev + 1);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to conversation_participants updates (when user reads messages)
+    const participantChannel = supabase
+      .channel('topnav-participants')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        () => {
+          // Refetch unread count when last_read_at is updated
+          fetchUnreadMessages();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(notifChannel);
+      supabase.removeChannel(msgChannel);
+      supabase.removeChannel(participantChannel);
     };
-  }, [user?.id]);
+  }, [user?.id, location.pathname, fetchUnreadMessages]);
 
   return (
     <header className="h-[44px] bg-white dark:bg-black px-4 flex justify-between items-center sticky top-0 z-40">
