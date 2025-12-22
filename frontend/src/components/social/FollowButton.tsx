@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
@@ -7,6 +8,7 @@ interface FollowButtonProps {
   onFollowChange?: (isFollowing: boolean) => void;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  showDropdown?: boolean;
 }
 
 export default function FollowButton({
@@ -14,6 +16,7 @@ export default function FollowButton({
   onFollowChange,
   size = 'md',
   className = '',
+  showDropdown = false,
 }: FollowButtonProps) {
   const { user } = useAuthStore();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -107,9 +110,10 @@ export default function FollowButton({
     <button
       onClick={handleFollowToggle}
       disabled={loading}
-      className={`${baseClasses} ${isFollowing ? followingClasses : followClasses} ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`${baseClasses} ${isFollowing ? followingClasses : followClasses} ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''} flex items-center justify-center gap-1`}
     >
       {loading ? '...' : isFollowing ? 'Following' : 'Follow'}
+      {showDropdown && isFollowing && <ChevronDown size={14} />}
     </button>
   );
 }

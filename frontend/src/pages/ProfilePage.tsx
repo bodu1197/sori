@@ -13,6 +13,9 @@ import {
   Disc,
   Settings,
   MessageCircle,
+  ChevronDown,
+  UserPlus,
+  Plus,
 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
@@ -689,17 +692,66 @@ export default function ProfilePage() {
             </>
           ) : (
             <>
-              <FollowButton userId={targetUserId!} size="md" className="flex-1" />
+              {/* Instagram-style Follow button with dropdown */}
+              <FollowButton userId={targetUserId!} size="md" className="flex-1" showDropdown />
+              {/* Message button */}
               <button
                 onClick={handleStartConversation}
                 disabled={startingConversation}
-                className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center disabled:opacity-50"
               >
-                <MessageCircle size={18} />
-                {t('profile.message', 'Message')}
+                {t('profile.sendMessage', 'Message')}
+              </button>
+              {/* User suggestion button */}
+              <button
+                className="bg-gray-100 dark:bg-gray-800 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                title="Suggested users"
+              >
+                <UserPlus size={18} />
               </button>
             </>
           )}
+        </div>
+
+        {/* Story Highlights Section - Instagram style */}
+        <div className="mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-4 pb-2">
+            {/* Add New Highlight button (only for own profile) */}
+            {isOwnProfile && (
+              <div className="flex flex-col items-center flex-shrink-0">
+                <button className="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center hover:border-gray-400 dark:hover:border-gray-500 transition">
+                  <Plus size={24} className="text-gray-400" />
+                </button>
+                <span className="text-xs mt-1 text-gray-600 dark:text-gray-400 truncate w-16 text-center">
+                  New
+                </span>
+              </div>
+            )}
+            {/* Highlight items - Show user's playlists as highlights */}
+            {playlists.slice(0, 8).map((playlist) => (
+              <div
+                key={playlist.id}
+                className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+                onClick={() => playlist.video_id && handlePlayPlaylist(playlist)}
+              >
+                <div className="w-16 h-16 rounded-full border-2 border-gray-300 dark:border-gray-600 p-0.5">
+                  <img
+                    src={
+                      playlist.cover_url ||
+                      (playlist.video_id
+                        ? `https://i.ytimg.com/vi/${playlist.video_id}/default.jpg`
+                        : 'https://via.placeholder.com/64')
+                    }
+                    alt={playlist.title || 'Playlist'}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                </div>
+                <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-16 text-center">
+                  {playlist.title?.slice(0, 10) || 'Playlist'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
