@@ -60,7 +60,7 @@ export default function CommentsModal({
             parent_id,
             content,
             created_at,
-            profiles:user_id (
+            profiles:post_comments_user_id_profiles_fkey (
               id,
               username,
               avatar_url
