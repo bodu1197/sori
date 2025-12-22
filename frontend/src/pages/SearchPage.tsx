@@ -1063,41 +1063,43 @@ export default function SearchPage() {
                     </h3>
                     <div className="space-y-1">
                       {(showAllSongs ? searchSongs : searchSongs.slice(0, 5)).map((song, i) => (
-                        <button
-                          type="button"
+                        <div
                           key={song.videoId || i}
-                          onClick={() => handlePlayTrackFromSearch(song, i)}
-                          className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                         >
-                          <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
-                          <img
-                            src={getBestThumbnail(song.thumbnails)}
-                            alt={song.title}
-                            className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-black dark:text-white truncate">
-                              {song.title}
+                          <button
+                            type="button"
+                            onClick={() => handlePlayTrackFromSearch(song, i)}
+                            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left bg-transparent border-0 p-0"
+                          >
+                            <span className="w-6 text-center text-sm text-gray-400">{i + 1}</span>
+                            <img
+                              src={getBestThumbnail(song.thumbnails)}
+                              alt={song.title}
+                              className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-black dark:text-white truncate">
+                                {song.title}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {song.artists?.[0]?.name}
+                                {song.album?.name && ` - ${song.album.name}`}
+                              </div>
                             </div>
-                            <div className="text-xs text-gray-500 truncate">
-                              {song.artists?.[0]?.name}
-                              {song.album?.name && ` - ${song.album.name}`}
-                            </div>
-                          </div>
-                          <span className="text-xs text-gray-400">{song.duration}</span>
-                          <span
-                            onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                              e.stopPropagation();
-                              handleToggleLike(song);
-                            }}
-                            className={`p-1.5 cursor-pointer ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                            <span className="text-xs text-gray-400">{song.duration}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLike(song)}
+                            className={`p-1.5 cursor-pointer bg-transparent border-0 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                           >
                             <Heart
                               size={16}
                               fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
                             />
-                          </span>
-                        </button>
+                          </button>
+                        </div>
                       ))}
                     </div>
                     {searchSongs.length > 5 && (
@@ -1164,42 +1166,44 @@ export default function SearchPage() {
                         ) : allSongsTracks.length > 0 ? (
                           <div>
                             {allSongsTracks.map((song, i) => (
-                              <button
-                                type="button"
+                              <div
                                 key={song.videoId || i}
-                                onClick={() => handlePlayAllSongsTrack(song, i)}
-                                className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
+                                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                               >
-                                <span className="w-6 text-center text-sm text-gray-400">
-                                  {i + 1}
-                                </span>
-                                <img
-                                  src={getBestThumbnail(song.thumbnails)}
-                                  alt={song.title}
-                                  className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-black dark:text-white truncate">
-                                    {song.title}
+                                <button
+                                  type="button"
+                                  onClick={() => handlePlayAllSongsTrack(song, i)}
+                                  className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer text-left bg-transparent border-0 p-0"
+                                >
+                                  <span className="w-6 text-center text-sm text-gray-400">
+                                    {i + 1}
+                                  </span>
+                                  <img
+                                    src={getBestThumbnail(song.thumbnails)}
+                                    alt={song.title}
+                                    className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-black dark:text-white truncate">
+                                      {song.title}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {song.artists?.[0]?.name}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-gray-500 truncate">
-                                    {song.artists?.[0]?.name}
-                                  </div>
-                                </div>
-                                <span className="text-xs text-gray-400">{song.duration}</span>
-                                <span
-                                  onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                                    e.stopPropagation();
-                                    handleToggleLike(song);
-                                  }}
-                                  className={`p-1.5 cursor-pointer ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                  <span className="text-xs text-gray-400">{song.duration}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleLike(song)}
+                                  className={`p-1.5 cursor-pointer bg-transparent border-0 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                 >
                                   <Heart
                                     size={16}
                                     fill={likedSongs.has(song.videoId) ? 'currentColor' : 'none'}
                                   />
-                                </span>
-                              </button>
+                                </button>
+                              </div>
                             ))}
                           </div>
                         ) : (
@@ -1231,47 +1235,47 @@ export default function SearchPage() {
                             key={albumId}
                             className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
                           >
-                            <button
-                              type="button"
-                              onClick={() => handleShowAlbumPanel(album)}
-                              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
-                            >
-                              <img
-                                src={getBestThumbnail(album.thumbnails)}
-                                alt={album.title}
-                                className="w-20 h-20 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-black dark:text-white truncate">
-                                  {album.title}
+                            <div className="flex items-start gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                              <button
+                                type="button"
+                                onClick={() => handleShowAlbumPanel(album)}
+                                className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer text-left bg-transparent border-0 p-0"
+                              >
+                                <img
+                                  src={getBestThumbnail(album.thumbnails)}
+                                  alt={album.title}
+                                  className="w-20 h-20 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-black dark:text-white truncate">
+                                    {album.title}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mb-2">
+                                    {album.type || 'Album'}
+                                    {album.year && ` - ${album.year}`}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    {isLoading ? (
+                                      <Loader2 size={14} className="animate-spin" />
+                                    ) : isExpanded ? (
+                                      <ChevronUp size={14} />
+                                    ) : (
+                                      <ChevronDown size={14} />
+                                    )}
+                                    <span>
+                                      {isLoading
+                                        ? t('common.loading')
+                                        : trackCount > 0
+                                          ? `${trackCount} ${t('search.tracks')}`
+                                          : t('search.clickToViewTracks')}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-500 mb-2">
-                                  {album.type || 'Album'}
-                                  {album.year && ` - ${album.year}`}
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                  {isLoading ? (
-                                    <Loader2 size={14} className="animate-spin" />
-                                  ) : isExpanded ? (
-                                    <ChevronUp size={14} />
-                                  ) : (
-                                    <ChevronDown size={14} />
-                                  )}
-                                  <span>
-                                    {isLoading
-                                      ? t('common.loading')
-                                      : trackCount > 0
-                                        ? `${trackCount} ${t('search.tracks')}`
-                                        : t('search.clickToViewTracks')}
-                                  </span>
-                                </div>
-                              </div>
-                              <span
-                                onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                                  e.stopPropagation();
-                                  handleToggleAlbumLike(album);
-                                }}
-                                className={`p-2 flex-shrink-0 cursor-pointer ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAlbumLike(album)}
+                                className={`p-2 flex-shrink-0 cursor-pointer bg-transparent border-0 ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                               >
                                 {savingAlbums.has(albumId) ? (
                                   <Loader2 size={20} className="animate-spin" />
@@ -1281,8 +1285,8 @@ export default function SearchPage() {
                                     fill={likedAlbums.has(albumId) ? 'currentColor' : 'none'}
                                   />
                                 )}
-                              </span>
-                            </button>
+                              </button>
+                            </div>
 
                             {isExpanded && trackCount > 0 && (
                               <div className="border-t border-gray-200 dark:border-gray-700">
@@ -1308,29 +1312,31 @@ export default function SearchPage() {
                                 </div>
                                 <div className="px-3 py-2">
                                   {tracks.map((track, trackIdx) => (
-                                    <button
-                                      type="button"
+                                    <div
                                       key={track.videoId || trackIdx}
-                                      onClick={() => handlePlayAlbumTrack(album, trackIdx)}
-                                      className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2 w-full text-left"
+                                      className="flex items-center gap-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-2 -mx-2"
                                     >
-                                      <span className="w-5 text-center text-xs text-gray-400">
-                                        {trackIdx + 1}
-                                      </span>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-sm text-black dark:text-white truncate">
-                                          {track.title}
+                                      <button
+                                        type="button"
+                                        onClick={() => handlePlayAlbumTrack(album, trackIdx)}
+                                        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer text-left bg-transparent border-0 p-0"
+                                      >
+                                        <span className="w-5 text-center text-xs text-gray-400">
+                                          {trackIdx + 1}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-sm text-black dark:text-white truncate">
+                                            {track.title}
+                                          </div>
                                         </div>
-                                      </div>
-                                      <span className="text-xs text-gray-400">
-                                        {track.duration || ''}
-                                      </span>
-                                      <span
-                                        onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                                          e.stopPropagation();
-                                          handleToggleLike(track, album.thumbnails);
-                                        }}
-                                        className={`p-1 cursor-pointer ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                        <span className="text-xs text-gray-400">
+                                          {track.duration || ''}
+                                        </span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleLike(track, album.thumbnails)}
+                                        className={`p-1 cursor-pointer bg-transparent border-0 ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                       >
                                         <Heart
                                           size={14}
@@ -1338,8 +1344,8 @@ export default function SearchPage() {
                                             likedSongs.has(track.videoId) ? 'currentColor' : 'none'
                                           }
                                         />
-                                      </span>
-                                    </button>
+                                      </button>
+                                    </div>
                                   ))}
                                 </div>
                               </div>
