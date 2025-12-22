@@ -914,7 +914,7 @@ export default function ProfilePage() {
                           playlistId: 'temp-rec', // logical id
                         }}
                         index={index}
-                        onPlay={(t, idx) => {
+                        onPlay={(trackItem, idx) => {
                           // 1. Prepare tracks with safe thumbnails
                           const tracks = recommendedTracks.map((r) => {
                             const thumb = r.videoId
