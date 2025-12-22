@@ -61,6 +61,7 @@ interface TrackItemProps {
 
 // Track Item Component for Your Music list
 function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }: TrackItemProps) {
+  const { t } = useTranslation();
   const [showDelete, setShowDelete] = useState(false);
 
   return (
@@ -110,7 +111,9 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
         >
           {track.title}
         </div>
-        <div className="text-xs text-gray-500 truncate">{track.artist || 'Unknown Artist'}</div>
+        <div className="text-xs text-gray-500 truncate">
+          {track.artist || t('common.unknownArtist', 'Unknown Artist')}
+        </div>
       </div>
 
       {/* Delete Button (on hover) */}
@@ -121,7 +124,7 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
             onDelete(track);
           }}
           className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-          title="Remove from liked"
+          title={t('profile.removeFromLiked', 'Remove from liked')}
         >
           <Trash2 size={16} />
         </button>
@@ -272,8 +275,8 @@ export default function ProfilePage() {
             .filter((p) => p.video_id)
             .map((p) => ({
               videoId: p.video_id as string,
-              title: p.title || 'Unknown',
-              artist: (profileData as Profile)?.username || 'You',
+              title: p.title || t('common.unknown', 'Unknown'),
+              artist: (profileData as Profile)?.username || t('profile.you', 'You'),
               thumbnail: p.cover_url,
               cover: p.cover_url,
               playlistId: p.id,
@@ -324,7 +327,7 @@ export default function ProfilePage() {
   const fetchAndShowPlaylist = async (playlistId: string) => {
     setTrackPanelLoading(true);
     openTrackPanel({
-      title: 'Loading...',
+      title: t('common.loading'),
       tracks: [],
       trackCount: 0,
     });
@@ -337,7 +340,7 @@ export default function ProfilePage() {
         const data = await response.json();
         const playlist = data.playlist;
         openTrackPanel({
-          title: playlist.title || 'Playlist',
+          title: playlist.title || t('profile.playlist'),
           description: playlist.description,
           author: playlist.author,
           thumbnails: playlist.thumbnails,
@@ -356,7 +359,7 @@ export default function ProfilePage() {
   const fetchAndShowAlbum = async (browseId: string) => {
     setTrackPanelLoading(true);
     openTrackPanel({
-      title: 'Loading...',
+      title: t('common.loading'),
       tracks: [],
       trackCount: 0,
     });
@@ -367,7 +370,7 @@ export default function ProfilePage() {
         const data = await response.json();
         const album = data.album;
         openTrackPanel({
-          title: album.title || 'Album',
+          title: album.title || t('profile.album', 'Album'),
           description: album.description,
           author: { name: album.artists?.map((a: { name: string }) => a.name).join(', ') || '' },
           thumbnails: album.thumbnails,
@@ -391,13 +394,15 @@ export default function ProfilePage() {
       const panelTracks: PlaylistTrackData[] = sectionVideoTracks.map((c) => ({
         videoId: c.videoId as string,
         title: c.title,
-        artists: c.artists || (c.subtitle ? [{ name: c.subtitle }] : [{ name: 'Unknown' }]),
+        artists:
+          c.artists ||
+          (c.subtitle ? [{ name: c.subtitle }] : [{ name: t('common.unknown', 'Unknown') }]),
         thumbnails: c.thumbnails,
       }));
 
       openTrackPanel({
         title: section.title,
-        author: { name: `${sectionVideoTracks.length} tracks` },
+        author: { name: `${sectionVideoTracks.length} ${t('profile.tracks')}` },
         tracks: panelTracks,
         trackCount: sectionVideoTracks.length,
       });
@@ -407,7 +412,8 @@ export default function ProfilePage() {
       const tracks = sectionVideoTracks.map((c) => ({
         videoId: c.videoId as string,
         title: c.title,
-        artist: c.artists?.map((a) => a.name).join(', ') || c.subtitle || 'Unknown',
+        artist:
+          c.artists?.map((a) => a.name).join(', ') || c.subtitle || t('common.unknown', 'Unknown'),
         thumbnail: getBestThumbnail(c.thumbnails) || undefined,
       }));
       startPlayback(tracks, videoTrackIndex >= 0 ? videoTrackIndex : 0);
@@ -433,13 +439,15 @@ export default function ProfilePage() {
 
     const panelTrack: PlaylistTrackData = {
       videoId: post.video_id,
-      title: post.title || 'Unknown',
-      artists: post.artist ? [{ name: post.artist }] : [{ name: 'Unknown Artist' }],
+      title: post.title || t('common.unknown', 'Unknown'),
+      artists: post.artist
+        ? [{ name: post.artist }]
+        : [{ name: t('common.unknownArtist', 'Unknown Artist') }],
       thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
     };
     openTrackPanel({
-      title: post.title || 'Track',
-      author: { name: post.artist || profile?.username || 'You' },
+      title: post.title || t('profile.track', 'Track'),
+      author: { name: post.artist || profile?.username || t('profile.you', 'You') },
       thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
       tracks: [panelTrack],
       trackCount: 1,
@@ -447,8 +455,8 @@ export default function ProfilePage() {
 
     const track = {
       videoId: post.video_id,
-      title: post.title || 'Unknown',
-      artist: post.artist || 'Unknown Artist',
+      title: post.title || t('common.unknown', 'Unknown'),
+      artist: post.artist || t('common.unknownArtist', 'Unknown Artist'),
       thumbnail: post.cover_url,
       cover: post.cover_url,
     };
@@ -462,13 +470,13 @@ export default function ProfilePage() {
 
     const panelTrack: PlaylistTrackData = {
       videoId: playlist.video_id,
-      title: playlist.title || 'Unknown Playlist',
-      artists: [{ name: profile?.username || 'You' }],
+      title: playlist.title || t('profile.playlist'),
+      artists: [{ name: profile?.username || t('profile.you', 'You') }],
       thumbnails: playlist.cover_url ? [{ url: playlist.cover_url }] : undefined,
     };
     openTrackPanel({
-      title: playlist.title || 'Playlist',
-      author: { name: profile?.username || 'You' },
+      title: playlist.title || t('profile.playlist'),
+      author: { name: profile?.username || t('profile.you', 'You') },
       thumbnails: playlist.cover_url ? [{ url: playlist.cover_url }] : undefined,
       tracks: [panelTrack],
       trackCount: 1,
@@ -476,8 +484,8 @@ export default function ProfilePage() {
 
     const track = {
       videoId: playlist.video_id,
-      title: playlist.title || 'Unknown Playlist',
-      artist: profile?.username || 'You',
+      title: playlist.title || t('profile.playlist'),
+      artist: profile?.username || t('profile.you', 'You'),
       thumbnail: playlist.cover_url,
       cover: playlist.cover_url,
     };
@@ -492,7 +500,7 @@ export default function ProfilePage() {
       const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
         videoId: s.videoId,
         title: s.title,
-        artists: [{ name: s.artist || 'Unknown Artist' }],
+        artists: [{ name: s.artist || t('common.unknownArtist', 'Unknown Artist') }],
         thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
       }));
       openTrackPanel({
@@ -524,7 +532,7 @@ export default function ProfilePage() {
     const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
       videoId: s.videoId,
       title: s.title,
-      artists: [{ name: s.artist || 'Unknown Artist' }],
+      artists: [{ name: s.artist || t('common.unknownArtist', 'Unknown Artist') }],
       thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
     }));
     openTrackPanel({
@@ -642,12 +650,12 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-1 justify-around ml-4">
-            <StatItem count={posts.length} label="Posts" />
+            <StatItem count={posts.length} label={t('profile.posts')} />
             <button onClick={() => setShowFollowersModal(true)} className="text-center">
-              <StatItem count={profile?.followers_count || 0} label="Followers" />
+              <StatItem count={profile?.followers_count || 0} label={t('common.followers')} />
             </button>
             <button onClick={() => setShowFollowingModal(true)} className="text-center">
-              <StatItem count={profile?.following_count || 0} label="Following" />
+              <StatItem count={profile?.following_count || 0} label={t('common.following')} />
             </button>
           </div>
         </div>
@@ -657,12 +665,14 @@ export default function ProfilePage() {
           <h2 className="font-bold text-sm">
             {profile?.full_name ||
               (isOwnProfile ? user?.user_metadata?.full_name : null) ||
-              'No Name'}
+              t('profile.noName')}
           </h2>
           <span className="text-xs text-gray-500 block mb-1">
             @{profile?.username || 'username'}
           </span>
-          <p className="text-sm whitespace-pre-line">{profile?.website || 'Music is life'}</p>
+          <p className="text-sm whitespace-pre-line">
+            {profile?.website || t('profile.musicIsLife')}
+          </p>
         </div>
 
         {/* Action Buttons */}
@@ -678,14 +688,14 @@ export default function ProfilePage() {
               <button
                 onClick={() => navigate('/settings')}
                 className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                title="Settings"
+                title={t('profile.settings', 'Settings')}
               >
                 <Settings size={18} />
               </button>
               <button
                 onClick={signOut}
                 className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
-                title="Sign Out"
+                title={t('profile.signOut')}
               >
                 <LogOut size={18} />
               </button>
@@ -700,12 +710,12 @@ export default function ProfilePage() {
                 disabled={startingConversation}
                 className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center disabled:opacity-50"
               >
-                {t('profile.sendMessage', 'Message')}
+                {t('profile.message')}
               </button>
               {/* User suggestion button */}
               <button
                 className="bg-gray-100 dark:bg-gray-800 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                title="Suggested users"
+                title={t('profile.suggestedUsers', 'Suggested users')}
               >
                 <UserPlus size={18} />
               </button>
@@ -723,7 +733,7 @@ export default function ProfilePage() {
                   <Plus size={24} className="text-gray-400" />
                 </button>
                 <span className="text-xs mt-1 text-gray-600 dark:text-gray-400 truncate w-16 text-center">
-                  New
+                  {t('profile.new')}
                 </span>
               </div>
             )}
@@ -742,12 +752,12 @@ export default function ProfilePage() {
                         ? `https://i.ytimg.com/vi/${playlist.video_id}/default.jpg`
                         : 'https://via.placeholder.com/64')
                     }
-                    alt={playlist.title || 'Playlist'}
+                    alt={playlist.title || t('profile.playlist')}
                     className="w-full h-full rounded-full object-cover"
                   />
                 </div>
                 <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-16 text-center">
-                  {playlist.title?.slice(0, 10) || 'Playlist'}
+                  {playlist.title?.slice(0, 10) || t('profile.playlist')}
                 </span>
               </div>
             ))}
@@ -901,7 +911,7 @@ export default function ProfilePage() {
             })
           ) : (
             <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
-              No posts yet. Share some music!
+              {t('profile.noPostsYet')}
             </div>
           )}
         </div>
