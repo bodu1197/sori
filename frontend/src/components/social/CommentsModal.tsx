@@ -256,7 +256,7 @@ export default function CommentsModal({
 
         {/* Input */}
         {user ? (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
+          <div className="p-4 pb-8 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
             <img
               src={user.user_metadata?.avatar_url || 'https://via.placeholder.com/150'}
               alt="You"
@@ -286,7 +286,7 @@ export default function CommentsModal({
             </button>
           </div>
         ) : (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-center">
+          <div className="p-4 pb-8 border-t border-gray-200 dark:border-gray-700 text-center">
             <span className="text-sm text-gray-500">Log in to comment</span>
           </div>
         )}
