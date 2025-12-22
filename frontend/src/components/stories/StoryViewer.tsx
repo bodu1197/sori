@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import usePlayerStore from '../../stores/usePlayerStore';
+import { DEFAULT_AVATAR } from '../common';
 
 interface Story {
   id: string;
@@ -236,7 +237,7 @@ export default function StoryViewer({
         <div className="absolute top-6 left-4 right-4 z-10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src={currentGroup.avatar_url || 'https://via.placeholder.com/150'}
+              src={currentGroup.avatar_url || DEFAULT_AVATAR}
               alt={currentGroup.username}
               className="w-8 h-8 rounded-full object-cover border border-white/20"
             />

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import FollowButton from './FollowButton';
+import { DEFAULT_AVATAR } from '../common';
 
 interface Profile {
   id: string;
@@ -18,15 +19,48 @@ interface FollowersModalProps {
   readonly onClose: () => void;
 }
 
+async function fetchUserIds(userId: string, type: 'followers' | 'following'): Promise<string[]> {
+  if (type === 'followers') {
+    const { data, error } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('following_id', userId);
+    if (error) throw error;
+    return data?.map((f) => f.follower_id) || [];
+  } else {
+    const { data, error } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', userId);
+    if (error) throw error;
+    return data?.map((f) => f.following_id) || [];
+  }
+}
+
+async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url')
+    .in('id', ids);
+
+  if (error) throw error;
+  return data || [];
+}
+
 export default function FollowersModal({ userId, type, isOpen, onClose }: FollowersModalProps) {
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const handleProfileClick = (profileId: string) => {
-    onClose();
-    navigate(`/profile/${profileId}`);
-  };
+  const handleProfileClick = useCallback(
+    (profileId: string) => {
+      onClose();
+      navigate(`/profile/${profileId}`);
+    },
+    [onClose, navigate]
+  );
 
   useEffect(() => {
     async function fetchProfiles() {
@@ -34,57 +68,9 @@ export default function FollowersModal({ userId, type, isOpen, onClose }: Follow
 
       setLoading(true);
       try {
-        if (type === 'followers') {
-          // Step 1: Get follower IDs from follows table
-          const { data: followsData, error: followsError } = await supabase
-            .from('follows')
-            .select('follower_id')
-            .eq('following_id', userId);
-
-          if (followsError) throw followsError;
-
-          const followerIds = followsData?.map((f) => f.follower_id) || [];
-
-          if (followerIds.length === 0) {
-            setProfiles([]);
-            return;
-          }
-
-          // Step 2: Get profiles for those IDs
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url')
-            .in('id', followerIds);
-
-          if (profilesError) throw profilesError;
-
-          setProfiles(profilesData || []);
-        } else {
-          // Step 1: Get following IDs from follows table
-          const { data: followsData, error: followsError } = await supabase
-            .from('follows')
-            .select('following_id')
-            .eq('follower_id', userId);
-
-          if (followsError) throw followsError;
-
-          const followingIds = followsData?.map((f) => f.following_id) || [];
-
-          if (followingIds.length === 0) {
-            setProfiles([]);
-            return;
-          }
-
-          // Step 2: Get profiles for those IDs
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url')
-            .in('id', followingIds);
-
-          if (profilesError) throw profilesError;
-
-          setProfiles(profilesData || []);
-        }
+        const userIds = await fetchUserIds(userId, type);
+        const profilesData = await fetchProfilesByIds(userIds);
+        setProfiles(profilesData);
       } catch (error) {
         console.error('Error fetching profiles:', error);
       } finally {
@@ -135,7 +121,7 @@ export default function FollowersModal({ userId, type, isOpen, onClose }: Follow
                     className="flex items-center gap-3 flex-1 text-left"
                   >
                     <img
-                      src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                      src={profile.avatar_url || DEFAULT_AVATAR}
                       alt={profile.username}
                       className="w-11 h-11 rounded-full object-cover"
                     />

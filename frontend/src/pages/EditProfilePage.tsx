@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera, Loader2, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
+import { DEFAULT_AVATAR } from '../components/common';
 
 interface Profile {
   username: string;
@@ -224,7 +225,7 @@ export default function EditProfilePage() {
         <div className="flex flex-col items-center">
           <div className="relative">
             <img
-              src={profile.avatar_url || 'https://via.placeholder.com/150'}
+              src={profile.avatar_url || DEFAULT_AVATAR}
               alt="Avatar"
               className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
             />

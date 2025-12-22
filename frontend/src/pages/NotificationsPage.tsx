@@ -4,6 +4,7 @@ import { Heart, MessageCircle, UserPlus, AtSign, Reply, Check, Loader2 } from 'l
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
 import { FollowButton } from '../components/social';
+import { DEFAULT_AVATAR } from '../components/common';
 
 interface Profile {
   id: string;
@@ -320,7 +321,7 @@ export default function NotificationsPage() {
                   {/* Avatar with notification type icon */}
                   <div className="relative">
                     <img
-                      src={notification.actor?.avatar_url || 'https://via.placeholder.com/150'}
+                      src={notification.actor?.avatar_url || DEFAULT_AVATAR}
                       alt={notification.actor?.username}
                       className="w-11 h-11 rounded-full object-cover"
                     />

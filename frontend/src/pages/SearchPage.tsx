@@ -18,6 +18,7 @@ import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
 import { FollowButton } from '../components/social';
+import { DEFAULT_AVATAR } from '../components/common';
 
 // Cloud Run Backend API (ytmusicapi)
 const API_BASE_URL =
@@ -1042,7 +1043,7 @@ export default function SearchPage() {
                     onClick={() => navigate(`/profile/${profile.id}`)}
                   >
                     <img
-                      src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                      src={profile.avatar_url || DEFAULT_AVATAR}
                       alt={profile.username}
                       className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
                     />
@@ -1083,7 +1084,7 @@ export default function SearchPage() {
                           onClick={() => navigate(`/profile/${profile.id}`)}
                         >
                           <img
-                            src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                            src={profile.avatar_url || DEFAULT_AVATAR}
                             alt={profile.username || profile.full_name || 'User'}
                             className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
                           />
@@ -1124,7 +1125,7 @@ export default function SearchPage() {
                           onClick={() => navigate(`/profile/${profile.id}`)}
                         >
                           <img
-                            src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                            src={profile.avatar_url || DEFAULT_AVATAR}
                             alt={profile.username || profile.full_name || 'User'}
                             className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
                           />

@@ -3,6 +3,7 @@ import { Send, X, Search, Loader2, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
+import { DEFAULT_AVATAR } from '../common';
 
 interface ShareButtonProps {
   readonly postId: string;
@@ -237,7 +238,7 @@ export default function ShareButton({
                       >
                         <div className="flex items-center gap-3">
                           <img
-                            src={targetUser.avatar_url || 'https://via.placeholder.com/150'}
+                            src={targetUser.avatar_url || DEFAULT_AVATAR}
                             alt={targetUser.username}
                             className="w-12 h-12 rounded-full object-cover"
                           />

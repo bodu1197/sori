@@ -17,6 +17,7 @@ import {
   PostOptionsMenu,
 } from '../components/social';
 import { StoriesBar } from '../components/stories';
+import { DEFAULT_AVATAR } from '../components/common';
 
 type FeedFilter = 'following' | 'all';
 
@@ -444,7 +445,7 @@ function StoryRail() {
           >
             <div className="bg-white dark:bg-black p-[2px] rounded-full">
               <img
-                src={profile.avatar_url || 'https://via.placeholder.com/150'}
+                src={profile.avatar_url || DEFAULT_AVATAR}
                 alt={profile.username}
                 className="w-[60px] h-[60px] rounded-full object-cover"
               />
@@ -524,7 +525,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
       <div className="flex justify-between items-center px-3 py-3">
         <button onClick={handleProfileClick} className="flex items-center gap-2 cursor-pointer">
           <img
-            src={profile?.avatar_url || 'https://via.placeholder.com/150'}
+            src={profile?.avatar_url || DEFAULT_AVATAR}
             alt={displayName}
             className="w-8 h-8 rounded-full object-cover border border-gray-100"
           />

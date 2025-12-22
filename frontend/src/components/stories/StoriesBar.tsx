@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 import StoryViewer from './StoryViewer';
 import CreateStoryModal from './CreateStoryModal';
+import { DEFAULT_AVATAR } from '../common';
 
 interface Story {
   id: string;
@@ -177,7 +178,7 @@ export default function StoriesBar() {
               >
                 <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5">
                   <img
-                    src={user?.user_metadata?.avatar_url || 'https://via.placeholder.com/150'}
+                    src={user?.user_metadata?.avatar_url || DEFAULT_AVATAR}
                     alt="Your story"
                     className="w-full h-full rounded-full object-cover"
                   />
@@ -207,7 +208,7 @@ export default function StoriesBar() {
                 >
                   <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5">
                     <img
-                      src={group.avatar_url || 'https://via.placeholder.com/150'}
+                      src={group.avatar_url || DEFAULT_AVATAR}
                       alt={group.username}
                       className="w-full h-full rounded-full object-cover"
                     />

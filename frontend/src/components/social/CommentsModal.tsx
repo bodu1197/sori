@@ -3,6 +3,7 @@ import { X, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 import CommentItem from './CommentItem';
+import { DEFAULT_AVATAR } from '../common';
 
 interface Profile {
   id: string;
@@ -258,7 +259,7 @@ export default function CommentsModal({
         {user ? (
           <div className="p-4 pb-16 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3">
             <img
-              src={user.user_metadata?.avatar_url || 'https://via.placeholder.com/150'}
+              src={user.user_metadata?.avatar_url || DEFAULT_AVATAR}
               alt="You"
               className="w-8 h-8 rounded-full object-cover"
             />

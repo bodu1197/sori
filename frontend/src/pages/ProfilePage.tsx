@@ -21,6 +21,7 @@ import useCountry from '../hooks/useCountry';
 import { supabase } from '../lib/supabase';
 import FollowersModal from '../components/social/FollowersModal';
 import FollowButton from '../components/social/FollowButton';
+import { DEFAULT_AVATAR } from '../components/common';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
@@ -639,7 +640,7 @@ export default function ProfilePage() {
                 src={
                   profile?.avatar_url ||
                   (isOwnProfile ? user?.user_metadata?.avatar_url : null) ||
-                  'https://via.placeholder.com/150'
+                  DEFAULT_AVATAR
                 }
                 alt="Profile"
                 className="w-full h-full rounded-full object-cover border-2 border-white dark:border-black"

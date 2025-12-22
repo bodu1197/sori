@@ -4,6 +4,7 @@ import { ArrowLeft, Send, Image, Music, Loader2, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore from '../stores/usePlayerStore';
+import { DEFAULT_AVATAR } from '../components/common';
 
 interface Message {
   id: string;
@@ -301,7 +302,7 @@ export default function ChatPage() {
             onClick={() => navigate(`/profile/${otherUser.id}`)}
           >
             <img
-              src={otherUser.avatar_url || 'https://via.placeholder.com/150'}
+              src={otherUser.avatar_url || DEFAULT_AVATAR}
               alt={otherUser.username}
               className="w-10 h-10 rounded-full object-cover"
             />
@@ -324,7 +325,7 @@ export default function ChatPage() {
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <img
-              src={otherUser?.avatar_url || 'https://via.placeholder.com/150'}
+              src={otherUser?.avatar_url || DEFAULT_AVATAR}
               alt={otherUser?.username}
               className="w-20 h-20 rounded-full object-cover mb-4"
             />

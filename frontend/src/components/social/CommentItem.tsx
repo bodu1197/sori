@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Heart, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
+import { DEFAULT_AVATAR } from '../common';
 
 interface Profile {
   id: string;
@@ -75,7 +76,7 @@ export default function CommentItem({
       <div className="flex gap-3 py-3">
         {/* Avatar */}
         <img
-          src={comment.profiles?.avatar_url || 'https://via.placeholder.com/150'}
+          src={comment.profiles?.avatar_url || DEFAULT_AVATAR}
           alt={comment.profiles?.username}
           className="w-8 h-8 rounded-full object-cover flex-shrink-0"
         />

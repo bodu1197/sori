@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
+import { DEFAULT_AVATAR } from '../components/common';
 
 interface SearchedUser {
   id: string;
@@ -327,7 +328,7 @@ export default function MessagesPage() {
                   className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition"
                 >
                   <img
-                    src={searchedUser.avatar_url || 'https://via.placeholder.com/150'}
+                    src={searchedUser.avatar_url || DEFAULT_AVATAR}
                     alt={searchedUser.username || 'User'}
                     className="w-12 h-12 rounded-full object-cover"
                   />
@@ -383,7 +384,7 @@ export default function MessagesPage() {
                 {/* Avatar */}
                 <div className="relative">
                   <img
-                    src={otherUser.avatar_url || 'https://via.placeholder.com/150'}
+                    src={otherUser.avatar_url || DEFAULT_AVATAR}
                     alt={otherUser.username}
                     className="w-14 h-14 rounded-full object-cover"
                   />
