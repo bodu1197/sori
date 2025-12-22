@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Heart, MessageCircle, Share2, MoreHorizontal, ArrowLeft } from 'lucide-react';
-import { AIChatDrawer } from '../ai/AIChatDrawer'; // Import Chat Component
+import { Heart, Share2, ArrowLeft } from 'lucide-react';
+// Chat import removed as per request
 
 interface ShortsPlayerProps {
   initialIndex: number;
@@ -11,7 +11,7 @@ interface ShortsPlayerProps {
 export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // Chat state removed
 
   // Scroll to initial index on mount
   useEffect(() => {
@@ -132,17 +132,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
                       label="Like"
                     />
 
-                    {/* Chat Button */}
-                    <ActionButton
-                      icon={
-                        <MessageCircle
-                          size={28}
-                          className={isChatOpen ? 'text-purple-400 fill-purple-400/20' : ''}
-                        />
-                      }
-                      label="Chat"
-                      onClick={() => setIsChatOpen(true)}
-                    />
+                    {/* Chat Button Removed */}
 
                     <ActionButton icon={<Share2 size={28} />} label="Share" />
 
@@ -187,10 +177,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
           })}
         </div>
 
-        {/* Chat Drawer container constrained to width */}
-        {isChatOpen && activeVideo && (
-          <AIChatDrawer artistName={activeVideo.artist} onClose={() => setIsChatOpen(false)} />
-        )}
+        {/* Chat Drawer Removed */}
       </div>
     </div>
   );

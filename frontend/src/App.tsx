@@ -14,6 +14,7 @@ import ChatPage from './pages/ChatPage';
 import HashtagPage from './pages/HashtagPage';
 import CreatePostPage from './pages/CreatePostPage';
 import useAuthStore from './stores/useAuthStore';
+import ArtistProfilePage from './pages/ArtistProfilePage';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -70,6 +71,7 @@ function App() {
           <Route path="/messages/:conversationId" element={<ChatPage />} />
           <Route path="/hashtag/:tag" element={<HashtagPage />} />
           <Route path="/create" element={<CreatePostPage />} />
+          <Route path="/artist/:id" element={<ArtistProfilePage />} />
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

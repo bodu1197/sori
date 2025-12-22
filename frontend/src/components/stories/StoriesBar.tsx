@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, BadgeCheck } from 'lucide-react'; // BadgeCheck for verified artists
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 import StoryViewer from './StoryViewer';
@@ -27,101 +27,132 @@ interface StoryGroup {
   avatar_url: string;
   stories: Story[];
   hasUnviewed: boolean;
+  isArtist?: boolean; // NEW: Flag for artist
 }
 
 export default function StoriesBar() {
   const { user } = useAuthStore();
   const [storyGroups, setStoryGroups] = useState<StoryGroup[]>([]);
+  const [artistGroups, setArtistGroups] = useState<StoryGroup[]>([]); // NEW
   const [loading, setLoading] = useState(true);
   const [viewedStories, setViewedStories] = useState<Set<string>>(new Set());
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [myStories, setMyStories] = useState<Story[]>([]);
 
-  // Fetch stories from people user follows
+  // Fetch stories
   useEffect(() => {
     async function fetchStories() {
-      if (!user?.id) return;
+      // if (!user?.id) return; // Allow viewing artists even if logged out? Maybe
 
       try {
-        // Get my stories first
-        const { data: myStoriesData } = await supabase
-          .from('stories')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: true });
-
-        setMyStories(myStoriesData || []);
-
-        // Get stories from followed users
-        const { data: followingData } = await supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', user.id);
-
-        if (!followingData || followingData.length === 0) {
-          setLoading(false);
-          return;
+        // 1. Get my stories (only if logged in)
+        if (user?.id) {
+          const { data: myStoriesData } = await supabase
+            .from('stories')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: true });
+          setMyStories(myStoriesData || []);
         }
 
-        const followingIds = followingData.map((f) => f.following_id);
+        // 2. Get Artists (Always fetch)
+        const { data: artistsData } = await supabase
+          .from('music_artists')
+          .select('*')
+          .order('last_updated', { ascending: false }) // Recently updated
+          .limit(10);
 
-        // Get stories
-        const { data: storiesData } = await supabase
-          .from('stories')
-          .select(
-            `
-            *,
-            profiles:user_id (
-              username,
-              avatar_url
-            )
-          `
-          )
-          .in('user_id', followingIds)
-          .eq('is_active', true)
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false });
+        if (artistsData) {
+          const artists = artistsData.map((a: any) => {
+            let avatar = DEFAULT_AVATAR;
+            try {
+              const thumbs = JSON.parse(a.thumbnails || '[]');
+              if (thumbs.length) avatar = thumbs[thumbs.length - 1].url;
+            } catch (e) {}
 
-        // Get viewed stories
-        const { data: viewedData } = await supabase
-          .from('story_views')
-          .select('story_id')
-          .eq('viewer_id', user.id);
+            // Create a fake welcome story
+            const fakeStory: Story = {
+              id: `artist-story-${a.browse_id}`,
+              user_id: a.browse_id,
+              content_type: 'text',
+              text_content: `Hello! I'm ${a.name}. Listen to my latest tracks on MusicGram 🎵`,
+              background_color: '#1a1a1a',
+              created_at: new Date().toISOString(),
+              expires_at: new Date(Date.now() + 86400000).toISOString(), // 24h
+            };
 
-        const viewedSet = new Set((viewedData || []).map((v) => v.story_id));
-        setViewedStories(viewedSet);
+            return {
+              user_id: a.browse_id,
+              username: a.name,
+              avatar_url: avatar,
+              stories: [fakeStory],
+              hasUnviewed: true, // Always show as new for engagement
+              isArtist: true,
+            };
+          });
+          // Shuffle and pick 5
+          setArtistGroups(artists.sort(() => 0.5 - Math.random()).slice(0, 5));
+        }
 
-        // Group stories by user
-        const groups: { [key: string]: StoryGroup } = {};
-        (storiesData || []).forEach(
-          (story: Story & { profiles: { username: string; avatar_url: string } }) => {
-            if (!groups[story.user_id]) {
-              groups[story.user_id] = {
-                user_id: story.user_id,
-                username: story.profiles?.username || 'Unknown',
-                avatar_url: story.profiles?.avatar_url || '',
-                stories: [],
-                hasUnviewed: false,
-              };
-            }
-            groups[story.user_id].stories.push(story);
-            if (!viewedSet.has(story.id)) {
-              groups[story.user_id].hasUnviewed = true;
-            }
+        // 3. Get stories from followed users (only if logged in)
+        if (user?.id) {
+          const { data: followingData } = await supabase
+            .from('follows')
+            .select('following_id')
+            .eq('follower_id', user.id);
+
+          if (followingData && followingData.length > 0) {
+            const followingIds = followingData.map((f) => f.following_id);
+            // Get stories
+            const { data: storiesData } = await supabase
+              .from('stories')
+              .select(
+                `
+                    *,
+                    profiles:user_id (
+                    username,
+                    avatar_url
+                    )
+                `
+              )
+              .in('user_id', followingIds)
+              .eq('is_active', true)
+              .gt('expires_at', new Date().toISOString())
+              .order('created_at', { ascending: false });
+
+            // Get viewed
+            const { data: viewedData } = await supabase
+              .from('story_views')
+              .select('story_id')
+              .eq('viewer_id', user.id);
+
+            const viewedSet = new Set((viewedData || []).map((v) => v.story_id));
+            setViewedStories(viewedSet);
+
+            // Group
+            const groups: { [key: string]: StoryGroup } = {};
+            (storiesData || []).forEach((story: any) => {
+              if (!groups[story.user_id]) {
+                groups[story.user_id] = {
+                  user_id: story.user_id,
+                  username: story.profiles?.username || 'Unknown',
+                  avatar_url: story.profiles?.avatar_url || '',
+                  stories: [],
+                  hasUnviewed: false,
+                };
+              }
+              groups[story.user_id].stories.push(story);
+              if (!viewedSet.has(story.id)) {
+                groups[story.user_id].hasUnviewed = true;
+              }
+            });
+
+            setStoryGroups(Object.values(groups));
           }
-        );
-
-        // Sort: unviewed first
-        const sortedGroups = Object.values(groups).sort((a, b) => {
-          if (a.hasUnviewed && !b.hasUnviewed) return -1;
-          if (!a.hasUnviewed && b.hasUnviewed) return 1;
-          return 0;
-        });
-
-        setStoryGroups(sortedGroups);
+        }
       } catch (error) {
         console.error('Error fetching stories:', error);
       } finally {
@@ -151,7 +182,10 @@ export default function StoriesBar() {
     );
   }
 
-  const hasAnyStories = myStories.length > 0 || storyGroups.length > 0;
+  // Combine: Artists first, then Friends
+  const displayGroups = [...artistGroups, ...storyGroups];
+
+  const hasAnyStories = myStories.length > 0 || displayGroups.length > 0;
 
   if (!hasAnyStories && !user) {
     return null;
@@ -162,51 +196,55 @@ export default function StoriesBar() {
       <div className="bg-white dark:bg-black border-b border-gray-100 dark:border-gray-800">
         <div className="flex gap-4 px-4 py-3 overflow-x-auto scrollbar-hide">
           {/* My Story / Add Story */}
-          <div className="flex flex-col items-center flex-shrink-0">
-            <button
-              onClick={() =>
-                myStories.length > 0 ? setSelectedGroupIndex(-1) : setShowCreateModal(true)
-              }
-              className="relative"
-            >
-              <div
-                className={`w-16 h-16 rounded-full p-0.5 ${
-                  myStories.length > 0
-                    ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600'
-                    : 'bg-gray-200 dark:bg-gray-700'
-                }`}
+          {user && (
+            <div className="flex flex-col items-center flex-shrink-0">
+              <button
+                onClick={() =>
+                  myStories.length > 0 ? setSelectedGroupIndex(-1) : setShowCreateModal(true)
+                }
+                className="relative"
               >
-                <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5">
-                  <img
-                    src={user?.user_metadata?.avatar_url || DEFAULT_AVATAR}
-                    alt="Your story"
-                    className="w-full h-full rounded-full object-cover"
-                  />
+                <div
+                  className={`w-16 h-16 rounded-full p-0.5 ${
+                    myStories.length > 0
+                      ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600'
+                      : 'bg-gray-200 dark:bg-gray-700'
+                  }`}
+                >
+                  <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5">
+                    <img
+                      src={user?.user_metadata?.avatar_url || DEFAULT_AVATAR}
+                      alt="Your story"
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  </div>
                 </div>
-              </div>
-              {myStories.length === 0 && (
-                <div className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white dark:border-black">
-                  <Plus size={12} className="text-white" />
-                </div>
-              )}
-            </button>
-            <span className="text-xs mt-1 text-black dark:text-white truncate w-16 text-center">
-              Your story
-            </span>
-          </div>
+                {myStories.length === 0 && (
+                  <div className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white dark:border-black">
+                    <Plus size={12} className="text-white" />
+                  </div>
+                )}
+              </button>
+              <span className="text-xs mt-1 text-black dark:text-white truncate w-16 text-center">
+                Your story
+              </span>
+            </div>
+          )}
 
-          {/* Following Stories */}
-          {storyGroups.map((group, index) => (
-            <div key={group.user_id} className="flex flex-col items-center flex-shrink-0">
+          {/* Stories List (Artists + Friends) */}
+          {displayGroups.map((group, index) => (
+            <div key={group.user_id} className="flex flex-col items-center flex-shrink-0 relative">
               <button onClick={() => setSelectedGroupIndex(index)}>
                 <div
                   className={`w-16 h-16 rounded-full p-0.5 ${
                     group.hasUnviewed
-                      ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600'
+                      ? group.isArtist
+                        ? 'bg-gradient-to-tr from-blue-400 via-indigo-500 to-purple-600 shadow-md shadow-blue-500/30' // Artist highlight
+                        : 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600'
                       : 'bg-gray-300 dark:bg-gray-600'
                   }`}
                 >
-                  <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5">
+                  <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5 relative">
                     <img
                       src={group.avatar_url || DEFAULT_AVATAR}
                       alt={group.username}
@@ -215,9 +253,16 @@ export default function StoriesBar() {
                   </div>
                 </div>
               </button>
-              <span className="text-xs mt-1 text-black dark:text-white truncate w-16 text-center">
-                {group.username}
-              </span>
+
+              {/* Artist Name with Verified Badge */}
+              <div className="flex items-center gap-0.5 mt-1 max-w-[70px]">
+                <span className="text-xs text-black dark:text-white truncate text-center flex-1">
+                  {group.username}
+                </span>
+                {group.isArtist && (
+                  <BadgeCheck size={12} className="text-blue-500 flex-shrink-0" fill="white" />
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -237,7 +282,7 @@ export default function StoriesBar() {
                     hasUnviewed: false,
                   },
                 ]
-              : storyGroups
+              : displayGroups // Use displayGroups (Artists + Friends)
           }
           initialGroupIndex={selectedGroupIndex === -1 ? 0 : selectedGroupIndex}
           onClose={() => setSelectedGroupIndex(null)}
