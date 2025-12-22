@@ -297,7 +297,7 @@ function ForYouSection() {
           <div className="flex items-center gap-2 mb-1">
             <span className="text-2xl">{context.recommendation?.emoji || '🎵'}</span>
             <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-medium text-white uppercase tracking-wider border border-white/10">
-              {countryName ? t('feed.popularIn', { country: countryName }) : 'Recommended'}
+              {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.recommended')}
             </span>
           </div>
 

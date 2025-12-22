@@ -878,7 +878,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h4 className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
-                      ✨ {recommendationContext?.title || 'Recommended for You'}
+                      ✨ {recommendationContext?.title || t('feed.recommended')}
                     </h4>
                     <p className="text-xs text-purple-600/70 dark:text-purple-400/70">
                       {recommendationContext?.message}
@@ -888,7 +888,7 @@ export default function ProfilePage() {
                     onClick={() => setRecommendedTracks([])}
                     className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    Clear
+                    {t('common.clear')}
                   </button>
                 </div>
 

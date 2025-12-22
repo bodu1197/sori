@@ -12,6 +12,7 @@ export interface TranslationStrings {
     noResults: string;
     followers: string;
     following: string;
+    clear?: string;
   };
   nav: {
     home: string;
@@ -98,6 +99,7 @@ export interface TranslationStrings {
     addComment: string;
     reposted: string;
     noRecommendations: string;
+    recommended?: string;
   };
   charts: {
     title: string;
@@ -255,6 +257,7 @@ export const translations: Record<SupportedLanguage, TranslationStrings> = {
       noResults: 'No results found',
       followers: 'Followers',
       following: 'Following',
+      clear: 'Clear',
     },
     nav: { home: 'Home', search: 'Search', create: 'Create', charts: 'Charts', profile: 'Profile' },
     profile: {
@@ -335,6 +338,7 @@ export const translations: Record<SupportedLanguage, TranslationStrings> = {
       addComment: 'Add a comment...',
       reposted: '{{username}} reposted',
       noRecommendations: 'No recommendations available',
+      recommended: 'Recommended',
     },
     charts: {
       title: 'Charts',
@@ -434,6 +438,7 @@ export const translations: Record<SupportedLanguage, TranslationStrings> = {
       noResults: '검색 결과 없음',
       followers: '팔로워',
       following: '팔로잉',
+      clear: '지우기',
     },
     nav: { home: '홈', search: '검색', create: '만들기', charts: '차트', profile: '프로필' },
     profile: {
@@ -977,6 +982,7 @@ export const translations: Record<SupportedLanguage, TranslationStrings> = {
       noResults: '無結果',
       followers: 'Followers',
       following: 'Following',
+      clear: '清除',
     },
     nav: { home: '首頁', search: '搜尋', create: '建立', charts: '排行榜', profile: '個人' },
     profile: {
