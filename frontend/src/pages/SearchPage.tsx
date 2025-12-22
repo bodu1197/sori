@@ -1401,10 +1401,11 @@ export default function SearchPage() {
                         const artistName =
                           artist.name || artist.artist || artist.title || 'Unknown';
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={artist.browseId || `related-${i}`}
                             onClick={() => handleSearchSimilarArtist(artistName)}
-                            className="flex flex-col items-center cursor-pointer group"
+                            className="flex flex-col items-center cursor-pointer group bg-transparent border-0 p-0"
                           >
                             <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
                               <img
@@ -1424,7 +1425,7 @@ export default function SearchPage() {
                                 {artist.subscribers}
                               </span>
                             )}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
