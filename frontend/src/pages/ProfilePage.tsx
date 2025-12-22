@@ -893,40 +893,69 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-1">
-                  {recommendedTracks.map((track, index) => (
-                    <TrackItem
-                      key={`rec-${track.videoId}`}
-                      track={{
-                        videoId: track.videoId,
-                        title: track.title,
-                        artist:
-                          typeof track.artists?.[0] === 'string'
-                            ? track.artists[0]
-                            : track.artists?.[0]?.name || 'Unknown',
-                        thumbnail: track.thumbnails?.[0]?.url,
-                        cover_url: track.thumbnails?.[0]?.url,
-                        playlistId: 'temp-rec', // logical id
-                      }}
-                      index={index} // Note: This index might conflict with main list if playing directly; ideally handlePlay should support separate lists
-                      onPlay={(t, idx) => {
-                        // Play these specific recommended tracks
-                        const tracks = recommendedTracks.map((r) => ({
-                          videoId: r.videoId,
-                          title: r.title,
+                  {recommendedTracks.map((track, index) => {
+                    // Ensure thumbnail is valid
+                    const safeThumbnail = track.videoId
+                      ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
+                      : track.thumbnails?.[0]?.url || (track as any).thumbnail || '';
+
+                    return (
+                      <TrackItem
+                        key={`rec-${track.videoId}`}
+                        track={{
+                          videoId: track.videoId,
+                          title: track.title,
                           artist:
-                            typeof r.artists?.[0] === 'string'
-                              ? r.artists[0]
-                              : r.artists?.[0]?.name || 'Unknown',
-                          thumbnail: r.thumbnails?.[0]?.url,
-                          cover: r.thumbnails?.[0]?.url,
-                        }));
-                        startPlayback(tracks, idx);
-                      }}
-                      isPlaying={isPlaying}
-                      isCurrentTrack={currentTrack?.videoId === track.videoId}
-                      // No delete button for recommendation items, maybe add 'save' button later
-                    />
-                  ))}
+                            typeof track.artists?.[0] === 'string'
+                              ? track.artists[0]
+                              : track.artists?.[0]?.name || (track as any).artist || 'Unknown',
+                          thumbnail: safeThumbnail,
+                          cover_url: safeThumbnail,
+                          playlistId: 'temp-rec', // logical id
+                        }}
+                        index={index}
+                        onPlay={(t, idx) => {
+                          // 1. Prepare tracks with safe thumbnails
+                          const tracks = recommendedTracks.map((r) => {
+                            const thumb = r.videoId
+                              ? `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg`
+                              : r.thumbnails?.[0]?.url || (r as any).thumbnail || '';
+                            return {
+                              videoId: r.videoId,
+                              title: r.title,
+                              artist:
+                                typeof r.artists?.[0] === 'string'
+                                  ? r.artists[0]
+                                  : r.artists?.[0]?.name || (r as any).artist || 'Unknown',
+                              thumbnail: thumb,
+                              cover: thumb,
+                              artists: r.artists || [{ name: (r as any).artist || 'Unknown' }],
+                            };
+                          });
+
+                          // 2. OPEN TRACK PANEL (Popup) - Important for UX & Policy
+                          // Transform to PlaylistTrackData specifically for the panel
+                          const panelTracks = tracks.map((tr) => ({
+                            ...tr,
+                            thumbnails: [{ url: tr.thumbnail || '' }],
+                          }));
+
+                          openTrackPanel({
+                            title: recommendationContext?.title || t('feed.recommended'),
+                            author: { name: recommendationContext?.message || 'Sori AI' },
+                            tracks: panelTracks,
+                            trackCount: panelTracks.length,
+                          });
+
+                          // 3. Start Playback
+                          startPlayback(tracks, idx);
+                        }}
+                        isPlaying={isPlaying}
+                        isCurrentTrack={currentTrack?.videoId === track.videoId}
+                        // No delete button for recommendation items, maybe add 'save' button later
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -252,13 +252,14 @@ function ForYouSection() {
   const handleBannerClick = () => {
     if (recommendations.length === 0) return;
 
-    // Transform to PlaylistTrackData format
+    // Transform to PlaylistTrackData format with ROBUST thumbnails
     const tracksToTransfer = recommendations.map((r) => ({
       videoId: r.videoId,
       title: r.title,
       artist: r.artists?.[0]?.name || r.artist || 'Unknown',
-      thumbnail: r.thumbnail,
-      cover: r.thumbnail,
+      // Force use YouTube HQ thumbnail to prevent broken images
+      thumbnail: r.videoId ? `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg` : r.thumbnail,
+      cover: r.videoId ? `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg` : r.thumbnail,
     }));
 
     // Navigate to profile with state
