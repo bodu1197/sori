@@ -61,52 +61,27 @@ export default function StoriesBar() {
           .order('last_updated', { ascending: false })
           .limit(10);
 
-        let sourceArtists = artistsData || [];
+        const sourceArtists = artistsData || [];
 
-        // FALLBACK: If DB is empty, use Mock Data to show UI changes
-        if (sourceArtists.length === 0) {
-          sourceArtists = [
-            {
-              browse_id: 'UC3SyT4_CK83-6S1k0d8fP1A',
-              name: 'IU',
-              thumbnails: JSON.stringify([
-                { url: 'https://i.scdn.co/image/ab6761610000e5eb006ff3c0136a71bfb9928d34' },
-              ]),
-            },
-            {
-              browse_id: 'UC3IZKseVpdzPSBaWxDn2Q_A',
-              name: 'BTS',
-              thumbnails: JSON.stringify([
-                {
-                  url: 'https://i.scdn.co/image/ab6761610000e5eb5704a64f34552ff23d6af77f',
-                },
-              ]),
-            },
-            {
-              browse_id: 'UCwI1Z9oe_P6d_V4M-XfQ',
-              name: 'NewJeans',
-              thumbnails: JSON.stringify([
-                {
-                  url: 'https://i.scdn.co/image/ab6761610000e5eb9d285055da37e754a2a4b9c5',
-                },
-              ]),
-            },
-            {
-              browse_id: 'UC9CoOnJkIBMdeijd9qYoT_g',
-              name: 'Taylor Swift',
-              thumbnails: JSON.stringify([
-                { url: 'https://i.scdn.co/image/ab6761610000e5eb5a00969a4698c3132a15fbb0' },
-              ]),
-            },
-          ];
-        }
-
+        // Only use real data from DB (no fake/mock data)
         const artists = sourceArtists.map((a: any) => {
           let avatar = DEFAULT_AVATAR;
-          try {
-            const thumbs = JSON.parse(a.thumbnails || '[]');
-            if (thumbs.length) avatar = thumbs[thumbs.length - 1].url;
-          } catch (e) {}
+
+          // 1. Check thumbnail_url first (saved by /api/search/quick)
+          if (a.thumbnail_url) {
+            avatar = a.thumbnail_url;
+          } else {
+            // 2. Fallback: try parsing thumbnails JSON array
+            try {
+              const thumbs = JSON.parse(a.thumbnails || '[]');
+              if (thumbs.length) {
+                // Use index 2, 1, 0 like SearchPage's getBestThumbnail
+                avatar = thumbs[2]?.url || thumbs[1]?.url || thumbs[0]?.url || DEFAULT_AVATAR;
+              }
+            } catch {
+              // JSON parse failed, keep DEFAULT_AVATAR
+            }
+          }
 
           const fakeStory: Story = {
             id: `artist-story-${a.browse_id}`,

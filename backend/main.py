@@ -112,10 +112,12 @@ def db_save_artist(artist_data: dict) -> str | None:
         if not browse_id:
             return None
 
+        thumbnails = artist_data.get("thumbnails") or []
         data = {
             "browse_id": browse_id,
             "name": artist_data.get("name") or artist_data.get("artist") or "",
-            "thumbnails": json.dumps(artist_data.get("thumbnails") or []),
+            "thumbnails": json.dumps(thumbnails),
+            "thumbnail_url": get_best_thumbnail(thumbnails),  # Also save best URL
             "description": artist_data.get("description") or "",
             "subscribers": artist_data.get("subscribers") or "",
             "last_updated": datetime.now(timezone.utc).isoformat()
