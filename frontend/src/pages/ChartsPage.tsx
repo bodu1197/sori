@@ -1,4 +1,5 @@
 import { useEffect, useState, SyntheticEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import useCountry from '../hooks/useCountry';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { Play, Loader2 } from 'lucide-react';
@@ -22,6 +23,7 @@ interface ChartTrack {
 }
 
 export default function ChartsPage() {
+  const { t } = useTranslation();
   const country = useCountry();
   const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [chartData, setChartData] = useState<ChartTrack[]>([]);
@@ -43,7 +45,7 @@ export default function ChartsPage() {
         const data = await response.json();
         setChartData(data.results || data.charts || data || []);
       } catch {
-        setError('Failed to load charts. Please try again.');
+        setError(t('charts.loadError'));
       } finally {
         setLoading(false);
       }
@@ -66,8 +68,8 @@ export default function ChartsPage() {
           t.thumbnail || t.cover ? [{ url: (t.thumbnail || t.cover) as string }] : undefined,
       }));
     openTrackPanel({
-      title: `Top 100 Charts - ${country.name}`,
-      author: { name: `${chartData.length} tracks` },
+      title: `${t('charts.top100')} - ${country.name}`,
+      author: { name: `${chartData.length} ${t('profile.tracks')}` },
       tracks: panelTracks,
       trackCount: chartData.length,
     });
@@ -88,9 +90,9 @@ export default function ChartsPage() {
   if (loading) {
     return (
       <div className="pb-20 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">Top 100 Charts</h1>
+        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t('charts.top100')}</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
-          Based on {country.name} {country.flag}
+          {t('charts.basedOn', { country: country.name })} {country.flag}
         </p>
         <div className="flex justify-center items-center py-20">
           <Loader2 size={32} className="animate-spin text-gray-400" />
@@ -102,9 +104,9 @@ export default function ChartsPage() {
   if (error) {
     return (
       <div className="pb-20 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">Top 100 Charts</h1>
+        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t('charts.top100')}</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
-          Based on {country.name} {country.flag}
+          {t('charts.basedOn', { country: country.name })} {country.flag}
         </p>
         <div className="text-center py-20">
           <p className="text-red-500 mb-4">{error}</p>
@@ -112,7 +114,7 @@ export default function ChartsPage() {
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-medium"
           >
-            Retry
+            {t('charts.retry')}
           </button>
         </div>
       </div>
@@ -121,9 +123,9 @@ export default function ChartsPage() {
 
   return (
     <div className="pb-20 px-4 pt-6">
-      <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">Top 100 Charts</h1>
+      <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t('charts.top100')}</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
-        Based on {country.name} {country.flag}
+        {t('charts.basedOn', { country: country.name })} {country.flag}
       </p>
 
       {chartData.length > 0 ? (
@@ -195,7 +197,7 @@ export default function ChartsPage() {
         </div>
       ) : (
         <div className="text-center py-20 text-gray-500 dark:text-gray-400">
-          <p>No charts available for this region.</p>
+          <p>{t('charts.noCharts')}</p>
         </div>
       )}
     </div>

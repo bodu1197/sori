@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MessageCircle, Play, Loader2, Repeat2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
@@ -143,6 +144,7 @@ interface FeedPost {
  * Uses country charts for latest popular songs with time-based variety
  */
 function ForYouSection() {
+  const { t } = useTranslation();
   const context = useContextRecommendation();
   const country = useCountry();
   const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
@@ -319,10 +321,10 @@ function ForYouSection() {
       {/* Recommendation Label */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          {countryName ? `Popular in ${countryName}` : 'For You'}
+          {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.forYou')}
         </span>
         <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white">
-          See all
+          {t('feed.seeAll')}
         </button>
       </div>
 
@@ -408,7 +410,7 @@ function ForYouSection() {
             );
           })
         ) : (
-          <p className="text-sm text-gray-500 py-4">No recommendations available</p>
+          <p className="text-sm text-gray-500 py-4">{t('feed.noRecommendations')}</p>
         )}
       </div>
     </div>
@@ -464,6 +466,7 @@ interface FeedPostProps {
 }
 
 function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPostProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const profile = post.profile;
   const displayName = profile?.username || profile?.full_name || 'Unknown';
@@ -600,7 +603,9 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
       {post.isRepost && post.reposter && (
         <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
           <Repeat2 size={16} />
-          <span>{post.reposter.username} reposted</span>
+          <span>
+            {post.reposter.username} {t('feed.reposted')}
+          </span>
         </div>
       )}
 
@@ -656,14 +661,14 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
             onClick={handleOpenComments}
             className="text-gray-500 dark:text-gray-400 text-sm mt-1"
           >
-            View all {post.comment_count} comments
+            {t('feed.viewComments', { count: post.comment_count })}
           </button>
         ) : (
           <button
             onClick={handleOpenComments}
             className="text-gray-500 dark:text-gray-400 text-sm mt-1"
           >
-            Add a comment...
+            {t('feed.addComment')}
           </button>
         )}
       </div>
@@ -687,6 +692,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
 }
 
 export default function FeedPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -800,7 +806,7 @@ export default function FeedPage() {
       ? posts.filter((post) => post.user_id && followingIds.includes(post.user_id))
       : posts;
 
-  if (loading) return <div className="p-10 text-center">Loading feed...</div>;
+  if (loading) return <div className="p-10 text-center">{t('feed.loadingFeed')}</div>;
 
   return (
     <div className="pb-20">
@@ -818,7 +824,7 @@ export default function FeedPage() {
                 : 'text-gray-500 dark:text-gray-400'
             }`}
           >
-            Following
+            {t('feed.following')}
           </button>
           <button
             onClick={() => setFilter('all')}
@@ -828,7 +834,7 @@ export default function FeedPage() {
                 : 'text-gray-500 dark:text-gray-400'
             }`}
           >
-            For You
+            {t('feed.forYou')}
           </button>
         </div>
       )}
@@ -849,13 +855,13 @@ export default function FeedPage() {
           ))
         ) : filter === 'following' ? (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
-            <p>No posts from people you follow.</p>
-            <p className="text-sm mt-1">Follow some musicians to see their posts here!</p>
+            <p>{t('feed.noFollowingPosts')}</p>
+            <p className="text-sm mt-1">{t('feed.followHint')}</p>
           </div>
         ) : (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
-            <p>No posts yet.</p>
-            <p className="text-sm">Follow some musicians or create a post!</p>
+            <p>{t('feed.noPosts')}</p>
+            <p className="text-sm">{t('feed.createPostHint')}</p>
           </div>
         )}
       </div>

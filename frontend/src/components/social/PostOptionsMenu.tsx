@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MoreHorizontal, X, Trash2, Flag, Link2, UserMinus, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
@@ -10,6 +11,7 @@ interface PostOptionsMenuProps {
 }
 
 export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOptionsMenuProps) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [showMenu, setShowMenu] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -101,7 +103,7 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
                   className="w-full flex items-center gap-3 px-4 py-4 text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Trash2 size={20} />
-                  <span className="font-medium">Delete</span>
+                  <span className="font-medium">{t('postOptions.delete')}</span>
                 </button>
               )}
 
@@ -111,7 +113,7 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
                   className="w-full flex items-center gap-3 px-4 py-4 text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <UserMinus size={20} />
-                  <span className="font-medium">Unfollow</span>
+                  <span className="font-medium">{t('postOptions.unfollow')}</span>
                 </button>
               )}
 
@@ -120,7 +122,9 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
                 className="w-full flex items-center gap-3 px-4 py-4 text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <Link2 size={20} />
-                <span className="font-medium">{copied ? 'Copied!' : 'Copy link'}</span>
+                <span className="font-medium">
+                  {copied ? t('postOptions.copied') : t('postOptions.copyLink')}
+                </span>
               </button>
 
               {!isOwnPost && (
@@ -129,7 +133,9 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
                   className="w-full flex items-center gap-3 px-4 py-4 text-black dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Flag size={20} />
-                  <span className="font-medium">{reported ? 'Reported' : 'Report'}</span>
+                  <span className="font-medium">
+                    {reported ? t('postOptions.reported') : t('postOptions.report')}
+                  </span>
                 </button>
               )}
             </div>
@@ -140,7 +146,7 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
                 onClick={() => setShowMenu(false)}
                 className="w-full px-4 py-4 text-black dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -153,11 +159,9 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
           <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-sm overflow-hidden">
             <div className="p-6 text-center">
               <h3 className="text-lg font-semibold text-black dark:text-white mb-2">
-                Delete post?
+                {t('postOptions.deletePost')}
               </h3>
-              <p className="text-gray-500 text-sm">
-                This action cannot be undone. The post will be permanently removed.
-              </p>
+              <p className="text-gray-500 text-sm">{t('postOptions.deleteConfirm')}</p>
             </div>
             <div className="flex border-t border-gray-100 dark:border-gray-800">
               <button
@@ -167,14 +171,18 @@ export default function PostOptionsMenu({ postId, authorId, onDelete }: PostOpti
                 }}
                 className="flex-1 py-3 text-black dark:text-white font-medium border-r border-gray-100 dark:border-gray-800"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex-1 py-3 text-red-500 font-medium flex items-center justify-center gap-2"
               >
-                {deleting ? <Loader2 size={18} className="animate-spin" /> : 'Delete'}
+                {deleting ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  t('postOptions.delete')
+                )}
               </button>
             </div>
           </div>

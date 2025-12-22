@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function AuthPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +35,7 @@ export default function AuthPage() {
     if (error) {
       alert(error.message);
     } else {
-      if (!isLogin) alert('Check your email for the login link!');
+      if (!isLogin) alert(t('auth.checkEmail'));
       navigate('/');
     }
   };
@@ -42,13 +44,13 @@ export default function AuthPage() {
     <div className="h-full flex flex-col items-center justify-center bg-white dark:bg-black p-8">
       <div className="w-full max-w-sm">
         <h1 className="text-4xl font-bold mb-8 text-center text-transparent bg-clip-text bg-gradient-to-tr from-purple-500 to-pink-500 font-sans tracking-tighter">
-          MusicGram
+          {t('auth.appName')}
         </h1>
 
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('auth.emailPlaceholder')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-gray-400 dark:focus:border-gray-600"
@@ -56,7 +58,7 @@ export default function AuthPage() {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-4 py-3 text-sm text-black dark:text-white focus:outline-none focus:border-gray-400 dark:focus:border-gray-600"
@@ -68,14 +70,14 @@ export default function AuthPage() {
             disabled={loading}
             className="bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
           >
-            {loading ? 'Processing...' : isLogin ? 'Log In' : 'Sign Up'}
+            {loading ? t('auth.processing') : isLogin ? t('auth.login') : t('auth.signup')}
           </button>
         </form>
 
         <div className="flex items-center my-6">
           <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
           <span className="px-4 text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">
-            OR
+            {t('auth.or')}
           </span>
           <div className="flex-1 border-t border-gray-200 dark:border-gray-800"></div>
         </div>
@@ -115,13 +117,13 @@ export default function AuthPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Continue with Google
+          {t('auth.continueWithGoogle')}
         </button>
 
         <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+          {isLogin ? t('auth.noAccountQuestion') : t('auth.hasAccountQuestion')}{' '}
           <button onClick={() => setIsLogin(!isLogin)} className="text-blue-500 font-semibold">
-            {isLogin ? 'Sign up' : 'Log in'}
+            {isLogin ? t('auth.signupLink') : t('auth.loginLink')}
           </button>
         </div>
       </div>

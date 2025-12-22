@@ -969,7 +969,9 @@ export default function SearchPage() {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder={activeTab === 'music' ? t('search.placeholder') : 'Search users...'}
+              placeholder={
+                activeTab === 'music' ? t('search.placeholder') : t('search.searchUsers')
+              }
               className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -1006,7 +1008,7 @@ export default function SearchPage() {
             }`}
           >
             <Music size={18} />
-            Music
+            {t('search.music')}
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -1017,7 +1019,7 @@ export default function SearchPage() {
             }`}
           >
             <Users size={18} />
-            Users
+            {t('search.users')}
           </button>
         </div>
       </div>
@@ -1071,7 +1073,7 @@ export default function SearchPage() {
                 {suggestedUsers.length > 0 && (
                   <div>
                     <h3 className="text-base font-bold mb-3 text-black dark:text-white flex items-center gap-2">
-                      Suggested for you
+                      {t('search.suggestedForYou')}
                     </h3>
                     <div className="space-y-2">
                       {suggestedUsers.map((profile) => (
@@ -1095,7 +1097,7 @@ export default function SearchPage() {
                             {profile.followers_count !== undefined &&
                               profile.followers_count > 0 && (
                                 <p className="text-xs text-gray-400 mt-0.5">
-                                  {profile.followers_count} followers
+                                  {profile.followers_count} {t('common.followers')}
                                 </p>
                               )}
                           </div>
@@ -1112,7 +1114,7 @@ export default function SearchPage() {
                 {newUsers.length > 0 && (
                   <div>
                     <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                      New to SORI
+                      {t('search.newToSori')}
                     </h3>
                     <div className="space-y-2">
                       {newUsers.map((profile) => (
@@ -1146,8 +1148,8 @@ export default function SearchPage() {
             ) : (
               <div className="text-center py-16 text-gray-500">
                 <Users size={48} className="mx-auto mb-4 opacity-50" />
-                <p>Search for users</p>
-                <p className="text-sm mt-2 text-gray-400">Find people by username or name</p>
+                <p>{t('search.searchForUsers')}</p>
+                <p className="text-sm mt-2 text-gray-400">{t('search.findPeople')}</p>
               </div>
             )}
           </>
@@ -1286,7 +1288,7 @@ export default function SearchPage() {
                         </div>
                         <div className="text-left">
                           <div className="text-sm font-semibold text-black dark:text-white">
-                            All Songs
+                            {t('search.allSongs')}
                           </div>
                           <div className="text-xs text-gray-500">
                             {allSongsTracks.length > 0

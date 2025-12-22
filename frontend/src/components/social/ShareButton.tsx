@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Send, X, Search, Loader2, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
@@ -25,6 +26,7 @@ export default function ShareButton({
   postThumbnail,
   size = 26,
 }: ShareButtonProps) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -183,7 +185,9 @@ export default function ShareButton({
           <div className="bg-white dark:bg-gray-900 w-full sm:w-[400px] sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              <h3 className="text-lg font-semibold text-black dark:text-white">Share</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">
+                {t('share.title')}
+              </h3>
               <button
                 onClick={handleClose}
                 className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -201,7 +205,7 @@ export default function ShareButton({
                 />
                 <input
                   type="text"
-                  placeholder="Search users..."
+                  placeholder={t('share.searchUsers')}
                   className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -218,7 +222,7 @@ export default function ShareButton({
                 </div>
               ) : users.length === 0 ? (
                 <div className="py-8 text-center text-gray-500">
-                  {searchQuery.trim() ? 'No users found' : 'Search for users to share'}
+                  {searchQuery.trim() ? t('share.noUsersFound') : t('share.searchToShare')}
                 </div>
               ) : (
                 <div>
@@ -259,10 +263,10 @@ export default function ShareButton({
                             <Loader2 size={16} className="animate-spin" />
                           ) : isSent ? (
                             <span className="flex items-center gap-1">
-                              <Check size={14} /> Sent
+                              <Check size={14} /> {t('share.sent')}
                             </span>
                           ) : (
-                            'Send'
+                            t('share.send')
                           )}
                         </button>
                       </div>
