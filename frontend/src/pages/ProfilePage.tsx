@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
+import useContentStore from '../stores/useContentStore';
 import useCountry from '../hooks/useCountry';
 import { supabase } from '../lib/supabase';
 import FollowersModal from '../components/social/FollowersModal';
@@ -329,12 +330,28 @@ export default function ProfilePage() {
     async function fetchHomeData() {
       if (activeTab !== 'discover' || homeData) return;
 
+      const {
+        homeData: cachedData,
+        homeDataLoadedAt,
+        setHomeData: setCachedData,
+      } = useContentStore.getState();
+      const now = Date.now();
+
+      // Use cached data if available and fresh (< 5m)
+      if (cachedData && homeDataLoadedAt && now - homeDataLoadedAt < 5 * 60 * 1000) {
+        setHomeData(cachedData);
+        // console.log('✅ Using Prefetched Profile Data');
+        return;
+      }
+
       setHomeLoading(true);
       try {
         const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}&limit=6`);
         if (response.ok) {
           const data = await response.json();
           setHomeData(data);
+          // Cache it for future visits
+          setCachedData(data);
         }
       } catch {
         // Error fetching home data

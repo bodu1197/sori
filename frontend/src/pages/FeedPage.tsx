@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef, SyntheticEvent, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, Play, Loader2, Repeat2 } from 'lucide-react';
+import { MessageCircle, Play, Repeat2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
+import useContentStore from '../stores/useContentStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
 import useCountry from '../hooks/useCountry';
 import useAuthStore from '../stores/useAuthStore';
@@ -149,13 +150,9 @@ function ForYouSection() {
   const navigate = useNavigate();
   const context = useContextRecommendation();
   const country = useCountry();
-  const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const [recommendations, setRecommendations] = useState<RecommendationTrack[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(true);
   const [countryName, setCountryName] = useState<string>('');
-
-  // Scroll container ref
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function fetchHomeRecommendations() {
@@ -248,6 +245,29 @@ function ForYouSection() {
     fetchHomeRecommendations();
   }, [country.code, country.name, context.recommendation?.searchQuery]);
 
+  // Prefetch Profile Data (Home Data) for instant loading
+  useEffect(() => {
+    const prefetchData = async () => {
+      const { homeData, homeDataLoadedAt, setHomeData } = useContentStore.getState();
+      const now = Date.now();
+      // Cache valid for 5 mins
+      if (homeData && homeDataLoadedAt && now - homeDataLoadedAt < 5 * 60 * 1000) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}&limit=6`);
+        if (response.ok) {
+          const data = await response.json();
+          setHomeData(data);
+        }
+      } catch (err) {
+        // Silent fail
+      }
+    };
+
+    const timer = setTimeout(prefetchData, 2000); // 2 seconds delay
+    return () => clearTimeout(timer);
+  }, [country.code]);
+
   // Handle banner click (Navigate to profile with tracks)
   const handleBannerClick = () => {
     if (recommendations.length === 0) return;
@@ -334,7 +354,7 @@ function StoryRail() {
     <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide min-h-[110px]">
       {loading
         ? // Skeleton Loaders to prevent layout shift
-          [...Array(6)].map((_, i) => (
+          Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
               <div className="w-[66px] h-[66px] rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
               <div className="w-12 h-2.5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
@@ -379,7 +399,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
   const profile = post.profile;
   const displayName = profile?.username || profile?.full_name || 'Unknown';
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
-  const { user } = useAuthStore();
   const likeCountText = useLikeCountText(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
 
