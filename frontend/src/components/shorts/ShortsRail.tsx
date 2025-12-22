@@ -24,7 +24,16 @@ const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
 export default function ShortsRail() {
   const [shorts, setShorts] = useState<any[]>([]);
-  const [selectedShort, setSelectedShort] = useState<any>(null);
+  // Changed state to hold viewer properties
+  const [viewerState, setViewerState] = useState<{
+    isOpen: boolean;
+    startIndex: number;
+    videos: any[];
+  }>({
+    isOpen: false,
+    startIndex: 0,
+    videos: [],
+  });
   const [loading, setLoading] = useState(true);
   const country = useCountry();
 
@@ -42,18 +51,12 @@ export default function ShortsRail() {
 
         if (response.ok) {
           const data = await response.json();
-          // Filter for likely shorts (no duration data from simple search, but we can assume popular music videos might be mixed)
-          // Ideally backend should filter by duration < 60s.
-          // For now, we mix API results with fallback to ensure good UX
-
           let results = data.results || data || [];
 
-          // Deduplicate and combine with fallback if not enough results
           if (results.length < 5) {
             results = [...results, ...FALLBACK_SHORTS];
           }
 
-          // Map to consistent format
           const formatted = results
             .map((item: any) => ({
               videoId: item.videoId,
@@ -63,7 +66,7 @@ export default function ShortsRail() {
                 item.thumbnails?.[item.thumbnails?.length - 1]?.url ||
                 `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
             }))
-            .slice(0, 10); // Take top 10
+            .slice(0, 10);
 
           setShorts(formatted);
         } else {
@@ -106,10 +109,10 @@ export default function ShortsRail() {
                 className="flex-shrink-0 w-[140px] aspect-[9/16] rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse"
               />
             ))
-          : shorts.map((video) => (
+          : shorts.map((video, index) => (
               <button
                 key={video.videoId}
-                onClick={() => setSelectedShort(video)}
+                onClick={() => setViewerState({ isOpen: true, startIndex: index, videos: shorts })}
                 className="relative flex-shrink-0 w-[140px] aspect-[9/16] rounded-xl overflow-hidden snap-start group shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
               >
                 <img
@@ -156,12 +159,11 @@ export default function ShortsRail() {
             ))}
       </div>
 
-      {selectedShort && (
+      {viewerState.isOpen && (
         <ShortsPlayer
-          videoId={selectedShort.videoId}
-          title={selectedShort.title}
-          channelName={selectedShort.artist || 'Unknown'}
-          onClose={() => setSelectedShort(null)}
+          initialIndex={viewerState.startIndex}
+          shorts={viewerState.videos}
+          onClose={() => setViewerState((prev) => ({ ...prev, isOpen: false }))}
         />
       )}
     </div>
