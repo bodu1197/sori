@@ -19,6 +19,7 @@ import {
 } from '../components/social';
 import { StoriesBar } from '../components/stories';
 import { DEFAULT_AVATAR } from '../components/common';
+import ShortsRail from '../components/shorts/ShortsRail';
 
 type FeedFilter = 'following' | 'all';
 
@@ -740,6 +741,9 @@ export default function FeedPage() {
     <div className="pb-20">
       {/* For You - Context-based Recommendations */}
       <ForYouSection />
+
+      {/* Trending Shorts Section */}
+      <ShortsRail />
 
       {/* Feed Filter Tabs */}
       {user && (
