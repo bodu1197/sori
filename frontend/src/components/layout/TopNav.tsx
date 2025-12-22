@@ -60,6 +60,25 @@ export default function TopNav() {
         },
         () => setUnreadNotifications((prev) => prev + 1)
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user?.id}`,
+        },
+        (payload) => {
+          // When notification is marked as read, decrease count
+          if (payload.new && payload.old) {
+            const wasUnread = !payload.old.is_read;
+            const isNowRead = payload.new.is_read;
+            if (wasUnread && isNowRead) {
+              setUnreadNotifications((prev) => Math.max(0, prev - 1));
+            }
+          }
+        }
+      )
       .subscribe();
 
     return () => {
