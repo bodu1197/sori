@@ -310,21 +310,6 @@ function ForYouSection() {
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/30 rounded-full blur-3xl"></div>
       </button>
-
-      {/* Preview of tracks (Mini thumbnails below banner) */}
-      <div className="flex gap-2 mt-3 overflow-hidden ml-1">
-        {recommendations.slice(0, 5).map((rec, i) => (
-          <div
-            key={i}
-            className="w-8 h-8 rounded-full overflow-hidden border border-gray-100 dark:border-gray-800 opacity-70"
-          >
-            <img src={rec.thumbnail} alt="" className="w-full h-full object-cover" />
-          </div>
-        ))}
-        <span className="text-xs self-center text-gray-400 ml-1">
-          + {recommendations.length} songs
-        </span>
-      </div>
     </div>
   );
 }
@@ -332,41 +317,52 @@ function ForYouSection() {
 function StoryRail() {
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchStories() {
       const { data } = await supabase.from('profiles').select('*').limit(10);
       if (data) setProfiles(data as Profile[]);
+      setLoading(false);
     }
     fetchStories();
   }, []);
 
-  if (profiles.length === 0) return null;
+  if (!loading && profiles.length === 0) return null;
 
   return (
-    <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide">
-      {profiles.map((profile) => (
-        <button
-          key={profile.id}
-          onClick={() => navigate(`/profile/${profile.id}`)}
-          className="flex flex-col items-center flex-shrink-0 cursor-pointer"
-        >
-          <div
-            className={`rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500`}
-          >
-            <div className="bg-white dark:bg-black p-[2px] rounded-full">
-              <img
-                src={profile.avatar_url || DEFAULT_AVATAR}
-                alt={profile.username}
-                className="w-[60px] h-[60px] rounded-full object-cover"
-              />
+    <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide min-h-[110px]">
+      {loading
+        ? // Skeleton Loaders to prevent layout shift
+          [...Array(6)].map((_, i) => (
+            <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
+              <div className="w-[66px] h-[66px] rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
+              <div className="w-12 h-2.5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
             </div>
-          </div>
-          <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-[64px] text-center">
-            {profile.username}
-          </span>
-        </button>
-      ))}
+          ))
+        : profiles.map((profile) => (
+            <button
+              key={profile.id}
+              onClick={() => navigate(`/profile/${profile.id}`)}
+              className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+            >
+              <div
+                className={`rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500`}
+              >
+                <div className="bg-white dark:bg-black p-[2px] rounded-full">
+                  <img
+                    src={profile.avatar_url || DEFAULT_AVATAR}
+                    alt={profile.username}
+                    className="w-[60px] h-[60px] rounded-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+              <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-[64px] text-center">
+                {profile.username}
+              </span>
+            </button>
+          ))}
     </div>
   );
 }
