@@ -248,11 +248,18 @@ export default function ProfilePage() {
         setProfile(profileData as Profile);
 
         // 2. Fetch User's Posts (public feed posts)
-        const { data: postsData, error: postsError } = await supabase
+        let postsQuery = supabase
           .from('posts')
           .select('*')
           .eq('user_id', targetUserId)
           .order('created_at', { ascending: false });
+
+        // Security: Only show public posts if viewing someone else's profile
+        if (!isOwnProfile) {
+          postsQuery = postsQuery.eq('is_public', true);
+        }
+
+        const { data: postsData, error: postsError } = await postsQuery;
 
         if (!postsError) {
           setPosts((postsData as Post[]) || []);
@@ -703,7 +710,24 @@ export default function ProfilePage() {
           ) : (
             <>
               {/* Instagram-style Follow button with dropdown */}
-              <FollowButton userId={targetUserId!} size="md" className="flex-1" showDropdown />
+              <FollowButton
+                userId={targetUserId!}
+                size="md"
+                className="flex-1"
+                showDropdown
+                onFollowChange={(isFollowing) => {
+                  setProfile((prev) => {
+                    if (!prev) return null;
+                    return {
+                      ...prev,
+                      followers_count: Math.max(
+                        0,
+                        (prev.followers_count || 0) + (isFollowing ? 1 : -1)
+                      ),
+                    };
+                  });
+                }}
+              />
               {/* Message button */}
               <button
                 onClick={handleStartConversation}
