@@ -209,8 +209,9 @@ export default function StoryViewer({
       )}
 
       {/* Story content */}
-      <div
-        className="relative w-full max-w-md h-full max-h-[85vh] bg-gray-900 rounded-2xl overflow-hidden"
+      <button
+        type="button"
+        className="relative w-full max-w-md h-full max-h-[85vh] bg-gray-900 rounded-2xl overflow-hidden p-0 border-0"
         onClick={handleClick}
         style={{ backgroundColor: currentStory.background_color || '#000' }}
       >
@@ -303,7 +304,7 @@ export default function StoryViewer({
             </p>
           )}
         </div>
-      </div>
+      </button>
     </div>
   );
 }
