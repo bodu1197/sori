@@ -192,31 +192,35 @@ export default function SettingsPage() {
           <button onClick={() => navigate(-1)} className="p-1 -ml-1 text-black dark:text-white">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-lg font-semibold text-black dark:text-white">Settings</h1>
+          <h1 className="text-lg font-semibold text-black dark:text-white">
+            {t('settings.title')}
+          </h1>
         </div>
       </div>
 
       {/* Account Section */}
       <div className="mt-4">
-        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">Account</h2>
+        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          {t('settings.account')}
+        </h2>
         <SettingItem
           icon={<User size={22} />}
-          label="Edit Profile"
-          description="Update your profile information"
+          label={t('settings.editProfile')}
+          description={t('settings.editProfileDesc')}
           onClick={() => navigate('/edit-profile')}
         />
         <SettingItem
           icon={<Lock size={22} />}
-          label="Password"
-          description="Change your password"
+          label={t('settings.password')}
+          description={t('settings.passwordDesc')}
           onClick={() => {
             /* TODO: Password change modal */
           }}
         />
         <SettingItem
           icon={<Shield size={22} />}
-          label="Security"
-          description="Two-factor authentication"
+          label={t('settings.security')}
+          description={t('settings.securityDesc')}
           onClick={() => {
             /* TODO: Security settings */
           }}
@@ -225,56 +229,64 @@ export default function SettingsPage() {
 
       {/* Privacy Section */}
       <div className="mt-6">
-        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">Privacy</h2>
+        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          {t('settings.privacy')}
+        </h2>
         <SettingItem
           icon={<Lock size={22} />}
-          label="Private Account"
-          description="Only followers can see your playlists"
+          label={t('settings.privateAccount')}
+          description={t('settings.privateAccountDesc')}
           rightElement={<Toggle enabled={privateAccount} onChange={setPrivateAccount} />}
         />
         <SettingItem
           icon={<Eye size={22} />}
-          label="Activity Status"
-          description="Show when you are online"
+          label={t('settings.activityStatus')}
+          description={t('settings.activityStatusDesc')}
           rightElement={<Toggle enabled={showActivity} onChange={setShowActivity} />}
         />
       </div>
 
       {/* Notifications Section */}
       <div className="mt-6">
-        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">Notifications</h2>
+        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          {t('settings.notifications')}
+        </h2>
         <SettingItem
           icon={<Bell size={22} />}
-          label="Push Notifications"
-          description="Receive push notifications"
+          label={t('settings.pushNotifications')}
+          description={t('settings.pushNotificationsDesc')}
           rightElement={<Toggle enabled={pushNotifications} onChange={setPushNotifications} />}
         />
         <SettingItem
           icon={<Bell size={22} />}
-          label="Email Notifications"
-          description="Receive email updates"
+          label={t('settings.emailNotifications')}
+          description={t('settings.emailNotificationsDesc')}
           rightElement={<Toggle enabled={emailNotifications} onChange={setEmailNotifications} />}
         />
       </div>
 
       {/* Playback Section */}
       <div className="mt-6">
-        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">Playback</h2>
+        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          {t('settings.playback')}
+        </h2>
         <SettingItem
           icon={<Volume2 size={22} />}
-          label="Autoplay"
-          description="Automatically play next track"
+          label={t('settings.autoplay')}
+          description={t('settings.autoplayDesc')}
           rightElement={<Toggle enabled={autoPlay} onChange={setAutoPlay} />}
         />
       </div>
 
       {/* Appearance Section */}
       <div className="mt-6">
-        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">Appearance</h2>
+        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          {t('settings.appearance')}
+        </h2>
         <SettingItem
           icon={darkMode ? <Moon size={22} /> : <Sun size={22} />}
-          label="Dark Mode"
-          description={darkMode ? 'Currently using dark theme' : 'Currently using light theme'}
+          label={t('settings.darkMode')}
+          description={darkMode ? t('settings.darkModeOn') : t('settings.darkModeOff')}
           rightElement={<Toggle enabled={darkMode} onChange={handleDarkModeToggle} />}
         />
         <SettingItem
@@ -287,24 +299,26 @@ export default function SettingsPage() {
 
       {/* Support Section */}
       <div className="mt-6">
-        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">Support</h2>
+        <h2 className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          {t('settings.support')}
+        </h2>
         <SettingItem
           icon={<HelpCircle size={22} />}
-          label="Help Center"
+          label={t('settings.helpCenter')}
           onClick={() => {
             /* TODO: Help center */
           }}
         />
         <SettingItem
           icon={<Shield size={22} />}
-          label="Privacy Policy"
+          label={t('settings.privacyPolicy')}
           onClick={() => {
             /* TODO: Privacy policy */
           }}
         />
         <SettingItem
           icon={<Shield size={22} />}
-          label="Terms of Service"
+          label={t('settings.termsOfService')}
           onClick={() => {
             /* TODO: Terms of service */
           }}
@@ -315,7 +329,7 @@ export default function SettingsPage() {
       <div className="mt-6 mb-8">
         <SettingItem
           icon={<LogOut size={22} />}
-          label="Log Out"
+          label={t('settings.logout')}
           onClick={handleLogout}
           danger
           rightElement={<></>}
