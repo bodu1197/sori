@@ -2158,7 +2158,7 @@ async def run_custom_sql(secret: str = None, access_token: str = None, sql: str 
 
     mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
     if not mgmt_token:
-        raise HTTPException(status_code=400, detail="access_token required")
+        raise HTTPException(status_code=400, detail=ERROR_ACCESS_TOKEN_REQUIRED)
 
     project_ref = "nrtkbulkzhhlstaomvas"
 
@@ -2189,7 +2189,7 @@ async def fix_notification_triggers(secret: str = None, access_token: str = None
 
     mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
     if not mgmt_token:
-        raise HTTPException(status_code=400, detail="access_token required")
+        raise HTTPException(status_code=400, detail=ERROR_ACCESS_TOKEN_REQUIRED)
 
     project_ref = "nrtkbulkzhhlstaomvas"
 
@@ -2270,7 +2270,7 @@ async def fix_advisor_warnings(secret: str = None, access_token: str = None):
     # Supabase Management API 토큰 (환경변수 또는 파라미터)
     mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
     if not mgmt_token:
-        raise HTTPException(status_code=400, detail="access_token required")
+        raise HTTPException(status_code=400, detail=ERROR_ACCESS_TOKEN_REQUIRED)
 
     project_ref = "nrtkbulkzhhlstaomvas"
 
@@ -2348,7 +2348,7 @@ async def run_migrations(secret: str = None, access_token: str = None):
 
     mgmt_token = access_token or os.getenv("SUPABASE_ACCESS_TOKEN")
     if not mgmt_token:
-        raise HTTPException(status_code=400, detail="access_token required")
+        raise HTTPException(status_code=400, detail=ERROR_ACCESS_TOKEN_REQUIRED)
 
     project_ref = "nrtkbulkzhhlstaomvas"
 

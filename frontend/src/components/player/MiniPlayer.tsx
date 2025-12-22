@@ -1,4 +1,4 @@
-import { useMemo, useState, ChangeEvent, MouseEvent } from 'react';
+import { useMemo, useState, ChangeEvent } from 'react';
 import {
   Play,
   Pause,

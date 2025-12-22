@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
+import React, { useEffect, useState, useRef, SyntheticEvent, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle, Play, Loader2, Repeat2 } from 'lucide-react';
