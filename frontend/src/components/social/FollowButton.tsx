@@ -114,7 +114,10 @@ export default function FollowButton({
 
   return (
     <button
-      onClick={handleFollowToggle}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleFollowToggle();
+      }}
       disabled={loading}
       className={`${baseClasses} ${isFollowing ? followingClasses : followClasses} ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''} flex items-center justify-center gap-1`}
     >
