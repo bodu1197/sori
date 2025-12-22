@@ -331,6 +331,12 @@ export default function SearchPage() {
     if (searchQuery.trim().length < 2) return;
 
     setSearchLoading(true);
+    setAllSongsTracks([]);
+    setAllSongsExpanded(false);
+    setShowAllSongs(false);
+    setExpandedAlbums(new Set());
+    setAlbumTracks({});
+    setLoadingAlbums(new Set());
     try {
       // 1단계: 초고속 검색 (search()만 호출)
       const response = await fetch(
