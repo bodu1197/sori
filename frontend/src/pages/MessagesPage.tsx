@@ -4,6 +4,13 @@ import { Search, Loader2, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
 
+interface SearchedUser {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 interface Participant {
   user_id: string;
   profiles: {
@@ -33,6 +40,8 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<string[]>([]); // conversation IDs with matching messages
   const [searching, setSearching] = useState(false);
+  const [searchedUsers, setSearchedUsers] = useState<SearchedUser[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
 
   // Fetch conversations
   useEffect(() => {
@@ -202,6 +211,39 @@ export default function MessagesPage() {
     return () => clearTimeout(debounce);
   }, [searchQuery, user?.id, conversations]);
 
+  // Search all users when query changes
+  useEffect(() => {
+    async function searchUsers() {
+      if (!searchQuery.trim() || !user?.id) {
+        setSearchedUsers([]);
+        setSearchingUsers(false);
+        return;
+      }
+
+      setSearchingUsers(true);
+      try {
+        const query = searchQuery.trim();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .neq('id', user.id)
+          .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+          .limit(10);
+
+        if (error) throw error;
+        setSearchedUsers(data || []);
+      } catch (error) {
+        console.error('Error searching users:', error);
+        setSearchedUsers([]);
+      } finally {
+        setSearchingUsers(false);
+      }
+    }
+
+    const debounce = setTimeout(searchUsers, 300);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, user?.id]);
+
   // Format time
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -264,28 +306,68 @@ export default function MessagesPage() {
         </div>
       </div>
 
+      {/* User Search Results */}
+      {searchQuery.trim() && (
+        <div className="border-b border-gray-100 dark:border-gray-800">
+          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900">
+            <p className="text-xs font-semibold text-gray-500 uppercase">Users</p>
+          </div>
+          {searchingUsers ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 size={20} className="animate-spin text-gray-400" />
+            </div>
+          ) : searchedUsers.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-500">No users found</div>
+          ) : (
+            <div>
+              {searchedUsers.map((searchedUser) => (
+                <div
+                  key={searchedUser.id}
+                  onClick={() => navigate(`/profile/${searchedUser.id}`)}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition"
+                >
+                  <img
+                    src={searchedUser.avatar_url || 'https://via.placeholder.com/150'}
+                    alt={searchedUser.username || 'User'}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-semibold text-black dark:text-white">
+                      {searchedUser.username}
+                    </p>
+                    {searchedUser.full_name && (
+                      <p className="text-sm text-gray-500">{searchedUser.full_name}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Conversations List */}
+      {searchQuery.trim() && (
+        <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Conversations</p>
+        </div>
+      )}
       {loading || searching ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 size={32} className="animate-spin text-gray-400" />
         </div>
       ) : filteredConversations.length === 0 ? (
-        <div className="py-16 text-center">
-          <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
-          {searchQuery.trim() ? (
-            <>
-              <p className="text-gray-500">No results found</p>
-              <p className="text-sm text-gray-400 mt-1">Try a different search term</p>
-            </>
-          ) : (
-            <>
-              <p className="text-gray-500">No messages yet</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Start a conversation from someone's profile
-              </p>
-            </>
-          )}
-        </div>
+        searchQuery.trim() ? (
+          <div className="px-4 py-3 text-sm text-gray-500">No matching conversations</div>
+        ) : (
+          <div className="py-16 text-center">
+            <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500">No messages yet</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Search for users above to start a conversation
+            </p>
+          </div>
+        )
       ) : (
         <div>
           {filteredConversations.map((conversation) => {
