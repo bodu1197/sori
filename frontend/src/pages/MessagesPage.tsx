@@ -31,6 +31,8 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<string[]>([]); // conversation IDs with matching messages
+  const [searching, setSearching] = useState(false);
 
   // Fetch conversations
   useEffect(() => {
@@ -160,6 +162,46 @@ export default function MessagesPage() {
     fetchConversations();
   }, [user?.id]);
 
+  // Search messages when query changes
+  useEffect(() => {
+    async function searchMessages() {
+      if (!searchQuery.trim() || !user?.id) {
+        setSearchResults([]);
+        setSearching(false);
+        return;
+      }
+
+      setSearching(true);
+      try {
+        // Get conversation IDs the user is part of
+        const conversationIds = conversations.map((c) => c.id);
+        if (conversationIds.length === 0) {
+          setSearchResults([]);
+          return;
+        }
+
+        // Search messages in user's conversations
+        const { data: matchingMessages } = await supabase
+          .from('messages')
+          .select('conversation_id')
+          .in('conversation_id', conversationIds)
+          .ilike('content', `%${searchQuery.trim()}%`);
+
+        // Get unique conversation IDs that have matching messages
+        const matchedConvIds = [...new Set((matchingMessages || []).map((m) => m.conversation_id))];
+        setSearchResults(matchedConvIds);
+      } catch (error) {
+        console.error('Error searching messages:', error);
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }
+
+    const debounce = setTimeout(searchMessages, 300);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, user?.id, conversations]);
+
   // Format time
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -174,19 +216,23 @@ export default function MessagesPage() {
     return date.toLocaleDateString();
   };
 
-  // Filter conversations by participant name
+  // Filter conversations by participant name OR message content (from DB search)
   const filteredConversations = conversations.filter((conv) => {
     if (!searchQuery.trim()) return true;
 
-    // No participants to search, keep the conversation visible
-    if (!conv.participants || conv.participants.length === 0) return true;
-
     const query = searchQuery.toLowerCase();
-    return conv.participants.some((p) => {
+
+    // Search in participant names
+    const matchesParticipant = conv.participants?.some((p) => {
       const username = p.profiles?.username || '';
       const fullName = p.profiles?.full_name || '';
       return username.toLowerCase().includes(query) || fullName.toLowerCase().includes(query);
     });
+
+    // Check if conversation has matching messages (from DB search)
+    const matchesMessage = searchResults.includes(conv.id);
+
+    return matchesParticipant || matchesMessage;
   });
 
   if (!user) {
@@ -219,15 +265,26 @@ export default function MessagesPage() {
       </div>
 
       {/* Conversations List */}
-      {loading ? (
+      {loading || searching ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 size={32} className="animate-spin text-gray-400" />
         </div>
       ) : filteredConversations.length === 0 ? (
         <div className="py-16 text-center">
           <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500">No messages yet</p>
-          <p className="text-sm text-gray-400 mt-1">Start a conversation from someone's profile</p>
+          {searchQuery.trim() ? (
+            <>
+              <p className="text-gray-500">No results found</p>
+              <p className="text-sm text-gray-400 mt-1">Try a different search term</p>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-500">No messages yet</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Start a conversation from someone's profile
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div>
