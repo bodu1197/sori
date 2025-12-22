@@ -332,6 +332,8 @@ function ForYouSection() {
       {/* Horizontal Scroll Recommendations */}
       <div
         ref={scrollRef}
+        role="region"
+        aria-label="Recommended tracks"
         className={`flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

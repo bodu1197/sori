@@ -343,7 +343,11 @@ export default function NotificationsPage() {
 
                   {/* Action button for follow notifications */}
                   {notification.type === 'follow' && notification.actor && (
-                    <span onClick={(e) => e.stopPropagation()}>
+                    <span
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      role="presentation"
+                    >
                       <FollowButton userId={notification.actor.id} size="sm" />
                     </span>
                   )}

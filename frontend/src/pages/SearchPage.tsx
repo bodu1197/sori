@@ -906,7 +906,11 @@ export default function SearchPage() {
                         <p className="text-xs text-gray-400 truncate mt-0.5">{profile.bio}</p>
                       )}
                     </div>
-                    <span onClick={(e) => e.stopPropagation()}>
+                    <span
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      role="presentation"
+                    >
                       <FollowButton userId={profile.id} size="sm" />
                     </span>
                   </button>
@@ -951,7 +955,11 @@ export default function SearchPage() {
                                 </p>
                               )}
                           </div>
-                          <span onClick={(e) => e.stopPropagation()}>
+                          <span
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            role="presentation"
+                          >
                             <FollowButton userId={profile.id} size="sm" />
                           </span>
                         </button>
@@ -987,7 +995,11 @@ export default function SearchPage() {
                               <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
                             )}
                           </div>
-                          <span onClick={(e) => e.stopPropagation()}>
+                          <span
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            role="presentation"
+                          >
                             <FollowButton userId={profile.id} size="sm" />
                           </span>
                         </button>
@@ -1092,11 +1104,20 @@ export default function SearchPage() {
                           </div>
                           <span className="text-xs text-gray-400">{song.duration}</span>
                           <span
+                            role="button"
+                            tabIndex={0}
                             onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                               e.stopPropagation();
                               handleToggleLike(song);
                             }}
-                            className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                handleToggleLike(song);
+                              }
+                            }}
+                            className={`p-1.5 cursor-pointer ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                           >
                             <Heart
                               size={16}
@@ -1194,11 +1215,20 @@ export default function SearchPage() {
                                 </div>
                                 <span className="text-xs text-gray-400">{song.duration}</span>
                                 <span
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                     e.stopPropagation();
                                     handleToggleLike(song);
                                   }}
-                                  className={`p-1.5 ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                  onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      handleToggleLike(song);
+                                    }
+                                  }}
+                                  className={`p-1.5 cursor-pointer ${likedSongs.has(song.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                 >
                                   <Heart
                                     size={16}
@@ -1273,11 +1303,20 @@ export default function SearchPage() {
                                 </div>
                               </div>
                               <span
+                                role="button"
+                                tabIndex={0}
                                 onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                   e.stopPropagation();
                                   handleToggleAlbumLike(album);
                                 }}
-                                className={`p-2 flex-shrink-0 ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleToggleAlbumLike(album);
+                                  }
+                                }}
+                                className={`p-2 flex-shrink-0 cursor-pointer ${likedAlbums.has(albumId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                               >
                                 {savingAlbums.has(albumId) ? (
                                   <Loader2 size={20} className="animate-spin" />
@@ -1332,11 +1371,20 @@ export default function SearchPage() {
                                         {track.duration || ''}
                                       </span>
                                       <span
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                           e.stopPropagation();
                                           handleToggleLike(track, album.thumbnails);
                                         }}
-                                        className={`p-1 ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                        onKeyDown={(e: React.KeyboardEvent<HTMLSpanElement>) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            handleToggleLike(track, album.thumbnails);
+                                          }
+                                        }}
+                                        className={`p-1 cursor-pointer ${likedSongs.has(track.videoId) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                       >
                                         <Heart
                                           size={14}
