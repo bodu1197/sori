@@ -556,83 +556,94 @@ export default function SearchPage() {
     );
   };
 
+  // Helper to start playback with panel
+  const startPlaybackWithPanel = (
+    songs: SearchSong[],
+    title: string,
+    shuffle: boolean,
+    thumbnails?: Thumbnail[]
+  ) => {
+    openTrackPanel({
+      title,
+      author: { name: `${songs.length} ${t('search.tracks')}` },
+      thumbnails,
+      tracks: songsToPanelTracks(songs),
+      trackCount: songs.length,
+    });
+    const playlist = songsToPlaylist(songs);
+    startPlayback(shuffle ? [...playlist].sort(() => Math.random() - 0.5) : playlist, 0);
+  };
+
+  // Fetch and play songs from playlist
+  const fetchAndPlayPlaylist = async (
+    playlistId: string,
+    title: string,
+    shuffle: boolean,
+    thumbnails?: Thumbnail[]
+  ) => {
+    setAllSongsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/playlist/${playlistId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const tracks: SearchSong[] = (data.playlist?.tracks || []).map(
+          (trackData: {
+            videoId: string;
+            title: string;
+            artists?: Artist[];
+            thumbnails?: Thumbnail[];
+            duration?: string;
+            album?: Album;
+          }) => ({
+            videoId: trackData.videoId,
+            title: trackData.title,
+            artists: trackData.artists,
+            thumbnails: trackData.thumbnails,
+            duration: trackData.duration,
+            album: trackData.album,
+          })
+        );
+        setAllSongsTracks(tracks);
+        if (tracks.length > 0) {
+          startPlaybackWithPanel(tracks, title, shuffle, thumbnails);
+        }
+      }
+    } catch {
+      // Error fetching playlist
+    } finally {
+      setAllSongsLoading(false);
+    }
+  };
+
   // Helper to play or shuffle songs with panel
   const playOrShuffleSongs = async (shuffle: boolean) => {
     const allSongsTitle = `${searchArtist?.artist || 'Artist'} - All Songs`;
 
     // If we already have All Songs tracks, use them
     if (allSongsTracks.length > 0) {
-      openTrackPanel({
-        title: allSongsTitle,
-        author: { name: `${allSongsTracks.length} ${t('search.tracks')}` },
-        thumbnails: searchArtist?.thumbnails,
-        tracks: songsToPanelTracks(allSongsTracks),
-        trackCount: allSongsTracks.length,
-      });
-      const playlist = songsToPlaylist(allSongsTracks);
-      startPlayback(shuffle ? [...playlist].sort(() => Math.random() - 0.5) : playlist, 0);
+      startPlaybackWithPanel(allSongsTracks, allSongsTitle, shuffle, searchArtist?.thumbnails);
       return;
     }
 
     // Fetch All Songs playlist if available
     if (searchArtist?.songsPlaylistId) {
-      setAllSongsLoading(true);
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const tracks: SearchSong[] = (data.playlist?.tracks || []).map(
-            (trackData: {
-              videoId: string;
-              title: string;
-              artists?: Artist[];
-              thumbnails?: Thumbnail[];
-              duration?: string;
-              album?: Album;
-            }) => ({
-              videoId: trackData.videoId,
-              title: trackData.title,
-              artists: trackData.artists,
-              thumbnails: trackData.thumbnails,
-              duration: trackData.duration,
-              album: trackData.album,
-            })
-          );
-          setAllSongsTracks(tracks);
-
-          if (tracks.length > 0) {
-            openTrackPanel({
-              title: allSongsTitle,
-              author: { name: `${tracks.length} ${t('search.tracks')}` },
-              thumbnails: searchArtist?.thumbnails,
-              tracks: songsToPanelTracks(tracks),
-              trackCount: tracks.length,
-            });
-            const playlist = songsToPlaylist(tracks);
-            startPlayback(shuffle ? [...playlist].sort(() => Math.random() - 0.5) : playlist, 0);
-          }
-        }
-      } catch {
-        // Error fetching playlist
-      } finally {
-        setAllSongsLoading(false);
-      }
+      await fetchAndPlayPlaylist(
+        searchArtist.songsPlaylistId,
+        allSongsTitle,
+        shuffle,
+        searchArtist?.thumbnails
+      );
       return;
     }
 
     // Fallback to top tracks if no playlist available
     if (searchSongs.length === 0) return;
-    openTrackPanel({
-      title: searchArtist?.artist || t('search.topTracks'),
-      author: { name: `${searchSongs.length} ${t('search.tracks')}` },
-      thumbnails: searchArtist?.thumbnails,
-      tracks: songsToPanelTracks(searchSongs),
-      trackCount: searchSongs.length,
-    });
-    const playlist = songsToPlaylist(searchSongs);
-    startPlayback(shuffle ? [...playlist].sort(() => Math.random() - 0.5) : playlist, 0);
+    startPlaybackWithPanel(
+      searchSongs,
+      searchArtist?.artist || t('search.topTracks'),
+      shuffle,
+      searchArtist?.thumbnails
+    );
   };
 
   // Play all songs
