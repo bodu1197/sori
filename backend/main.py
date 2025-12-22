@@ -77,11 +77,11 @@ def get_ytmusic(country: str = "US"):
 
     return ytmusic_instances[country]
 
-def cache_get(_key: str):
+def cache_get(key: str):  # noqa: ARG001 - Parameter intentionally unused (caching disabled)
     """캐시 비활성화 - 항상 None 반환"""
     return None
 
-def cache_set(_key: str, _value, _ttl: int = 3600):
+def cache_set(key: str, value, ttl: int = 3600):  # noqa: ARG001 - Parameters intentionally unused (caching disabled)
     """캐시 비활성화 - 아무 동작 안함"""
     pass
 
