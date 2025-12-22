@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   User,
@@ -14,9 +15,69 @@ import {
   Shield,
   Eye,
   Volume2,
+  Check,
+  X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
+
+// Supported languages with native names (50 languages for global platform)
+const LANGUAGES = [
+  // Major Global Languages
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { code: 'zh', name: 'Chinese (Simplified)', nativeName: '简体中文' },
+  { code: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文' },
+  { code: 'es', name: 'Spanish', nativeName: 'Espanol' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Portugues' },
+  { code: 'fr', name: 'French', nativeName: 'Francais' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano' },
+  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands' },
+  { code: 'ru', name: 'Russian', nativeName: 'Russkij' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Turkce' },
+  { code: 'pl', name: 'Polish', nativeName: 'Polski' },
+  { code: 'sv', name: 'Swedish', nativeName: 'Svenska' },
+  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia' },
+  { code: 'th', name: 'Thai', nativeName: 'ไทย' },
+  { code: 'vi', name: 'Vietnamese', nativeName: 'Tieng Viet' },
+  { code: 'ms', name: 'Malay', nativeName: 'Bahasa Melayu' },
+  { code: 'fil', name: 'Filipino', nativeName: 'Filipino' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
+  // Indian Subcontinent Languages
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
+  // European Languages
+  { code: 'uk', name: 'Ukrainian', nativeName: 'Ukrainska' },
+  { code: 'ro', name: 'Romanian', nativeName: 'Romana' },
+  { code: 'el', name: 'Greek', nativeName: 'Ellinika' },
+  { code: 'cs', name: 'Czech', nativeName: 'Cestina' },
+  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar' },
+  { code: 'fi', name: 'Finnish', nativeName: 'Suomi' },
+  { code: 'da', name: 'Danish', nativeName: 'Dansk' },
+  { code: 'no', name: 'Norwegian', nativeName: 'Norsk' },
+  { code: 'bg', name: 'Bulgarian', nativeName: 'Balgarski' },
+  { code: 'hr', name: 'Croatian', nativeName: 'Hrvatski' },
+  { code: 'sr', name: 'Serbian', nativeName: 'Srpski' },
+  { code: 'sk', name: 'Slovak', nativeName: 'Slovencina' },
+  { code: 'sl', name: 'Slovenian', nativeName: 'Slovenscina' },
+  { code: 'ca', name: 'Catalan', nativeName: 'Catala' },
+  // Middle East & Africa
+  { code: 'he', name: 'Hebrew', nativeName: 'עברית' },
+  { code: 'fa', name: 'Persian', nativeName: 'فارسی' },
+  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili' },
+  // Other Asian Languages
+  { code: 'my', name: 'Burmese', nativeName: 'မြန်မာဘာသာ' },
+];
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -77,6 +138,7 @@ function Toggle({ enabled, onChange }: ToggleProps) {
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { signOut } = useAuthStore();
+  const { t, i18n } = useTranslation();
 
   // Settings state
   const [darkMode, setDarkMode] = useState(() => {
@@ -87,6 +149,17 @@ export default function SettingsPage() {
   const [privateAccount, setPrivateAccount] = useState(false);
   const [showActivity, setShowActivity] = useState(true);
   const [autoPlay, setAutoPlay] = useState(true);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+
+  // Get current language info
+  const currentLanguage = LANGUAGES.find((lang) => lang.code === i18n.language) || LANGUAGES[0];
+
+  // Handle language change
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+    localStorage.setItem('language', langCode);
+    setShowLanguageModal(false);
+  };
 
   // Handle dark mode toggle
   const handleDarkModeToggle = (enabled: boolean) => {
@@ -206,11 +279,9 @@ export default function SettingsPage() {
         />
         <SettingItem
           icon={<Globe size={22} />}
-          label="Language"
-          description="English"
-          onClick={() => {
-            /* TODO: Language selector */
-          }}
+          label={t('settings.language')}
+          description={currentLanguage.nativeName}
+          onClick={() => setShowLanguageModal(true)}
         />
       </div>
 
@@ -255,6 +326,45 @@ export default function SettingsPage() {
       <div className="px-4 py-4 text-center">
         <p className="text-sm text-gray-400">SORI v1.0.0</p>
       </div>
+
+      {/* Language Selection Modal */}
+      {showLanguageModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-900 w-full sm:w-[400px] sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-lg font-semibold text-black dark:text-white">
+                {t('settings.language')}
+              </h3>
+              <button
+                onClick={() => setShowLanguageModal(false)}
+                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Language List */}
+            <div className="flex-1 overflow-y-auto">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium text-black dark:text-white">
+                      {lang.nativeName}
+                    </span>
+                    <span className="text-sm text-gray-500">{lang.name}</span>
+                  </div>
+                  {i18n.language === lang.code && <Check size={20} className="text-blue-500" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
