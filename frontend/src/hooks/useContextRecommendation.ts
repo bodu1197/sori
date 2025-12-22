@@ -46,6 +46,57 @@ interface WeatherResponse {
   };
 }
 
+// Helper function to determine time of day and greeting
+function getTimeContext(hour: number): { timeOfDay: TimeOfDay; greeting: string } {
+  if (hour >= 5 && hour < 12) {
+    return { timeOfDay: 'morning', greeting: 'Good Morning' };
+  }
+  if (hour >= 12 && hour < 17) {
+    return { timeOfDay: 'afternoon', greeting: 'Good Afternoon' };
+  }
+  if (hour >= 17 && hour < 21) {
+    return { timeOfDay: 'evening', greeting: 'Good Evening' };
+  }
+  return { timeOfDay: 'night', greeting: 'Good Night' };
+}
+
+// Helper function to convert weather code to condition
+function getWeatherCondition(weatherCode: number): WeatherCondition {
+  if ([0, 1].includes(weatherCode)) return 'clear';
+  if ([2, 3].includes(weatherCode)) return 'cloudy';
+  if ([45, 48].includes(weatherCode)) return 'foggy';
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return 'rainy';
+  if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return 'snowy';
+  if ([95, 96, 99].includes(weatherCode)) return 'stormy';
+  return 'clear';
+}
+
+// Helper function to fetch weather data
+async function fetchWeatherData(
+  geoData: GeoResponse
+): Promise<{ weather: WeatherCondition; temperature: number | null; locationName: string }> {
+  const locationName = geoData.city || geoData.country_name || '';
+
+  if (!geoData.latitude || !geoData.longitude) {
+    return { weather: null, temperature: null, locationName };
+  }
+
+  const weatherResponse = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${geoData.latitude}&longitude=${geoData.longitude}&current=temperature_2m,weather_code`
+  );
+  const weatherData: WeatherResponse = await weatherResponse.json();
+
+  if (!weatherData.current) {
+    return { weather: null, temperature: null, locationName };
+  }
+
+  return {
+    weather: getWeatherCondition(weatherData.current.weather_code),
+    temperature: Math.round(weatherData.current.temperature_2m),
+    locationName,
+  };
+}
+
 export default function useContextRecommendation(): ContextState {
   const [context, setContext] = useState<ContextState>({
     timeOfDay: 'day',
@@ -62,22 +113,7 @@ export default function useContextRecommendation(): ContextState {
     async function fetchContext() {
       try {
         const hour = new Date().getHours();
-        let timeOfDay: TimeOfDay;
-        let greeting: string;
-
-        if (hour >= 5 && hour < 12) {
-          timeOfDay = 'morning';
-          greeting = 'Good Morning';
-        } else if (hour >= 12 && hour < 17) {
-          timeOfDay = 'afternoon';
-          greeting = 'Good Afternoon';
-        } else if (hour >= 17 && hour < 21) {
-          timeOfDay = 'evening';
-          greeting = 'Good Evening';
-        } else {
-          timeOfDay = 'night';
-          greeting = 'Good Night';
-        }
+        const { timeOfDay, greeting } = getTimeContext(hour);
 
         let weather: WeatherCondition = null;
         let temperature: number | null = null;
@@ -86,38 +122,10 @@ export default function useContextRecommendation(): ContextState {
         try {
           const geoResponse = await fetch('https://ipapi.co/json/');
           const geoData: GeoResponse = await geoResponse.json();
-
-          if (geoData.latitude && geoData.longitude) {
-            locationName = geoData.city || geoData.country_name || '';
-
-            const weatherResponse = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${geoData.latitude}&longitude=${geoData.longitude}&current=temperature_2m,weather_code`
-            );
-            const weatherData: WeatherResponse = await weatherResponse.json();
-
-            if (weatherData.current) {
-              temperature = Math.round(weatherData.current.temperature_2m);
-              const weatherCode = weatherData.current.weather_code;
-
-              if ([0, 1].includes(weatherCode)) {
-                weather = 'clear';
-              } else if ([2, 3].includes(weatherCode)) {
-                weather = 'cloudy';
-              } else if ([45, 48].includes(weatherCode)) {
-                weather = 'foggy';
-              } else if (
-                [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)
-              ) {
-                weather = 'rainy';
-              } else if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) {
-                weather = 'snowy';
-              } else if ([95, 96, 99].includes(weatherCode)) {
-                weather = 'stormy';
-              } else {
-                weather = 'clear';
-              }
-            }
-          }
+          const weatherResult = await fetchWeatherData(geoData);
+          weather = weatherResult.weather;
+          temperature = weatherResult.temperature;
+          locationName = weatherResult.locationName;
         } catch {
           // Weather fetch failed, using time-based only
         }

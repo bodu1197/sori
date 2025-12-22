@@ -94,6 +94,9 @@ async def run_in_thread(func, *args, **kwargs):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
+# Error message constants
+ERROR_ACCESS_TOKEN_REQUIRED = "access_token required"
+
 # =============================================================================
 # Supabase DB 헬퍼 함수
 # =============================================================================
