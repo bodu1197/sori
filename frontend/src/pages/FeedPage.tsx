@@ -330,10 +330,12 @@ function ForYouSection() {
       </div>
 
       {/* Horizontal Scroll Recommendations */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
         ref={scrollRef}
         role="region"
         aria-label="Recommended tracks"
+        tabIndex={-1}
         className={`flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
