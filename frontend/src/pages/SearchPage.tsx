@@ -909,7 +909,6 @@ export default function SearchPage() {
                     <span
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
-                      role="presentation"
                     >
                       <FollowButton userId={profile.id} size="sm" />
                     </span>
@@ -958,7 +957,6 @@ export default function SearchPage() {
                           <span
                             onClick={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
-                            role="presentation"
                           >
                             <FollowButton userId={profile.id} size="sm" />
                           </span>
@@ -998,7 +996,6 @@ export default function SearchPage() {
                           <span
                             onClick={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
-                            role="presentation"
                           >
                             <FollowButton userId={profile.id} size="sm" />
                           </span>
@@ -1104,7 +1101,6 @@ export default function SearchPage() {
                           </div>
                           <span className="text-xs text-gray-400">{song.duration}</span>
                           <span
-                            role="button"
                             tabIndex={0}
                             onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                               e.stopPropagation();
@@ -1215,7 +1211,6 @@ export default function SearchPage() {
                                 </div>
                                 <span className="text-xs text-gray-400">{song.duration}</span>
                                 <span
-                                  role="button"
                                   tabIndex={0}
                                   onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                     e.stopPropagation();
@@ -1303,7 +1298,6 @@ export default function SearchPage() {
                                 </div>
                               </div>
                               <span
-                                role="button"
                                 tabIndex={0}
                                 onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                   e.stopPropagation();
@@ -1371,7 +1365,6 @@ export default function SearchPage() {
                                         {track.duration || ''}
                                       </span>
                                       <span
-                                        role="button"
                                         tabIndex={0}
                                         onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
                                           e.stopPropagation();

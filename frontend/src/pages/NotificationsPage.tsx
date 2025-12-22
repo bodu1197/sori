@@ -346,7 +346,6 @@ export default function NotificationsPage() {
                     <span
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
-                      role="presentation"
                     >
                       <FollowButton userId={notification.actor.id} size="sm" />
                     </span>
