@@ -153,29 +153,8 @@ function ForYouSection() {
   const [loadingRecs, setLoadingRecs] = useState(true);
   const [countryName, setCountryName] = useState<string>('');
 
-  // PC drag scroll
+  // Scroll container ref
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-
-  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (!scrollRef.current) return;
-    setIsDragging(true);
-    setStartX(e.pageX - scrollRef.current.offsetLeft);
-    setScrollLeft(scrollRef.current.scrollLeft);
-  };
-
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !scrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
-    scrollRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
-  const handleMouseLeave = () => setIsDragging(false);
 
   useEffect(() => {
     async function fetchHomeRecommendations() {
@@ -330,18 +309,7 @@ function ForYouSection() {
       </div>
 
       {/* Horizontal Scroll Recommendations */}
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-      <div
-        ref={scrollRef}
-        role="region"
-        aria-label="Recommended tracks"
-        tabIndex={-1}
-        className={`flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-      >
+      <div ref={scrollRef} className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
         {loadingRecs ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex-shrink-0 w-32">
@@ -361,7 +329,7 @@ function ForYouSection() {
               <button
                 type="button"
                 key={track.videoId || idx}
-                onClick={() => !isDragging && handlePlay(track, idx)}
+                onClick={() => handlePlay(track, idx)}
                 className="flex-shrink-0 w-32 cursor-pointer group select-none text-left p-0 bg-transparent border-0"
               >
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md bg-gray-800">
