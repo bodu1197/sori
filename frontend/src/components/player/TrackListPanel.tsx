@@ -374,7 +374,7 @@ export default function TrackListPanel({
 
       {/* Panel - slides up from bottom */}
       <div
-        className="relative w-full max-w-[430px] bg-white dark:bg-gray-900 rounded-t-2xl h-full overflow-hidden flex flex-col"
+        className="relative w-full max-w-[470px] bg-white dark:bg-gray-900 rounded-t-2xl h-full overflow-hidden flex flex-col"
         style={{
           transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s ease-out',
