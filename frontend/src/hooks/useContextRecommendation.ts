@@ -208,8 +208,9 @@ function getWeatherBasedMood(
     },
   };
 
-  if (weatherConfigs[weather]) {
-    return weatherConfigs[weather]!;
+  const weatherConfig = weatherConfigs[weather];
+  if (weatherConfig) {
+    return weatherConfig;
   }
 
   // Clear weather special handling
