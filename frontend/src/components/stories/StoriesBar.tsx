@@ -70,7 +70,7 @@ export default function StoriesBar() {
               browse_id: 'UC3SyT4_CK83-6S1k0d8fP1A',
               name: 'IU',
               thumbnails: JSON.stringify([
-                { url: 'https://api.dicebear.com/7.x/initials/svg?seed=IU&backgroundColor=pink' },
+                { url: 'https://i.scdn.co/image/ab6761610000e5eb006ff3c0136a71bfb9928d34' },
               ]),
             },
             {
@@ -78,7 +78,7 @@ export default function StoriesBar() {
               name: 'BTS',
               thumbnails: JSON.stringify([
                 {
-                  url: 'https://api.dicebear.com/7.x/initials/svg?seed=BTS&backgroundColor=purple',
+                  url: 'https://i.scdn.co/image/ab6761610000e5eb5704a64f34552ff23d6af77f',
                 },
               ]),
             },
@@ -87,7 +87,7 @@ export default function StoriesBar() {
               name: 'NewJeans',
               thumbnails: JSON.stringify([
                 {
-                  url: 'https://api.dicebear.com/7.x/initials/svg?seed=NewJeans&backgroundColor=blue',
+                  url: 'https://i.scdn.co/image/ab6761610000e5eb9d285055da37e754a2a4b9c5',
                 },
               ]),
             },
@@ -95,7 +95,7 @@ export default function StoriesBar() {
               browse_id: 'UC9CoOnJkIBMdeijd9qYoT_g',
               name: 'Taylor Swift',
               thumbnails: JSON.stringify([
-                { url: 'https://api.dicebear.com/7.x/initials/svg?seed=TS&backgroundColor=red' },
+                { url: 'https://i.scdn.co/image/ab6761610000e5eb5a00969a4698c3132a15fbb0' },
               ]),
             },
           ];
@@ -270,11 +270,23 @@ export default function StoriesBar() {
                       src={group.avatar_url || DEFAULT_AVATAR}
                       alt={group.username}
                       className="w-full h-full rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (target.src !== DEFAULT_AVATAR) {
+                          target.src = DEFAULT_AVATAR;
+                        } else {
+                          // If fallback also fails, use a transparent pixel or hide
+                          target.onerror = null; // Prevent infinite loop
+                          target.src =
+                            'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                        }
+                      }}
                     />
                   </div>
                 </div>
               </button>
 
+              {/* Artist Name with Verified Badge */}
               <div className="flex items-center gap-0.5 mt-1 max-w-[70px] justify-center">
                 <span className="text-xs text-black dark:text-white truncate text-center">
                   {group.username}
