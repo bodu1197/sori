@@ -28,8 +28,7 @@ const LANGUAGES = [
   { code: 'ko', name: 'Korean', nativeName: '한국어' },
   { code: 'ja', name: 'Japanese', nativeName: '日本語' },
   { code: 'zh', name: 'Chinese (Simplified)', nativeName: '简体中文' },
-  // zh-TW is NOT supported in translations.ts yet
-  // { code: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文' },
+  { code: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文' },
   { code: 'es', name: 'Spanish', nativeName: 'Español' },
   { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
   { code: 'fr', name: 'French', nativeName: 'Français' },
