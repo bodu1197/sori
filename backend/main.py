@@ -510,7 +510,7 @@ def get_best_thumbnail(thumbnails: list) -> str:
     if not thumbnails:
         return ""
     # 가장 큰 이미지 선택
-    best = thumbnails[-1] if thumbnails else {}
+    best = thumbnails[-1]
     return best.get("url", "") if isinstance(best, dict) else ""
 
 
