@@ -297,8 +297,9 @@ export default function ChatPage() {
           <ArrowLeft size={24} />
         </button>
         {otherUser && (
-          <div
-            className="flex items-center gap-3 flex-1 cursor-pointer"
+          <button
+            type="button"
+            className="flex items-center gap-3 flex-1 cursor-pointer p-0 bg-transparent border-0"
             onClick={() => navigate(`/profile/${otherUser.id}`)}
           >
             <img
@@ -306,13 +307,13 @@ export default function ChatPage() {
               alt={otherUser.username}
               className="w-10 h-10 rounded-full object-cover"
             />
-            <div>
+            <div className="text-left">
               <p className="font-semibold text-black dark:text-white">{otherUser.username}</p>
               {otherUser.full_name && (
                 <p className="text-xs text-gray-500">{otherUser.full_name}</p>
               )}
             </div>
-          </div>
+          </button>
         )}
       </div>
 
@@ -357,9 +358,10 @@ export default function ChatPage() {
                       >
                         {/* Shared track */}
                         {message.shared_track_id && (
-                          <div
+                          <button
+                            type="button"
                             onClick={() => handlePlayTrack(message)}
-                            className={`flex items-center gap-2 p-2 rounded-lg mb-2 cursor-pointer ${
+                            className={`flex items-center gap-2 p-2 rounded-lg mb-2 cursor-pointer w-full text-left ${
                               isOwn ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                             }`}
                           >
@@ -381,7 +383,7 @@ export default function ChatPage() {
                               </p>
                             </div>
                             <Play size={18} fill="currentColor" />
-                          </div>
+                          </button>
                         )}
 
                         {/* Message text */}
