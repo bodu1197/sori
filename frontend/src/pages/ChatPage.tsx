@@ -216,7 +216,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white dark:bg-black pb-16">
+    <div className="absolute inset-0 flex flex-col bg-white dark:bg-black">
       {/* Header */}
       <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
         <button onClick={() => navigate('/messages')} className="p-1 text-black dark:text-white">
@@ -243,7 +243,7 @@ export default function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 size={32} className="animate-spin text-gray-400" />

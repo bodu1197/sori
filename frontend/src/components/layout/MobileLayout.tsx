@@ -65,7 +65,7 @@ export default function MobileLayout() {
       <div className="w-full max-w-[470px] h-[100dvh] bg-white dark:bg-black relative shadow-2xl overflow-hidden flex flex-col border-x border-gray-200 dark:border-gray-800">
         <TopNav />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-hide bg-white dark:bg-black text-black dark:text-white">
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative scrollbar-hide bg-white dark:bg-black text-black dark:text-white">
           <Outlet />
         </main>
 
