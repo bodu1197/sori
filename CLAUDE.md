@@ -492,6 +492,21 @@ frontend/src/
 | Project Key | `bodu1197_sori` |
 | Project Name | `sori` |
 | Dashboard | https://sonarcloud.io/project/overview?id=bodu1197_sori |
+| SONAR_TOKEN | GitHub Secrets에 설정 필요 |
+
+### SONAR_TOKEN 설정 (필수)
+
+**1단계: SonarCloud 토큰 생성**
+1. https://sonarcloud.io/account/security 접속
+2. "Generate Tokens" 클릭
+3. 토큰 이름 입력 (예: `github-actions`)
+4. "Generate" 클릭 후 토큰 복사
+
+**2단계: GitHub Secrets에 추가**
+1. https://github.com/bodu1197/sori/settings/secrets/actions 접속
+2. "New repository secret" 클릭
+3. Name: `SONAR_TOKEN`, Secret: 복사한 토큰
+4. "Add secret" 클릭
 
 ### 대시보드 접속
 
