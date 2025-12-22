@@ -216,9 +216,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-black">
+    <div className="flex flex-col h-[100dvh] bg-white dark:bg-black pb-16">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
         <button onClick={() => navigate('/messages')} className="p-1 text-black dark:text-white">
           <ArrowLeft size={24} />
         </button>
@@ -327,19 +327,19 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
+      <div className="flex-shrink-0 px-4 py-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-black">
         <div className="flex items-center gap-2">
-          <button className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+          <button className="flex-shrink-0 p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <Image size={22} />
           </button>
-          <button className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+          <button className="flex-shrink-0 p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <Music size={22} />
           </button>
           <input
             ref={inputRef}
             type="text"
             placeholder="Message..."
-            className="flex-1 bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-full py-2.5 px-4 text-sm focus:outline-none"
+            className="flex-1 min-w-0 bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-full py-2.5 px-4 text-sm focus:outline-none"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyPress}
@@ -347,7 +347,7 @@ export default function ChatPage() {
           <button
             onClick={handleSendMessage}
             disabled={!newMessage.trim() || sending}
-            className="p-2 text-blue-500 disabled:opacity-50"
+            className="flex-shrink-0 p-2 text-blue-500 disabled:opacity-50"
           >
             {sending ? <Loader2 size={22} className="animate-spin" /> : <Send size={22} />}
           </button>
