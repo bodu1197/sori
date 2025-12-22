@@ -1,5 +1,5 @@
 import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Grid,
@@ -12,12 +12,14 @@ import {
   Trash2,
   Disc,
   Settings,
+  MessageCircle,
 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useCountry from '../hooks/useCountry';
 import { supabase } from '../lib/supabase';
 import FollowersModal from '../components/social/FollowersModal';
+import FollowButton from '../components/social/FollowButton';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
@@ -196,13 +198,18 @@ interface HomeData {
 export default function ProfilePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { userId: paramUserId } = useParams<{ userId: string }>();
   const { user, signOut } = useAuthStore();
   const { setTrack, startPlayback, currentTrack, isPlaying, openTrackPanel, setTrackPanelLoading } =
     usePlayerStore();
   const country = useCountry();
 
+  // Determine if viewing own profile or another user's
+  const isOwnProfile = !paramUserId || paramUserId === user?.id;
+  const targetUserId = isOwnProfile ? user?.id : paramUserId;
+
   const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'discover' | 'private'>(
-    'discover'
+    isOwnProfile ? 'discover' : 'posts'
   );
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -211,6 +218,7 @@ export default function ProfilePage() {
   const [homeData, setHomeData] = useState<HomeData | null>(null);
   const [homeLoading, setHomeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [startingConversation, setStartingConversation] = useState(false);
 
   // Follow modal states
   const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -218,7 +226,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function fetchProfileData() {
-      if (!user) return;
+      if (!targetUserId) return;
 
       try {
         setLoading(true);
@@ -227,7 +235,7 @@ export default function ProfilePage() {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('id', targetUserId)
           .single();
 
         if (profileError) throw profileError;
@@ -237,7 +245,7 @@ export default function ProfilePage() {
         const { data: postsData, error: postsError } = await supabase
           .from('posts')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', targetUserId)
           .order('created_at', { ascending: false });
 
         if (!postsError) {
@@ -248,24 +256,27 @@ export default function ProfilePage() {
         const { data: playlistData, error: playlistError } = await supabase
           .from('playlists')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', targetUserId)
           .order('created_at', { ascending: false });
 
         if (playlistError) throw playlistError;
         setPlaylists((playlistData as Playlist[]) || []);
 
         // 4. Fetch Liked Songs (using playlists with video_id as liked songs for now)
-        const likedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
-          .filter((p) => p.video_id)
-          .map((p) => ({
-            videoId: p.video_id as string,
-            title: p.title || 'Unknown',
-            artist: (profileData as Profile)?.username || 'You',
-            thumbnail: p.cover_url,
-            cover: p.cover_url,
-            playlistId: p.id,
-          }));
-        setLikedSongs(likedData);
+        // Only show for own profile
+        if (isOwnProfile) {
+          const likedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
+            .filter((p) => p.video_id)
+            .map((p) => ({
+              videoId: p.video_id as string,
+              title: p.title || 'Unknown',
+              artist: (profileData as Profile)?.username || 'You',
+              thumbnail: p.cover_url,
+              cover: p.cover_url,
+              playlistId: p.id,
+            }));
+          setLikedSongs(likedData);
+        }
       } catch {
         // Error fetching profile
       } finally {
@@ -274,7 +285,7 @@ export default function ProfilePage() {
     }
 
     fetchProfileData();
-  }, [user]);
+  }, [targetUserId, isOwnProfile]);
 
   // Fetch home data when discover tab is active
   useEffect(() => {
@@ -548,6 +559,60 @@ export default function ProfilePage() {
     }
   };
 
+  // Start or find existing conversation with this user
+  const handleStartConversation = async () => {
+    if (!user?.id || !targetUserId || isOwnProfile || startingConversation) return;
+
+    setStartingConversation(true);
+    try {
+      // Check if conversation already exists between these users
+      const { data: existingParticipations } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      if (existingParticipations && existingParticipations.length > 0) {
+        const conversationIds = existingParticipations.map((p) => p.conversation_id);
+
+        const { data: otherParticipations } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', targetUserId)
+          .in('conversation_id', conversationIds);
+
+        if (otherParticipations && otherParticipations.length > 0) {
+          // Existing conversation found
+          navigate(`/messages/${otherParticipations[0].conversation_id}`);
+          return;
+        }
+      }
+
+      // Create new conversation
+      const { data: newConversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({})
+        .select('id')
+        .single();
+
+      if (convError) throw convError;
+
+      // Add both participants
+      const { error: participantsError } = await supabase.from('conversation_participants').insert([
+        { conversation_id: newConversation.id, user_id: user.id },
+        { conversation_id: newConversation.id, user_id: targetUserId },
+      ]);
+
+      if (participantsError) throw participantsError;
+
+      // Navigate to the new conversation
+      navigate(`/messages/${newConversation.id}`);
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">{t('common.loading')}</div>
@@ -564,7 +629,7 @@ export default function ProfilePage() {
               <img
                 src={
                   profile?.avatar_url ||
-                  user?.user_metadata?.avatar_url ||
+                  (isOwnProfile ? user?.user_metadata?.avatar_url : null) ||
                   'https://via.placeholder.com/150'
                 }
                 alt="Profile"
@@ -587,7 +652,9 @@ export default function ProfilePage() {
         {/* Bio Section */}
         <div className="mb-4">
           <h2 className="font-bold text-sm">
-            {profile?.full_name || user?.user_metadata?.full_name || 'No Name'}
+            {profile?.full_name ||
+              (isOwnProfile ? user?.user_metadata?.full_name : null) ||
+              'No Name'}
           </h2>
           <span className="text-xs text-gray-500 block mb-1">
             @{profile?.username || 'username'}
@@ -597,26 +664,42 @@ export default function ProfilePage() {
 
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => navigate('/edit-profile')}
-            className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-          >
-            {t('profile.editProfile')}
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-            title="Settings"
-          >
-            <Settings size={18} />
-          </button>
-          <button
-            onClick={signOut}
-            className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
-            title="Sign Out"
-          >
-            <LogOut size={18} />
-          </button>
+          {isOwnProfile ? (
+            <>
+              <button
+                onClick={() => navigate('/edit-profile')}
+                className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+              >
+                {t('profile.editProfile')}
+              </button>
+              <button
+                onClick={() => navigate('/settings')}
+                className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                title="Settings"
+              >
+                <Settings size={18} />
+              </button>
+              <button
+                onClick={signOut}
+                className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
+                title="Sign Out"
+              >
+                <LogOut size={18} />
+              </button>
+            </>
+          ) : (
+            <>
+              <FollowButton userId={targetUserId!} size="md" className="flex-1" />
+              <button
+                onClick={handleStartConversation}
+                disabled={startingConversation}
+                className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <MessageCircle size={18} />
+                {t('profile.message', 'Message')}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -628,24 +711,28 @@ export default function ProfilePage() {
         >
           <Grid size={24} />
         </button>
-        <button
-          onClick={() => setActiveTab('liked')}
-          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'liked' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-        >
-          <Heart size={24} />
-        </button>
+        {isOwnProfile && (
+          <button
+            onClick={() => setActiveTab('liked')}
+            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'liked' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
+          >
+            <Heart size={24} />
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('discover')}
           className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'discover' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
         >
           <Disc size={24} />
         </button>
-        <button
-          onClick={() => setActiveTab('private')}
-          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'private' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-        >
-          <Lock size={24} />
-        </button>
+        {isOwnProfile && (
+          <button
+            onClick={() => setActiveTab('private')}
+            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'private' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
+          >
+            <Lock size={24} />
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
