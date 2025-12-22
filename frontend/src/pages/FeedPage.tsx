@@ -1,20 +1,20 @@
 import React, { useEffect, useState, useRef, SyntheticEvent, MouseEvent, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  MessageCircle,
-  Send,
-  Bookmark,
-  MoreHorizontal,
-  Play,
-  Loader2,
-  Repeat2,
-} from 'lucide-react';
+import { MessageCircle, Play, Loader2, Repeat2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
 import useCountry from '../hooks/useCountry';
 import useAuthStore from '../stores/useAuthStore';
-import { LikeButton, useLikeCountText, CommentsModal, RepostButton } from '../components/social';
+import {
+  LikeButton,
+  useLikeCountText,
+  CommentsModal,
+  RepostButton,
+  BookmarkButton,
+  ShareButton,
+  PostOptionsMenu,
+} from '../components/social';
 import { StoriesBar } from '../components/stories';
 
 type FeedFilter = 'following' | 'all';
@@ -531,9 +531,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
             </span>
           </div>
         </button>
-        <button className="text-gray-500 dark:text-gray-400">
-          <MoreHorizontal size={20} />
-        </button>
+        <PostOptionsMenu postId={post.id} authorId={post.user_id} />
       </div>
 
       {/* Playlist Visual (16:9 YouTube ratio) */}
@@ -631,13 +629,15 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
             <MessageCircle size={26} />
           </button>
           <RepostButton postId={post.id} initialCount={post.repost_count || 0} size="md" />
-          <button className="hover:opacity-60 text-black dark:text-white">
-            <Send size={26} />
-          </button>
+          <ShareButton
+            postId={post.video_id || post.id}
+            postTitle={post.title}
+            postArtist={post.artist}
+            postThumbnail={post.cover_url}
+            size={26}
+          />
         </div>
-        <button className="hover:opacity-60 text-black dark:text-white">
-          <Bookmark size={26} />
-        </button>
+        <BookmarkButton postId={post.id} size={26} />
       </div>
 
       {/* Likes */}
