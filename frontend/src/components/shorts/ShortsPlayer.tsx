@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Heart, MessageCircle, Share2, MoreHorizontal, ArrowLeft } from 'lucide-react';
-import { AIChatDrawer } from '../ai/AIChatDrawer'; // Import AI Chat
+import { AIChatDrawer } from '../ai/AIChatDrawer'; // Import Chat Component
 
 interface ShortsPlayerProps {
   initialIndex: number;
@@ -11,7 +11,7 @@ interface ShortsPlayerProps {
 export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
-  const [isChatOpen, setIsChatOpen] = useState(false); // State for AI Chat
+  const [isChatOpen, setIsChatOpen] = useState(false); // State for Chat
 
   // Scroll to initial index on mount
   useEffect(() => {
@@ -126,7 +126,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
                 <div className="absolute right-4 bottom-24 flex flex-col gap-5 items-center pointer-events-auto pb-4">
                   <ActionButton icon={<Heart size={28} className="fill-white/10" />} label="Like" />
 
-                  {/* AI Chat Button */}
+                  {/* Chat Button (Renamed from AI Chat) */}
                   <ActionButton
                     icon={
                       <MessageCircle
@@ -134,7 +134,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
                         className={isChatOpen ? 'text-purple-400 fill-purple-400/20' : ''}
                       />
                     }
-                    label="AI Chat"
+                    label="Chat"
                     onClick={() => setIsChatOpen(true)}
                   />
 
@@ -181,7 +181,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
         })}
       </div>
 
-      {/* AI Chat Drawer */}
+      {/* Chat Drawer */}
       {isChatOpen && activeVideo && (
         <AIChatDrawer artistName={activeVideo.artist} onClose={() => setIsChatOpen(false)} />
       )}
