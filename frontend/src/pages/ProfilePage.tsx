@@ -874,19 +874,19 @@ export default function ProfilePage() {
           <div className="space-y-1">
             {/* Dynamic Recommendations Section */}
             {recommendedTracks.length > 0 && (
-              <div className="mb-6 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-900/30">
-                <div className="flex items-center justify-between mb-3">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3 px-1">
                   <div>
-                    <h4 className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                    <h4 className="font-bold text-base text-gray-900 dark:text-white flex items-center gap-2">
                       ✨ {recommendationContext?.title || t('feed.recommended')}
                     </h4>
-                    <p className="text-xs text-purple-600/70 dark:text-purple-400/70">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {recommendationContext?.message}
                     </p>
                   </div>
                   <button
                     onClick={() => setRecommendedTracks([])}
-                    className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="text-xs font-medium text-gray-400 hover:text-black dark:hover:text-white px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
                   >
                     {t('common.clear')}
                   </button>
@@ -957,6 +957,7 @@ export default function ProfilePage() {
                     );
                   })}
                 </div>
+                <div className="my-6 border-t border-gray-100 dark:border-gray-800" />
               </div>
             )}
 
