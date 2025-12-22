@@ -146,6 +146,7 @@ interface FeedPost {
  */
 function ForYouSection() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const context = useContextRecommendation();
   const country = useCountry();
   const { startPlayback, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
@@ -247,30 +248,28 @@ function ForYouSection() {
     fetchHomeRecommendations();
   }, [country.code, country.name, context.recommendation?.searchQuery]);
 
-  const handlePlay = (track: RecommendationTrack, index: number) => {
-    // Open popup with all recommendations
-    const panelTracks: PlaylistTrackData[] = recommendations.map((r) => ({
-      videoId: r.videoId,
-      title: r.title,
-      artists: r.artists || (r.artist ? [{ name: r.artist }] : [{ name: 'Unknown' }]),
-      thumbnails: r.thumbnail ? [{ url: r.thumbnail }] : undefined,
-    }));
-    openTrackPanel({
-      title: context.recommendation?.genre || 'For You',
-      author: { name: context.recommendation?.message || '' },
-      tracks: panelTracks,
-      trackCount: recommendations.length,
-    });
+  // Handle banner click (Navigate to profile with tracks)
+  const handleBannerClick = () => {
+    if (recommendations.length === 0) return;
 
-    // Start playback
-    const tracks = recommendations.map((r) => ({
+    // Transform to PlaylistTrackData format
+    const tracksToTransfer = recommendations.map((r) => ({
       videoId: r.videoId,
       title: r.title,
       artist: r.artists?.[0]?.name || r.artist || 'Unknown',
       thumbnail: r.thumbnail,
       cover: r.thumbnail,
     }));
-    startPlayback(tracks, index);
+
+    // Navigate to profile with state
+    // We pass the validation to ProfilePage to show these tracks at the top
+    navigate(`/profile/${useAuthStore.getState().user?.id}`, {
+      state: {
+        recommendedTracks: tracksToTransfer,
+        contextTitle: context.greeting,
+        contextMessage: context.recommendation?.message,
+      },
+    });
   };
 
   if (context.loading) {
@@ -284,108 +283,57 @@ function ForYouSection() {
   }
 
   return (
-    <div className="px-4 py-4 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black border-b border-gray-100 dark:border-gray-800">
-      {/* Greeting & Context */}
-      <div className="mb-3">
-        <h2 className="text-xl font-bold text-black dark:text-white">
-          {context.greeting}! {context.recommendation?.emoji}
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-          {context.recommendation?.message}
-          {context.temperature !== null && (
-            <span className="ml-1 text-gray-400">({context.temperature}°C)</span>
-          )}
-        </p>
-      </div>
+    <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
+      <button
+        onClick={handleBannerClick}
+        className="w-full relative overflow-hidden rounded-2xl aspect-[3/1] group transition-transform active:scale-[0.98]"
+      >
+        {/* Animated Background Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 animate-gradient-x"></div>
+        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
 
-      {/* Recommendation Label */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.forYou')}
+        {/* Content */}
+        <div className="absolute inset-0 p-5 flex flex-col justify-center text-left">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">{context.recommendation?.emoji || '🎵'}</span>
+            <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-medium text-white uppercase tracking-wider border border-white/10">
+              {countryName ? t('feed.popularIn', { country: countryName }) : 'Recommended'}
+            </span>
+          </div>
+
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-1 drop-shadow-md">
+            {context.greeting}
+          </h2>
+
+          <p className="text-sm text-white/90 line-clamp-1 max-w-[80%] drop-shadow-sm">
+            {context.recommendation?.message}{' '}
+            {context.temperature !== null && `(${context.temperature}°C)`}
+          </p>
+
+          {/* Floating Play Icon */}
+          <div className="absolute right-5 bottom-5 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:bg-white group-hover:scale-110 transition-all duration-300">
+            <Play size={20} className="text-white group-hover:text-purple-600 ml-1 fill-current" />
+          </div>
+        </div>
+
+        {/* Decorative Circles */}
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/30 rounded-full blur-3xl"></div>
+      </button>
+
+      {/* Preview of tracks (Mini thumbnails below banner) */}
+      <div className="flex gap-2 mt-3 overflow-hidden ml-1">
+        {recommendations.slice(0, 5).map((rec, i) => (
+          <div
+            key={i}
+            className="w-8 h-8 rounded-full overflow-hidden border border-gray-100 dark:border-gray-800 opacity-70"
+          >
+            <img src={rec.thumbnail} alt="" className="w-full h-full object-cover" />
+          </div>
+        ))}
+        <span className="text-xs self-center text-gray-400 ml-1">
+          + {recommendations.length} songs
         </span>
-        <button className="text-xs text-gray-500 hover:text-black dark:hover:text-white">
-          {t('feed.seeAll')}
-        </button>
-      </div>
-
-      {/* Horizontal Scroll Recommendations */}
-      <div ref={scrollRef} className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4">
-        {loadingRecs ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-32">
-              <div className="w-32 h-32 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
-              <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded mt-2 w-24 animate-pulse" />
-              <div className="h-2 bg-gray-100 dark:bg-gray-900 rounded mt-1 w-16 animate-pulse" />
-            </div>
-          ))
-        ) : recommendations.length > 0 ? (
-          recommendations.map((track, idx) => {
-            const isCurrentlyPlaying = currentTrack?.videoId === track.videoId && isPlaying;
-            // Use high-res thumbnail from videoId
-            const thumbnailUrl = track.videoId
-              ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
-              : track.thumbnail;
-            return (
-              <button
-                type="button"
-                key={track.videoId || idx}
-                onClick={() => handlePlay(track, idx)}
-                className="flex-shrink-0 w-32 cursor-pointer group select-none text-left p-0 bg-transparent border-0"
-              >
-                <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md bg-gray-800">
-                  <img
-                    src={thumbnailUrl}
-                    alt={track.title}
-                    width={320}
-                    height={180}
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                    onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                      e.currentTarget.src =
-                        'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
-                    }}
-                  />
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center transition-opacity ${
-                      isCurrentlyPlaying
-                        ? 'bg-black/40 opacity-100'
-                        : 'bg-black/0 opacity-0 group-hover:bg-black/30 group-hover:opacity-100'
-                    }`}
-                  >
-                    {isCurrentlyPlaying ? (
-                      <div className="flex gap-0.5">
-                        <div
-                          className="w-0.5 h-4 bg-white animate-bounce"
-                          style={{ animationDelay: '0ms' }}
-                        />
-                        <div
-                          className="w-0.5 h-4 bg-white animate-bounce"
-                          style={{ animationDelay: '150ms' }}
-                        />
-                        <div
-                          className="w-0.5 h-4 bg-white animate-bounce"
-                          style={{ animationDelay: '300ms' }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-8 h-8 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <Play size={16} className="text-white ml-0.5" fill="white" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <p className="text-sm font-medium mt-2 truncate text-black dark:text-white">
-                  {track.title}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {track.artists?.[0]?.name || track.artist || 'Unknown'}
-                </p>
-              </button>
-            );
-          })
-        ) : (
-          <p className="text-sm text-gray-500 py-4">{t('feed.noRecommendations')}</p>
-        )}
       </div>
     </div>
   );

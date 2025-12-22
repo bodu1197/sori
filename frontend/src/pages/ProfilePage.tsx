@@ -1,5 +1,5 @@
 import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Grid,
@@ -229,6 +229,30 @@ export default function ProfilePage() {
   // Follow modal states
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
+
+  // Dynamic recommendations passed from FeedPage
+  const location = useLocation();
+  const [recommendedTracks, setRecommendedTracks] = useState<PlaylistTrackData[]>([]);
+  const [recommendationContext, setRecommendationContext] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (location.state?.recommendedTracks) {
+      setRecommendedTracks(location.state.recommendedTracks);
+      setRecommendationContext({
+        title: location.state.contextTitle,
+        message: location.state.contextMessage,
+      });
+      // Switch to liked tab to show them
+      if (isOwnProfile) {
+        setActiveTab('liked');
+      }
+      // Clear state so it doesn't persist on refresh if desired, or keep it.
+      // window.history.replaceState({}, document.title); // Optional: clear state
+    }
+  }, [location.state, isOwnProfile]);
 
   useEffect(() => {
     async function fetchProfileData() {
@@ -848,6 +872,66 @@ export default function ProfilePage() {
 
           {/* Track List */}
           <div className="space-y-1">
+            {/* Dynamic Recommendations Section */}
+            {recommendedTracks.length > 0 && (
+              <div className="mb-6 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-900/30">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                      ✨ {recommendationContext?.title || 'Recommended for You'}
+                    </h4>
+                    <p className="text-xs text-purple-600/70 dark:text-purple-400/70">
+                      {recommendationContext?.message}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setRecommendedTracks([])}
+                    className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  {recommendedTracks.map((track, index) => (
+                    <TrackItem
+                      key={`rec-${track.videoId}`}
+                      track={{
+                        videoId: track.videoId,
+                        title: track.title,
+                        artist:
+                          typeof track.artists?.[0] === 'string'
+                            ? track.artists[0]
+                            : track.artists?.[0]?.name || 'Unknown',
+                        thumbnail: track.thumbnails?.[0]?.url,
+                        cover_url: track.thumbnails?.[0]?.url,
+                        playlistId: 'temp-rec', // logical id
+                      }}
+                      index={index} // Note: This index might conflict with main list if playing directly; ideally handlePlay should support separate lists
+                      onPlay={(t, idx) => {
+                        // Play these specific recommended tracks
+                        const tracks = recommendedTracks.map((r) => ({
+                          videoId: r.videoId,
+                          title: r.title,
+                          artist:
+                            typeof r.artists?.[0] === 'string'
+                              ? r.artists[0]
+                              : r.artists?.[0]?.name || 'Unknown',
+                          thumbnail: r.thumbnails?.[0]?.url,
+                          cover: r.thumbnails?.[0]?.url,
+                        }));
+                        startPlayback(tracks, idx);
+                      }}
+                      isPlaying={isPlaying}
+                      isCurrentTrack={currentTrack?.videoId === track.videoId}
+                      // No delete button for recommendation items, maybe add 'save' button later
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Main Liked Songs */}
             {likedSongs.length > 0 ? (
               likedSongs.map((track, index) => (
                 <TrackItem
