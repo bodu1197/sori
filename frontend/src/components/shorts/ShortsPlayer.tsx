@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Heart, MessageCircle, Share2, MoreHorizontal, ArrowLeft } from 'lucide-react';
+import { AIChatDrawer } from '../ai/AIChatDrawer'; // Import AI Chat
 
 interface ShortsPlayerProps {
   initialIndex: number;
@@ -10,6 +11,7 @@ interface ShortsPlayerProps {
 export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [isChatOpen, setIsChatOpen] = useState(false); // State for AI Chat
 
   // Scroll to initial index on mount
   useEffect(() => {
@@ -33,7 +35,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
           }
         });
       },
-      { threshold: 0.6 } // 60% visibility triggers active change
+      { threshold: 0.6 }
     );
 
     Array.from(container.children).forEach((child) => observer.observe(child));
@@ -49,14 +51,11 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
     };
   }, []);
 
+  const activeVideo = shorts[activeIndex];
+
   return (
-    // z-index: 40 (Lower than Navbar z-50). User can see the Bottom Navbar.
-    // However, we want the player to cover the TOP Navbar if possible, but BottomNav visible?
-    // Actually, usually full screen shorts HIDE everything.
-    // User requested "frame works outside", likely meaning BottomNav should be visible.
-    // We set z-40 so BottomNav (z-50) stays on top.
     <div className="fixed inset-0 z-[40] bg-black animate-in fade-in duration-300">
-      {/* Top Header - Adjusted for overlap */}
+      {/* Top Header */}
       <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-10 md:pt-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
         <button
           onClick={onClose}
@@ -74,11 +73,10 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
         className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black no-scrollbar"
         style={{
           scrollSnapStop: 'always',
-          overscrollBehaviorY: 'contain', // Prevent pull-to-refresh or rubber banding affecting the page
+          overscrollBehaviorY: 'contain',
         }}
       >
         {shorts.map((video, index) => {
-          // Optimization: Render iframe only for active video + immediate neighbors
           const shouldLoad = Math.abs(activeIndex - index) <= 1;
           const isPlaying = activeIndex === index;
 
@@ -89,7 +87,6 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
               className="h-[100dvh] w-full snap-start relative flex items-center justify-center bg-black"
             >
               {/* Video Layer */}
-              {/* Added pb-[50px] to account for BottomNav overlapping */}
               <div className="w-full h-full md:w-[500px] md:relative bg-gray-900">
                 {shouldLoad ? (
                   isPlaying ? (
@@ -101,7 +98,7 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
                       allowFullScreen
                     />
                   ) : (
-                    // Preloading state
+                    // Thumbnail
                     <div className="relative w-full h-full">
                       <img
                         src={
@@ -121,22 +118,34 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
               </div>
 
               {/* Overlay UI */}
-              {/* Adjusted padding current bottom nav height (approx 50px + safe area) */}
               <div className="absolute inset-0 pointer-events-none md:w-[500px] md:mx-auto">
                 {/* Bottom Gradient */}
                 <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
 
-                {/* Right Action Bar - Raised higher to avoid BottomNav */}
+                {/* Right Action Bar */}
                 <div className="absolute right-4 bottom-24 flex flex-col gap-5 items-center pointer-events-auto pb-4">
                   <ActionButton icon={<Heart size={28} className="fill-white/10" />} label="Like" />
-                  <ActionButton icon={<MessageCircle size={28} />} label="4.2k" />
+
+                  {/* AI Chat Button */}
+                  <ActionButton
+                    icon={
+                      <MessageCircle
+                        size={28}
+                        className={isChatOpen ? 'text-purple-400 fill-purple-400/20' : ''}
+                      />
+                    }
+                    label="AI Chat"
+                    onClick={() => setIsChatOpen(true)}
+                  />
+
                   <ActionButton icon={<Share2 size={28} />} label="Share" />
+
                   <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 animate-spin-slow bg-gray-800 mt-2">
                     <img src={video.thumbnail} className="w-full h-full object-cover" />
                   </div>
                 </div>
 
-                {/* Bottom Info Area - Raised higher */}
+                {/* Bottom Info Area */}
                 <div className="absolute bottom-16 left-4 right-20 text-left pointer-events-auto">
                   <div className="flex items-center gap-2 mb-2 cursor-pointer hover:underline">
                     <div className="w-8 h-8 rounded-full bg-gray-700 border border-white/30 overflow-hidden">
@@ -171,13 +180,32 @@ export function ShortsPlayer({ initialIndex, shorts, onClose }: ShortsPlayerProp
           );
         })}
       </div>
+
+      {/* AI Chat Drawer */}
+      {isChatOpen && activeVideo && (
+        <AIChatDrawer artistName={activeVideo.artist} onClose={() => setIsChatOpen(false)} />
+      )}
     </div>
   );
 }
 
-function ActionButton({ icon, label }: { icon: React.ReactNode; label: string }) {
+function ActionButton({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+}) {
   return (
-    <button className="flex flex-col items-center gap-1 group">
+    <button
+      onClick={(e) => {
+        e.stopPropagation(); // prevent other clicks
+        onClick?.();
+      }}
+      className="flex flex-col items-center gap-1 group"
+    >
       <div className="p-2.5 bg-gradient-to-br from-white/10 to-white/5 rounded-full text-white group-hover:bg-white/20 transition backdrop-blur-sm shadow-lg active:scale-95 border border-white/5">
         {icon}
       </div>

@@ -10,6 +10,7 @@ import json
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from ai_agent import generate_artist_persona, chat_with_artist
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -2916,6 +2917,98 @@ async def search_summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+@app.post("/api/provision/artist")
+async def provision_artist_agent(request: Request):
+    """
+    Search artist -> Generate AI Persona -> Save to DB
+    """
+    try:
+        body = await request.json()
+        artist_name = body.get("artistName")
+        country = body.get("country", "US")
+        
+        if not artist_name:
+            raise HTTPException(status_code=400, detail="artistName required")
+
+        ytmusic = get_ytmusic(country)
+        
+        # 1. Search Artist
+        search_results = await run_in_thread(ytmusic.search, artist_name, filter="artists", limit=1)
+        if not search_results:
+            raise HTTPException(status_code=404, detail="Artist not found")
+            
+        artist_info = search_results[0]
+        browse_id = artist_info.get("browseId")
+        name = artist_info.get("artist") or artist_info.get("name")
+        
+        # 2. Get Details (Description & Songs)
+        details = await run_in_thread(ytmusic.get_artist, browse_id)
+        description = details.get("description", "")
+        songs_list = details.get("songs", {}).get("results", [])
+        
+        # 3. Generate Persona
+        persona = await run_in_thread(generate_artist_persona, name, description, songs_list)
+        
+        if not persona:
+            # Fallback if AI fails
+            persona = {
+                "system_prompt": f"You are {name}. You are a famous musician.",
+                "greeting": f"Hi, I'm {name}!",
+                "tone": "Casual",
+                "mbti": "Unknown"
+            }
+            
+        # 4. Save to DB (music_artists table)
+        # We store persona in a new column or reuse an existing JSON field if schema is rigid.
+        # Assuming we can update 'music_artists'
+        
+        # Ensure artist exists first
+        db_save_artist(artist_info)
+        
+        # Update with persona
+        if supabase_client:
+             # Check if 'persona' column exists, if not we might fail. 
+             # But we can try to store in 'description' or a flexible field if needed.
+             # For now, let's assume we can add data. Use raw SQL if needed, but client is safer.
+             # Ideally we should have a 'personas' table.
+             
+             # Create/Update 'artist_personas' table (if exists) or 'music_artists'
+             # Let's try to upsert a dedicated 'artist_agents' table if possible,
+             # but to be safe without migration, let's return it to frontend to handle chat state locally first.
+             pass
+
+        return {
+            "status": "success",
+            "browseId": browse_id,
+            "name": name,
+            "persona": persona,
+            "avatar": get_best_thumbnail(details.get("thumbnails", []))
+        }
+
+    except Exception as e:
+        logger.error(f"Provision error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chat/artist")
+async def chat_artist_endpoint(request: Request):
+    """
+    Chat with an AI Artist Persona
+    """
+    try:
+        body = await request.json()
+        persona = body.get("persona")
+        history = body.get("history", []) # List of {role: user/model, content: str}
+        message = body.get("message")
+        
+        if not persona or not message:
+            raise HTTPException(status_code=400, detail="Missing persona or message")
+            
+        reply = await run_in_thread(chat_with_artist, persona, history, message)
+        return {"reply": reply}
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

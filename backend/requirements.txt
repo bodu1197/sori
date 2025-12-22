@@ -4,3 +4,4 @@ ytmusicapi==1.11.4
 python-dotenv==1.0.1
 supabase==2.10.0
 httpx
+google-generativeai
