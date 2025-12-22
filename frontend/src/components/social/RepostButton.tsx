@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Repeat2, X, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
@@ -24,6 +24,28 @@ export default function RepostButton({
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [quote, setQuote] = useState('');
+
+  // Check if user has already reposted this post
+  useEffect(() => {
+    async function checkRepostStatus() {
+      if (!user?.id) return;
+
+      try {
+        const { data } = await supabase
+          .from('reposts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('post_id', postId)
+          .maybeSingle();
+
+        setIsReposted(!!data);
+      } catch {
+        // Error checking repost status
+      }
+    }
+
+    checkRepostStatus();
+  }, [user?.id, postId]);
 
   const handleToggleRepost = async () => {
     if (!user?.id || loading) return;

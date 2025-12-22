@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 export interface Country {
   code: string;
@@ -211,28 +211,8 @@ function getCountryFromTimezone(): string {
 }
 
 export default function useCountry(): Country {
-  const [countryCode, setCountryCode] = useState<string>(() => getCountryFromTimezone());
-
-  useEffect(() => {
-    // Try IP-based detection for more accuracy (async)
-    const detectByIP = async () => {
-      try {
-        const response = await fetch('https://ipapi.co/country/', {
-          signal: AbortSignal.timeout(3000), // 3s timeout
-        });
-        if (response.ok) {
-          const code = await response.text();
-          if (code && code.length === 2) {
-            setCountryCode(code.toUpperCase());
-          }
-        }
-      } catch {
-        // IP detection failed, keep timezone-based result
-      }
-    };
-
-    detectByIP();
-  }, []);
+  // Use timezone-based detection (no CORS issues, works instantly)
+  const countryCode = getCountryFromTimezone();
 
   const country = useMemo<Country>(
     () => ({
