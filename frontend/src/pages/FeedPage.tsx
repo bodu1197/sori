@@ -273,41 +273,30 @@ function ForYouSection() {
     });
   };
 
-  if (context.loading) {
-    return (
-      <div className="px-4 py-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black">
-        <div className="flex items-center justify-center py-4">
-          <Loader2 size={24} className="animate-spin text-gray-400" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
       <button
         onClick={handleBannerClick}
         className="w-full relative overflow-hidden rounded-2xl aspect-[3/1] group transition-transform active:scale-[0.98]"
       >
-        {/* Animated Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 animate-gradient-x"></div>
-        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors"></div>
+        {/* Animated Background Gradient - Darker & Smoother */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-950 animate-gradient-x"></div>
+        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors"></div>
 
         {/* Content */}
         <div className="absolute inset-0 p-5 flex flex-col justify-center text-left">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl">{context.recommendation?.emoji || '🎵'}</span>
-            <span className="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-medium text-white uppercase tracking-wider border border-white/10">
+            <span className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] font-medium text-white/90 uppercase tracking-wider border border-white/10">
               {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.recommended')}
             </span>
           </div>
 
           <h2 className="text-xl md:text-2xl font-bold text-white mb-1 drop-shadow-md">
-            {context.greeting}
+            {context.greeting || t('feed.welcome', 'Welcome back')}
           </h2>
 
           <p className="text-sm text-white/90 line-clamp-1 max-w-[80%] drop-shadow-sm">
-            {context.recommendation?.message}{' '}
+            {context.recommendation?.message || t('feed.findingMusic', 'Discover your daily mix')}{' '}
             {context.temperature !== null && `(${context.temperature}°C)`}
           </p>
 
