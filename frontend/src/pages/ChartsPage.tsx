@@ -136,10 +136,11 @@ export default function ChartsPage() {
               currentTrack?.videoId === (track.videoId || track.video_id) && isPlaying;
 
             return (
-              <div
+              <button
+                type="button"
                 key={track.videoId || track.video_id || index}
                 onClick={() => handlePlay(track, index)}
-                className="flex items-center gap-4 group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg p-2 transition"
+                className="flex items-center gap-4 group cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg p-2 transition w-full text-left"
               >
                 <span
                   className={`text-lg font-bold w-6 text-center ${rank <= 3 ? 'text-black dark:text-white' : 'text-gray-400'}`}
@@ -191,7 +192,7 @@ export default function ChartsPage() {
                     {track.artist || track.artists?.[0]?.name || 'Unknown Artist'}
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

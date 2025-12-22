@@ -262,8 +262,14 @@ export default function EditProfilePage() {
         {/* Form Fields */}
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Username</label>
+            <label
+              htmlFor="username-input"
+              className="block text-sm font-medium text-gray-500 mb-1"
+            >
+              Username
+            </label>
             <input
+              id="username-input"
               type="text"
               value={profile.username}
               onChange={(e) => setProfile((prev) => ({ ...prev, username: e.target.value }))}
@@ -274,8 +280,14 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Name</label>
+            <label
+              htmlFor="fullname-input"
+              className="block text-sm font-medium text-gray-500 mb-1"
+            >
+              Name
+            </label>
             <input
+              id="fullname-input"
               type="text"
               value={profile.full_name}
               onChange={(e) => setProfile((prev) => ({ ...prev, full_name: e.target.value }))}
@@ -286,8 +298,11 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Bio</label>
+            <label htmlFor="bio-input" className="block text-sm font-medium text-gray-500 mb-1">
+              Bio
+            </label>
             <textarea
+              id="bio-input"
               value={profile.bio}
               onChange={(e) => setProfile((prev) => ({ ...prev, bio: e.target.value }))}
               placeholder="Tell us about yourself..."
@@ -299,8 +314,11 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">Website</label>
+            <label htmlFor="website-input" className="block text-sm font-medium text-gray-500 mb-1">
+              Website
+            </label>
             <input
+              id="website-input"
               type="url"
               value={profile.website}
               onChange={(e) => setProfile((prev) => ({ ...prev, website: e.target.value }))}

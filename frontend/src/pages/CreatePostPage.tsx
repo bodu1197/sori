@@ -186,9 +186,10 @@ export default function CreatePostPage() {
             ) : (
               <div className="space-y-2">
                 {searchResults.map((track) => (
-                  <div
+                  <button
+                    type="button"
                     key={track.videoId}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition"
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
                     onClick={() => handleSelectTrack(track)}
                   >
                     <img
@@ -205,6 +206,7 @@ export default function CreatePostPage() {
                       </p>
                     </div>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handlePreview(track);
@@ -213,7 +215,7 @@ export default function CreatePostPage() {
                     >
                       <Music size={20} />
                     </button>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -258,10 +260,14 @@ export default function CreatePostPage() {
 
           {/* Caption */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label
+              htmlFor="caption-input"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               Caption
             </label>
             <textarea
+              id="caption-input"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Write a caption... (optional)"
@@ -274,9 +280,9 @@ export default function CreatePostPage() {
 
           {/* Visibility */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Visibility
-            </label>
+            </span>
             <div className="space-y-2">
               <button
                 onClick={() => setIsPublic(true)}

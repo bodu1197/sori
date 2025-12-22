@@ -354,10 +354,11 @@ function ForYouSection() {
               ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
               : track.thumbnail;
             return (
-              <div
+              <button
+                type="button"
                 key={track.videoId || idx}
                 onClick={() => !isDragging && handlePlay(track, idx)}
-                className="flex-shrink-0 w-32 cursor-pointer group select-none"
+                className="flex-shrink-0 w-32 cursor-pointer group select-none text-left p-0 bg-transparent border-0"
               >
                 <div className="relative w-32 h-32 rounded-lg overflow-hidden shadow-md bg-gray-800">
                   <img
@@ -407,7 +408,7 @@ function ForYouSection() {
                 <p className="text-xs text-gray-500 truncate">
                   {track.artists?.[0]?.name || track.artist || 'Unknown'}
                 </p>
-              </div>
+              </button>
             );
           })
         ) : (
@@ -539,8 +540,9 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
       </div>
 
       {/* Playlist Visual (16:9 YouTube ratio) */}
-      <div
-        className="relative w-full aspect-video bg-gray-900 cursor-pointer group overflow-hidden"
+      <button
+        type="button"
+        className="relative w-full aspect-video bg-gray-900 cursor-pointer group overflow-hidden p-0 border-0"
         onClick={handlePlayClick}
       >
         <img
@@ -598,7 +600,7 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
           <span className="text-xs font-medium text-white">{post.title}</span>
           {post.artist && <span className="text-xs text-gray-300">- {post.artist}</span>}
         </div>
-      </div>
+      </button>
 
       {/* Repost Header (if this is a repost) */}
       {post.isRepost && post.reposter && (

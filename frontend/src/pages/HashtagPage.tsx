@@ -131,16 +131,20 @@ export default function HashtagPage() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && (
         <div className="flex items-center justify-center py-16">
           <Loader2 size={32} className="animate-spin text-gray-400" />
         </div>
-      ) : !hashtag ? (
+      )}
+
+      {!loading && !hashtag && (
         <div className="py-16 text-center">
           <Hash size={48} className="mx-auto mb-4 text-gray-300" />
           <p className="text-gray-500">Hashtag not found</p>
         </div>
-      ) : (
+      )}
+
+      {!loading && hashtag && (
         <>
           {/* Hashtag Info */}
           <div className="px-4 py-6 border-b border-gray-100 dark:border-gray-800">
@@ -163,10 +167,11 @@ export default function HashtagPage() {
           ) : (
             <div className="grid grid-cols-3 gap-0.5 p-0.5">
               {posts.map((post) => (
-                <div
+                <button
+                  type="button"
                   key={post.id}
                   onClick={() => handlePlayPost(post)}
-                  className="relative aspect-square cursor-pointer group"
+                  className="relative aspect-square cursor-pointer group p-0 border-0"
                 >
                   <img
                     src={post.cover_url || 'https://via.placeholder.com/300'}
@@ -176,7 +181,7 @@ export default function HashtagPage() {
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <Play size={32} className="text-white" fill="white" />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
