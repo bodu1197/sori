@@ -64,11 +64,12 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
   const [showDelete, setShowDelete] = useState(false);
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onPlay(track, index)}
       onMouseEnter={() => setShowDelete(true)}
       onMouseLeave={() => setShowDelete(false)}
-      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors w-full text-left ${
         isCurrentTrack ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-900'
       }`}
     >
@@ -143,7 +144,7 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
           <Play size={18} fill="currentColor" />
         )}
       </button>
-    </div>
+    </button>
   );
 }
 

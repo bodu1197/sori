@@ -40,6 +40,11 @@ export default function AuthPage() {
     }
   };
 
+  const getSubmitButtonText = () => {
+    if (loading) return t('auth.processing');
+    return isLogin ? t('auth.login') : t('auth.signup');
+  };
+
   return (
     <div className="h-full flex flex-col items-center justify-center bg-white dark:bg-black p-8">
       <div className="w-full max-w-sm">
@@ -70,7 +75,7 @@ export default function AuthPage() {
             disabled={loading}
             className="bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
           >
-            {loading ? t('auth.processing') : isLogin ? t('auth.login') : t('auth.signup')}
+            {getSubmitButtonText()}
           </button>
         </form>
 

@@ -77,11 +77,11 @@ def get_ytmusic(country: str = "US"):
 
     return ytmusic_instances[country]
 
-def cache_get(key: str):
+def cache_get(_key: str):
     """캐시 비활성화 - 항상 None 반환"""
     return None
 
-def cache_set(key: str, value, ttl: int = 3600):
+def cache_set(_key: str, _value, _ttl: int = 3600):
     """캐시 비활성화 - 아무 동작 안함"""
     pass
 
@@ -201,7 +201,7 @@ def db_save_track(track_data: dict, album_id: str = None, artist_id: str = None)
                     duration_seconds = int(parts[0]) * 60 + int(parts[1])
                 elif len(parts) == 3:
                     duration_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-            except:
+            except ValueError:
                 pass
 
         data = {

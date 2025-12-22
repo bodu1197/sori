@@ -56,8 +56,9 @@ const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       // Store subscription for cleanup (not returning to match Promise<void>)
-      // subscription can be unsubscribed if needed
-      void subscription;
+      // Subscription is kept alive for the lifetime of the app
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _subscription = subscription;
     } catch (error) {
       console.error('Auth initialization error:', error);
       set({ loading: false, initialized: true });

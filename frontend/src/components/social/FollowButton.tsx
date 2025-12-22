@@ -106,13 +106,19 @@ export default function FollowButton({
 
   const followClasses = `bg-blue-500 text-white hover:bg-blue-600`;
 
+  const getButtonText = () => {
+    if (loading) return '...';
+    if (isFollowing) return 'Following';
+    return 'Follow';
+  };
+
   return (
     <button
       onClick={handleFollowToggle}
       disabled={loading}
       className={`${baseClasses} ${isFollowing ? followingClasses : followClasses} ${className} ${loading ? 'opacity-50 cursor-not-allowed' : ''} flex items-center justify-center gap-1`}
     >
-      {loading ? '...' : isFollowing ? 'Following' : 'Follow'}
+      {getButtonText()}
       {showDropdown && isFollowing && <ChevronDown size={14} />}
     </button>
   );

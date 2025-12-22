@@ -279,7 +279,7 @@ export default function TrackListPanel({
 
   // Initialize YouTube API
   useEffect(() => {
-    if (window.YT && window.YT.Player) {
+    if (window.YT?.Player) {
       initializePlayer();
       return;
     }
@@ -366,10 +366,12 @@ export default function TrackListPanel({
       style={{ visibility: isOpen ? 'visible' : 'hidden' }}
     >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/50 border-0"
         onClick={onClose}
         style={{ opacity: isOpen ? 1 : 0, transition: 'opacity 0.3s' }}
+        aria-label="Close panel"
       />
 
       {/* Panel - slides up from bottom */}
