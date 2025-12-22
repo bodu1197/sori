@@ -311,10 +311,11 @@ export default function NotificationsPage() {
                 <span className="text-sm font-semibold text-gray-500">{group}</span>
               </div>
               {items.map((notification) => (
-                <div
+                <button
+                  type="button"
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition ${
+                  className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition w-full text-left ${
                     !notification.is_read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
                   }`}
                 >
@@ -351,7 +352,7 @@ export default function NotificationsPage() {
                   {!notification.is_read && (
                     <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
                   )}
-                </div>
+                </button>
               ))}
             </div>
           ))}

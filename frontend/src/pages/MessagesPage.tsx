@@ -322,10 +322,11 @@ export default function MessagesPage() {
           ) : (
             <div>
               {searchedUsers.map((searchedUser) => (
-                <div
+                <button
+                  type="button"
                   key={searchedUser.id}
                   onClick={() => navigate(`/profile/${searchedUser.id}`)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
                 >
                   <img
                     src={searchedUser.avatar_url || DEFAULT_AVATAR}
@@ -340,7 +341,7 @@ export default function MessagesPage() {
                       <p className="text-sm text-gray-500">{searchedUser.full_name}</p>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -376,10 +377,11 @@ export default function MessagesPage() {
             if (!otherUser) return null;
 
             return (
-              <div
+              <button
+                type="button"
                 key={conversation.id}
                 onClick={() => navigate(`/messages/${conversation.id}`)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
               >
                 {/* Avatar */}
                 <div className="relative">
@@ -423,7 +425,7 @@ export default function MessagesPage() {
                       : 'No messages yet'}
                   </p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
