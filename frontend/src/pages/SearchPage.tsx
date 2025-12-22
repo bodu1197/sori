@@ -99,6 +99,10 @@ type SearchTab = 'music' | 'users';
 export default function SearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const navigateToProfile = (browseId?: string) => {
+    if (browseId) navigate(`/artist/${browseId}`);
+  };
   const { user } = useAuthStore();
   const { startPlayback, openTrackPanel, setTrackPanelLoading } = usePlayerStore();
 
@@ -1019,8 +1023,11 @@ export default function SearchPage() {
                 {searchArtist && (
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
                     {/* 2층: 사진, 이름, 좋아요 버튼 */}
-                    <div className="flex items-center gap-4 p-4">
-                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700">
+                    <div
+                      className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                      onClick={() => navigateToProfile(searchArtist.browseId)}
+                    >
+                      <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700 relative">
                         <img
                           src={getBestThumbnail(searchArtist.thumbnails)}
                           alt={searchArtist.artist}
@@ -1410,7 +1417,7 @@ export default function SearchPage() {
                           <button
                             type="button"
                             key={artist.browseId || `related-${i}`}
-                            onClick={() => handleSearchSimilarArtist(artistName)}
+                            onClick={() => navigateToProfile(artist.browseId)}
                             className="flex flex-col items-center cursor-pointer group bg-transparent border-0 p-0"
                           >
                             <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
