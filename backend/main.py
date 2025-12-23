@@ -1812,16 +1812,29 @@ async def search_quick(request: Request, q: str, country: str = None):
                         "thumbnail": get_best_thumbnail(a.get("thumbnails", []))
                     })
 
-            # 백그라운드에서 DB에 저장
+            # 백그라운드에서 DB에 저장 + 가상회원 자동 생성
             if supabase_client and artist_data.get("browseId"):
                 try:
+                    browse_id = artist_data["browseId"]
+                    artist_name = artist_data["name"]
+                    thumbnail_url = artist_data["thumbnail"]
+
                     supabase_client.table("music_artists").upsert({
-                        "browse_id": artist_data["browseId"],
-                        "name": artist_data["name"],
-                        "thumbnail_url": artist_data["thumbnail"],
+                        "browse_id": browse_id,
+                        "name": artist_name,
+                        "thumbnail_url": thumbnail_url,
                         "songs_playlist_id": songs_playlist_id,
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }, on_conflict="browse_id").execute()
+
+                    # 가상회원 자동 생성
+                    try:
+                        existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
+                        if not existing.data or len(existing.data) == 0:
+                            create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
+                            logger.info(f"Virtual member auto-created via search: {artist_name}")
+                    except Exception as vm_error:
+                        logger.warning(f"Virtual member auto-creation skipped: {vm_error}")
                 except Exception:
                     pass
 
