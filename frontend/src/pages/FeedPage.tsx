@@ -306,12 +306,6 @@ function ForYouSection() {
 
         {/* Content */}
         <div className="absolute inset-0 p-3 sm:p-5 flex flex-col justify-center text-left">
-          <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
-            <span className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] font-medium text-white/90 uppercase tracking-wider border border-white/10">
-              {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.recommended')}
-            </span>
-          </div>
-
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-0.5 sm:mb-1 drop-shadow-md">
             {context.greeting || t('feed.welcome', 'Welcome back')}
           </h2>
@@ -321,16 +315,21 @@ function ForYouSection() {
             {context.temperature !== null && `(${context.temperature}°C)`}
           </p>
 
-          {/* Floating Play Icon */}
-          <div className="absolute right-3 bottom-3 sm:right-5 sm:bottom-5 w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:bg-white group-hover:scale-110 transition-all duration-300">
-            <Play
-              size={18}
-              className="text-white group-hover:text-purple-600 ml-0.5 fill-current sm:hidden"
-            />
-            <Play
-              size={20}
-              className="text-white group-hover:text-purple-600 ml-1 fill-current hidden sm:block"
-            />
+          {/* Country badge + Play button (right side) */}
+          <div className="absolute right-3 bottom-3 sm:right-5 sm:bottom-5 flex flex-col items-center gap-1">
+            <span className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[8px] sm:text-[10px] font-medium text-white/90 uppercase tracking-wider border border-white/10 whitespace-nowrap">
+              {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.recommended')}
+            </span>
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:bg-white group-hover:scale-110 transition-all duration-300">
+              <Play
+                size={18}
+                className="text-white group-hover:text-purple-600 ml-0.5 fill-current sm:hidden"
+              />
+              <Play
+                size={20}
+                className="text-white group-hover:text-purple-600 ml-1 fill-current hidden sm:block"
+              />
+            </div>
           </div>
         </div>
 
