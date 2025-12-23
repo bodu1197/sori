@@ -614,13 +614,57 @@ def db_get_full_artist_data(browse_id: str) -> dict | None:
         logger.warning(f"DB get full artist data error: {e}")
         return None
 
-def get_best_thumbnail(thumbnails: list) -> str:
-    """썸네일 목록에서 가장 좋은 URL 선택"""
+def upscale_thumbnail_url(url: str, size: int = 544) -> str:
+    """
+    기존 썸네일 URL을 고해상도로 변환
+
+    YouTube Music 썸네일 URL 형식:
+    - lh3.googleusercontent.com/...=w60-h60-l90-rj -> w{size}-h{size}로 변환
+    - i.ytimg.com/vi/ID/sddefault.jpg -> maxresdefault.jpg로 변환
+
+    Args:
+        url: 썸네일 URL
+        size: 원하는 해상도 (기본 544px)
+    """
+    import re
+
+    if not url:
+        return ""
+
+    # 1. Google CDN (lh3.googleusercontent.com, yt3.googleusercontent.com)
+    if "googleusercontent.com" in url:
+        # w60-h60 또는 w120-h120 등을 w{size}-h{size}로 변환
+        url = re.sub(r'=w\d+-h\d+', f'=w{size}-h{size}', url)
+        # s60, s120 등 단일 크기 파라미터도 변환
+        url = re.sub(r'=s\d+', f'=s{size}', url)
+        # 크기 파라미터가 없으면 추가
+        if f'=w{size}' not in url and f'=s{size}' not in url:
+            if '=' in url:
+                url = re.sub(r'=([^&]+)$', f'=w{size}-h{size}-\\1', url)
+            else:
+                url = f"{url}=w{size}-h{size}"
+
+    # 2. YouTube 이미지 (i.ytimg.com)
+    elif "i.ytimg.com" in url:
+        # sddefault, hqdefault -> maxresdefault
+        url = url.replace("sddefault.jpg", "maxresdefault.jpg")
+        url = url.replace("hqdefault.jpg", "maxresdefault.jpg")
+        url = url.replace("mqdefault.jpg", "maxresdefault.jpg")
+        url = url.replace("/default.jpg", "/maxresdefault.jpg")
+
+    return url
+
+
+def get_best_thumbnail(thumbnails: list, size: int = 544) -> str:
+    """썸네일 목록에서 가장 좋은 URL 선택 + 고해상도로 변환"""
     if not thumbnails:
         return ""
+
     # 가장 큰 이미지 선택
     best = thumbnails[-1]
-    return best.get("url", "") if isinstance(best, dict) else ""
+    url = best.get("url", "") if isinstance(best, dict) else ""
+
+    return upscale_thumbnail_url(url, size)
 
 
 def background_update_artist(artist_browse_id: str, country: str):
@@ -3405,7 +3449,8 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
 
                 # ========== FETCH REAL DATA ==========
                 real_data = {"post_type": "fan_thanks"}
-                cover_url = artist.get("avatar_url")  # Default to avatar
+                # Default to avatar (upscaled to high resolution)
+                cover_url = upscale_thumbnail_url(artist.get("avatar_url"), size=544)
 
                 # Try to get real album data
                 if browse_id:
@@ -3432,9 +3477,9 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                                 "year": album.get("year")
                             }
                         }
-                        # Use REAL album art as cover
+                        # Use REAL album art as cover (upscaled to high resolution)
                         if album.get("thumbnail_url"):
-                            cover_url = album["thumbnail_url"]
+                            cover_url = upscale_thumbnail_url(album["thumbnail_url"], size=544)
                             logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
 
                     elif tracks.data and len(tracks.data) > 0:
@@ -3443,13 +3488,13 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                             "post_type": "music_promotion",
                             "popular_tracks": tracks.data[:3]
                         }
-                        # Use track thumbnail as cover
+                        # Use track thumbnail as cover (upscaled to high resolution)
                         track_with_thumb = next(
                             (t for t in tracks.data if t.get("thumbnail_url")),
                             None
                         )
                         if track_with_thumb:
-                            cover_url = track_with_thumb["thumbnail_url"]
+                            cover_url = upscale_thumbnail_url(track_with_thumb["thumbnail_url"], size=544)
                             logger.info(f"Using real track art for {artist_name}")
 
                 # ========== GENERATE POST ==========
