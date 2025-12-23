@@ -1,5 +1,48 @@
 # SORI Project - Claude Memory
 
+## ⚠️ MANDATORY: Supabase SQL Execution
+
+**항상 이 방법으로 SQL 실행할 것. 다른 방법 시도 금지!**
+
+### Supabase Management API로 SQL 실행
+
+```bash
+curl -s -X POST "https://api.supabase.com/v1/projects/nrtkbulkzhhlstaomvas/database/query" \
+  -H "Authorization: Bearer sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "YOUR_SQL_HERE"}'
+```
+
+### 예시
+
+```bash
+# 테이블 생성
+curl -s -X POST "https://api.supabase.com/v1/projects/nrtkbulkzhhlstaomvas/database/query" \
+  -H "Authorization: Bearer sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "CREATE TABLE IF NOT EXISTS my_table (id UUID PRIMARY KEY DEFAULT gen_random_uuid());"}'
+
+# RLS 활성화
+curl -s -X POST "https://api.supabase.com/v1/projects/nrtkbulkzhhlstaomvas/database/query" \
+  -H "Authorization: Bearer sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;"}'
+
+# 함수 생성
+curl -s -X POST "https://api.supabase.com/v1/projects/nrtkbulkzhhlstaomvas/database/query" \
+  -H "Authorization: Bearer sbp_753b67c2411cad6320ef44d6626ac13ee2ba6296" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "CREATE OR REPLACE FUNCTION my_func() RETURNS void LANGUAGE plpgsql AS $$ BEGIN END; $$;"}'
+```
+
+### 주의사항
+
+- `supabase db push` 사용 금지 (migration 충돌 발생)
+- 여러 SQL문은 각각 별도 API 호출로 실행
+- 응답이 `[]`이면 성공
+
+---
+
 ## SonarCloud Configuration
 
 - **Project Key**: `bodu1197_sori`
