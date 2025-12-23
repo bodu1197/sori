@@ -82,5 +82,14 @@
     "forgotPassword": "비밀번호를 잊으셨나요?",
     "noAccount": "계정이 없으신가요?",
     "hasAccount": "이미 계정이 있으신가요?"
+  },
+  "translate": {
+    "button": "번역하기",
+    "translating": "번역 중...",
+    "translated": "번역됨",
+    "error": "번역 실패",
+    "showOriginal": "원문 보기",
+    "showTranslated": "번역 보기",
+    "from": "{{language}}에서 번역됨"
   }
 }

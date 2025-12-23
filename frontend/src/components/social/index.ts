@@ -7,3 +7,4 @@ export { default as RepostButton } from './RepostButton';
 export { default as BookmarkButton } from './BookmarkButton';
 export { default as ShareButton } from './ShareButton';
 export { default as PostOptionsMenu } from './PostOptionsMenu';
+export { default as TranslateButton, usePostTranslation } from './TranslateButton';

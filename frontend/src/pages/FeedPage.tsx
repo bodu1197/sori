@@ -16,6 +16,8 @@ import {
   BookmarkButton,
   ShareButton,
   PostOptionsMenu,
+  TranslateButton,
+  usePostTranslation,
 } from '../components/social';
 import { StoriesBar } from '../components/stories';
 import { DEFAULT_AVATAR } from '../components/common';
@@ -409,6 +411,15 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
   const likeCountText = useLikeCountText(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
 
+  // Translation support for caption
+  const {
+    displayText: displayCaption,
+    isTranslated,
+    handleTranslated,
+    toggleView,
+    showOriginal,
+  } = usePostTranslation(post.caption || '');
+
   const handleProfileClick = () => {
     if (profile?.id) {
       navigate(`/profile/${profile.id}`);
@@ -589,8 +600,31 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
       <div className="px-3 pt-1">
         <div className="text-sm">
           <span className="font-semibold mr-2 text-black dark:text-white">{displayName}</span>
-          <span className="text-gray-700 dark:text-gray-300">{post.caption}</span>
+          <span className="text-gray-700 dark:text-gray-300">{displayCaption}</span>
         </div>
+
+        {/* Translation controls */}
+        {post.caption && post.caption.length >= 5 && (
+          <div className="flex items-center gap-2 mt-1">
+            {!isTranslated ? (
+              <TranslateButton
+                postId={post.id}
+                text={post.caption}
+                onTranslated={handleTranslated}
+                size={14}
+                showLabel={true}
+              />
+            ) : (
+              <button
+                onClick={toggleView}
+                className="text-xs text-blue-500 dark:text-blue-400 hover:underline"
+              >
+                {showOriginal ? t('translate.showTranslated') : t('translate.showOriginal')}
+              </button>
+            )}
+          </div>
+        )}
+
         {(post.comment_count || 0) > 0 ? (
           <button
             onClick={handleOpenComments}

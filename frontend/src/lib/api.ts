@@ -57,6 +57,95 @@ export async function searchMusic(
   }
 }
 
+// =============================================================================
+// Translation API
+// =============================================================================
+
+export interface TranslationResult {
+  translated_text: string;
+  source_language: string;
+  cached: boolean;
+  same_language?: boolean;
+}
+
+export interface LanguageDetectionResult {
+  language: string;
+  language_name: string;
+}
+
+export async function translateText(
+  text: string,
+  targetLanguage: string,
+  postId?: string,
+  sourceLanguage?: string
+): Promise<TranslationResult | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        target_language: targetLanguage,
+        post_id: postId,
+        source_language: sourceLanguage,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Translation error:', error);
+    return null;
+  }
+}
+
+export async function detectLanguage(text: string): Promise<LanguageDetectionResult | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/detect-language`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Language detection API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Language detection error:', error);
+    return null;
+  }
+}
+
+export async function getCachedTranslation(
+  postId: string,
+  targetLanguage: string
+): Promise<TranslationResult | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/translate/cached/${postId}?target_language=${targetLanguage}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Get cached translation error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.translated_text ? data : null;
+  } catch (error) {
+    console.error('Get cached translation error:', error);
+    return null;
+  }
+}
+
+// =============================================================================
+// Video Info API
+// =============================================================================
+
 export async function getVideoInfo(videoId: string): Promise<VideoInfo | null> {
   try {
     const response = await fetch(

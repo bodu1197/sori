@@ -82,5 +82,14 @@
     "forgotPassword": "Forgot password?",
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?"
+  },
+  "translate": {
+    "button": "Translate",
+    "translating": "Translating...",
+    "translated": "Translated",
+    "error": "Translation failed",
+    "showOriginal": "Show original",
+    "showTranslated": "Show translation",
+    "from": "Translated from {{language}}"
   }
 }

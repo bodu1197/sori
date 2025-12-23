@@ -227,3 +227,155 @@ def generate_artist_dm(artist_name: str, persona: dict, context: str = "new foll
     except Exception as e:
         logger.error(f"Error generating DM: {e}")
         return None
+
+
+# =============================================================================
+# Multilingual Support Functions
+# =============================================================================
+
+# Language names mapping for better AI understanding
+LANG_NAMES = {
+    'en': 'English', 'ko': 'Korean', 'ja': 'Japanese', 'zh': 'Chinese',
+    'es': 'Spanish', 'fr': 'French', 'de': 'German', 'pt': 'Portuguese',
+    'id': 'Indonesian', 'ar': 'Arabic', 'hi': 'Hindi', 'ru': 'Russian',
+    'tr': 'Turkish', 'vi': 'Vietnamese', 'th': 'Thai', 'nl': 'Dutch',
+    'pl': 'Polish', 'it': 'Italian', 'sw': 'Swahili', 'yo': 'Yoruba',
+    'zu': 'Zulu', 'am': 'Amharic', 'ha': 'Hausa', 'ig': 'Igbo'
+}
+
+VALID_LANG_CODES = set(LANG_NAMES.keys())
+
+
+def detect_language(text: str) -> str:
+    """
+    Detect the language of given text using Gemini.
+    Returns ISO 639-1 code (en, ko, ja, zh, es, etc.)
+    """
+    if not genai or not text:
+        return "en"
+
+    try:
+        prompt = f"""Detect the language of this text and return ONLY the ISO 639-1 code.
+Examples: en, ko, ja, zh, es, fr, de, pt, id, ar, hi, ru, tr, sw, yo
+
+Text: "{text[:500]}"
+
+Return ONLY the 2-letter code, nothing else."""
+
+        response = model.generate_content(prompt)
+        code = response.text.strip().lower()[:2]
+        return code if code in VALID_LANG_CODES else "en"
+    except Exception as e:
+        logger.error(f"Language detection error: {e}")
+        return "en"
+
+
+def translate_text(text: str, source_lang: str, target_lang: str) -> str | None:
+    """
+    Translate text from source language to target language using Gemini.
+    """
+    if not genai or not text:
+        return None
+
+    if source_lang == target_lang:
+        return text
+
+    source_name = LANG_NAMES.get(source_lang, source_lang)
+    target_name = LANG_NAMES.get(target_lang, target_lang)
+
+    try:
+        prompt = f"""Translate the following text from {source_name} to {target_name}.
+Keep the tone, style, and any emojis intact.
+Return ONLY the translated text, nothing else.
+
+Original text:
+{text}"""
+
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        return None
+
+
+def generate_artist_post_multilingual(
+    artist_name: str,
+    persona: dict,
+    language: str,
+    post_type: str = None,
+    context: dict = None
+) -> dict | None:
+    """
+    Generate a social media post in the artist's native language.
+
+    Args:
+        artist_name: Name of the artist
+        persona: AI persona dict
+        language: ISO 639-1 code for the post language
+        post_type: Optional specific type (new_album, concert, etc.)
+        context: Optional context dict (album_name, concert_venue, etc.)
+    """
+    if not genai:
+        return None
+
+    import random
+
+    lang_name = LANG_NAMES.get(language, 'English')
+    tone = persona.get("tone", "friendly, casual, warm") if persona else "friendly, casual, warm"
+    fandom = persona.get("fandom_name", "fans") if persona else "fans"
+
+    # Determine post content based on type
+    if post_type == "new_album" and context:
+        type_instruction = f"Announce your new album '{context.get('album_name', 'new album')}' with excitement!"
+    elif post_type == "new_single" and context:
+        type_instruction = f"Announce your new single '{context.get('single_name', 'new song')}' to your fans!"
+    elif post_type == "concert" and context:
+        venue = context.get('venue', '')
+        date = context.get('date', '')
+        type_instruction = f"Announce your upcoming concert at {venue} on {date}!"
+    else:
+        types = [
+            "Share a personal thought or reflection",
+            "Express gratitude to your fans",
+            "Share what you're working on in the studio",
+            "Share a daily life moment"
+        ]
+        type_instruction = random.choice(types)
+
+    prompt = f"""You are {artist_name}, a music artist posting on social media.
+
+IMPORTANT: Write the post in {lang_name} language ONLY.
+
+Your personality/tone: {tone}
+Your fan base is called: {fandom}
+What to post about: {type_instruction}
+
+Write a SHORT, authentic social media post (1-3 sentences).
+Make it feel personal and genuine.
+Include 1-2 relevant emojis.
+
+Output JSON only:
+{{
+  "caption": "The post text in {lang_name}",
+  "type": "update|music|thoughts|fan|announcement",
+  "hashtags": ["tag1", "tag2", "tag3"]
+}}
+
+Return ONLY valid JSON."""
+
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        if text.startswith("```"):
+            lines = text.split('\n')
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            text = "\n".join(lines)
+
+        result = json.loads(text)
+        result["language"] = language
+        return result
+    except Exception as e:
+        logger.error(f"Error generating multilingual post: {e}")
+        return None

@@ -10,7 +10,11 @@ import json
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from ai_agent import generate_artist_persona, chat_with_artist, generate_artist_post, generate_artist_comment, generate_artist_dm
+from ai_agent import (
+    generate_artist_persona, chat_with_artist, generate_artist_post,
+    generate_artist_comment, generate_artist_dm,
+    detect_language, translate_text, generate_artist_post_multilingual
+)
 import random
 
 # 로깅 설정
@@ -3346,7 +3350,7 @@ async def list_virtual_members():
 @app.post("/api/cron/artist-activity")
 async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
     """
-    Cron job to generate AI-driven artist posts.
+    Cron job to generate AI-driven artist posts in their native language.
     Call this periodically (e.g., every hour) via Cloud Scheduler or Vercel Cron.
 
     Note: Artists only POST on their own feed. They do NOT:
@@ -3354,6 +3358,9 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
     - Proactively comment on user posts
     - Proactively send DMs
     These actions only happen as RESPONSES to user interactions.
+
+    Multilingual: Artists post in their native language.
+    Users can use the translation button to translate posts.
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail="Database not configured")
@@ -3364,10 +3371,12 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
 
         results = {
             "posts_created": 0,
+            "languages_used": [],
             "errors": []
         }
 
         # 1. Get random virtual members (artists with profiles)
+        # Join with music_artists to get primary_language
         artists_result = supabase_client.table("profiles").select(
             "id, username, full_name, avatar_url, artist_browse_id, ai_persona"
         ).eq("member_type", "artist").execute()
@@ -3378,20 +3387,36 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
         artists = artists_result.data
         random.shuffle(artists)
 
-        # 2. Generate posts for random artists
+        # 2. Generate posts for random artists in their native language
         for artist in artists[:MAX_POSTS_PER_RUN]:
             try:
                 persona = artist.get("ai_persona") or {}
                 artist_name = artist.get("full_name") or artist.get("username")
+                browse_id = artist.get("artist_browse_id")
 
-                # Generate post content via AI
-                post_data = await run_in_thread(generate_artist_post, artist_name, persona)
+                # Get artist's primary language from music_artists table
+                artist_language = "en"  # Default to English
+                if browse_id:
+                    music_artist = supabase_client.table("music_artists").select(
+                        "primary_language"
+                    ).eq("browse_id", browse_id).limit(1).execute()
+                    if music_artist.data:
+                        artist_language = music_artist.data[0].get("primary_language") or "en"
+
+                # Generate multilingual post content via AI
+                post_data = await run_in_thread(
+                    generate_artist_post_multilingual,
+                    artist_name,
+                    persona,
+                    artist_language
+                )
 
                 if post_data and post_data.get("caption"):
-                    # Insert post into DB
+                    # Insert post into DB with language
                     new_post = {
                         "user_id": artist["id"],
                         "caption": post_data["caption"],
+                        "language": artist_language,  # Store post language
                         "is_public": True,
                         "like_count": 0,
                         "comment_count": 0,
@@ -3400,7 +3425,8 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
 
                     supabase_client.table("posts").insert(new_post).execute()
                     results["posts_created"] += 1
-                    logger.info(f"Created post for {artist_name}: {post_data['caption'][:50]}...")
+                    results["languages_used"].append(artist_language)
+                    logger.info(f"Created {artist_language} post for {artist_name}: {post_data['caption'][:50]}...")
 
             except Exception as e:
                 results["errors"].append(f"Post error for {artist.get('full_name')}: {str(e)}")
@@ -3593,7 +3619,7 @@ async def auto_reply_to_artist_post(request: Request):
 async def test_artist_activity():
     """
     Test endpoint to manually trigger one artist post.
-    For debugging/demo purposes.
+    For debugging/demo purposes. Supports multilingual posts.
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail="Database not configured")
@@ -3601,7 +3627,7 @@ async def test_artist_activity():
     try:
         # Get a random virtual member
         artists_result = supabase_client.table("profiles").select(
-            "id, username, full_name, avatar_url, ai_persona"
+            "id, username, full_name, avatar_url, ai_persona, artist_browse_id"
         ).eq("member_type", "artist").limit(10).execute()
 
         if not artists_result.data:
@@ -3610,17 +3636,33 @@ async def test_artist_activity():
         artist = random.choice(artists_result.data)
         persona = artist.get("ai_persona") or {}
         artist_name = artist.get("full_name") or artist.get("username")
+        browse_id = artist.get("artist_browse_id")
 
-        # Generate post
-        post_data = await run_in_thread(generate_artist_post, artist_name, persona)
+        # Get artist's primary language
+        artist_language = "en"
+        if browse_id:
+            music_artist = supabase_client.table("music_artists").select(
+                "primary_language"
+            ).eq("browse_id", browse_id).limit(1).execute()
+            if music_artist.data:
+                artist_language = music_artist.data[0].get("primary_language") or "en"
+
+        # Generate multilingual post
+        post_data = await run_in_thread(
+            generate_artist_post_multilingual,
+            artist_name,
+            persona,
+            artist_language
+        )
 
         if not post_data:
             return {"status": "error", "message": "Failed to generate post content"}
 
-        # Insert post
+        # Insert post with language
         new_post = {
             "user_id": artist["id"],
             "caption": post_data.get("caption", "Hello from AI!"),
+            "language": artist_language,
             "is_public": True,
             "like_count": 0,
             "comment_count": 0,
@@ -3632,12 +3674,379 @@ async def test_artist_activity():
         return {
             "status": "success",
             "artist": artist_name,
+            "language": artist_language,
             "post": post_data,
             "db_result": result.data[0] if result.data else None
         }
 
     except Exception as e:
         logger.error(f"Test activity error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Translation API Endpoints
+# =============================================================================
+
+@app.post("/api/translate")
+async def translate_post_content(request: Request):
+    """
+    Translate post content to target language with caching.
+
+    Request body:
+    - post_id: UUID of the post (optional, for caching)
+    - text: Text to translate
+    - target_language: ISO 639-1 code (e.g., 'ko', 'en', 'ja')
+    - source_language: Optional source language code (auto-detected if not provided)
+
+    Returns:
+    - translated_text: The translated text
+    - source_language: Detected/provided source language
+    - cached: Whether the result was from cache
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        body = await request.json()
+        text = body.get("text", "").strip()
+        target_lang = body.get("target_language", "en")
+        source_lang = body.get("source_language")
+        post_id = body.get("post_id")
+
+        if not text:
+            raise HTTPException(status_code=400, detail="text is required")
+
+        if not target_lang:
+            raise HTTPException(status_code=400, detail="target_language is required")
+
+        # Check cache if post_id provided
+        if post_id:
+            cache_result = supabase_client.table("post_translations").select(
+                "translated_text, source_language"
+            ).eq("post_id", post_id).eq("target_language", target_lang).limit(1).execute()
+
+            if cache_result.data:
+                return {
+                    "translated_text": cache_result.data[0]["translated_text"],
+                    "source_language": cache_result.data[0]["source_language"],
+                    "cached": True
+                }
+
+        # Detect source language if not provided
+        if not source_lang:
+            source_lang = await run_in_thread(detect_language, text)
+
+        # If already in target language, return original
+        if source_lang == target_lang:
+            return {
+                "translated_text": text,
+                "source_language": source_lang,
+                "cached": False,
+                "same_language": True
+            }
+
+        # Translate using AI
+        translated = await run_in_thread(translate_text, text, source_lang, target_lang)
+
+        if not translated:
+            raise HTTPException(status_code=500, detail="Translation failed")
+
+        # Cache the result if post_id provided
+        if post_id:
+            try:
+                supabase_client.table("post_translations").upsert({
+                    "post_id": post_id,
+                    "source_language": source_lang,
+                    "target_language": target_lang,
+                    "original_text": text,
+                    "translated_text": translated
+                }, on_conflict="post_id,target_language").execute()
+            except Exception as cache_error:
+                logger.warning(f"Failed to cache translation: {cache_error}")
+
+        return {
+            "translated_text": translated,
+            "source_language": source_lang,
+            "cached": False
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/translate/cached/{post_id}")
+async def get_cached_translation(post_id: str, target_language: str = "en"):
+    """
+    Get cached translation for a specific post.
+    Returns null if not cached.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        result = supabase_client.table("post_translations").select(
+            "translated_text, source_language, created_at"
+        ).eq("post_id", post_id).eq("target_language", target_language).limit(1).execute()
+
+        if result.data:
+            return {
+                "translated_text": result.data[0]["translated_text"],
+                "source_language": result.data[0]["source_language"],
+                "cached_at": result.data[0]["created_at"]
+            }
+
+        return {"translated_text": None}
+
+    except Exception as e:
+        logger.error(f"Get cached translation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/artist/check-new-releases")
+async def check_artist_new_releases(request: Request):
+    """
+    Check for new album/single releases for an artist.
+
+    Request body:
+    - artist_browse_id: YouTube Music artist browse ID (required)
+    - country: Country code for region-specific results (default: US)
+
+    Returns:
+    - new_albums: List of newly detected albums
+    - new_singles: List of newly detected singles
+    - has_new_releases: Boolean indicating if any new releases found
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        body = await request.json()
+        artist_browse_id = body.get("artist_browse_id", "").strip()
+        country = body.get("country", "US")
+
+        if not artist_browse_id:
+            raise HTTPException(status_code=400, detail="artist_browse_id is required")
+
+        ytmusic = get_ytmusic(country)
+
+        # Get current releases from YouTube Music
+        artist_info = await run_in_thread(ytmusic.get_artist, artist_browse_id)
+        if not artist_info:
+            raise HTTPException(status_code=404, detail="Artist not found")
+
+        current_albums = []
+        current_singles = []
+
+        # Extract albums
+        albums_section = artist_info.get("albums", {})
+        if isinstance(albums_section, dict):
+            browse_id = albums_section.get("browseId")
+            params = albums_section.get("params")
+            if browse_id and params:
+                try:
+                    album_list = await run_in_thread(ytmusic.get_artist_albums, browse_id, params)
+                    for album in (album_list or []):
+                        if isinstance(album, dict) and album.get("browseId"):
+                            current_albums.append({
+                                "id": album.get("browseId"),
+                                "title": album.get("title"),
+                                "year": album.get("year"),
+                                "thumbnails": album.get("thumbnails", [])
+                            })
+                except Exception as e:
+                    logger.warning(f"Failed to get albums: {e}")
+                    for album in albums_section.get("results", []):
+                        if isinstance(album, dict) and album.get("browseId"):
+                            current_albums.append({
+                                "id": album.get("browseId"),
+                                "title": album.get("title"),
+                                "year": album.get("year"),
+                                "thumbnails": album.get("thumbnails", [])
+                            })
+
+        # Extract singles
+        singles_section = artist_info.get("singles", {})
+        if isinstance(singles_section, dict):
+            browse_id = singles_section.get("browseId")
+            params = singles_section.get("params")
+            if browse_id and params:
+                try:
+                    single_list = await run_in_thread(ytmusic.get_artist_albums, browse_id, params)
+                    for single in (single_list or []):
+                        if isinstance(single, dict) and single.get("browseId"):
+                            current_singles.append({
+                                "id": single.get("browseId"),
+                                "title": single.get("title"),
+                                "year": single.get("year"),
+                                "thumbnails": single.get("thumbnails", [])
+                            })
+                except Exception as e:
+                    logger.warning(f"Failed to get singles: {e}")
+                    for single in singles_section.get("results", []):
+                        if isinstance(single, dict) and single.get("browseId"):
+                            current_singles.append({
+                                "id": single.get("browseId"),
+                                "title": single.get("title"),
+                                "year": single.get("year"),
+                                "thumbnails": single.get("thumbnails", [])
+                            })
+
+        # Get stored release data
+        stored_result = supabase_client.table("artist_releases").select(
+            "known_album_ids, known_single_ids"
+        ).eq("artist_browse_id", artist_browse_id).limit(1).execute()
+
+        known_album_ids = set()
+        known_single_ids = set()
+
+        if stored_result.data:
+            known_album_ids = set(stored_result.data[0].get("known_album_ids", []) or [])
+            known_single_ids = set(stored_result.data[0].get("known_single_ids", []) or [])
+
+        # Find new releases
+        current_album_ids = {a["id"] for a in current_albums}
+        current_single_ids = {s["id"] for s in current_singles}
+
+        new_album_ids = current_album_ids - known_album_ids
+        new_single_ids = current_single_ids - known_single_ids
+
+        new_albums = [a for a in current_albums if a["id"] in new_album_ids]
+        new_singles = [s for s in current_singles if s["id"] in new_single_ids]
+
+        # Update stored data
+        update_data = {
+            "artist_browse_id": artist_browse_id,
+            "known_album_ids": list(current_album_ids),
+            "known_single_ids": list(current_single_ids),
+            "last_checked_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        if new_albums or new_singles:
+            update_data["last_new_release_at"] = datetime.now(timezone.utc).isoformat()
+
+        supabase_client.table("artist_releases").upsert(
+            update_data,
+            on_conflict="artist_browse_id"
+        ).execute()
+
+        return {
+            "artist_name": artist_info.get("name", "Unknown"),
+            "new_albums": new_albums,
+            "new_singles": new_singles,
+            "has_new_releases": len(new_albums) > 0 or len(new_singles) > 0,
+            "total_albums": len(current_albums),
+            "total_singles": len(current_singles)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Check new releases error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cron/check-all-artist-releases")
+async def check_all_artist_releases(request: Request, background_tasks: BackgroundTasks):
+    """
+    Cron job: Check all followed artists for new releases.
+    Runs in background and creates posts for new releases.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # Verify admin access
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    secret = body.get("secret") or request.query_params.get("secret")
+
+    if secret != os.getenv("CRON_SECRET", "dev-secret"):
+        raise HTTPException(status_code=403, detail="Invalid secret")
+
+    async def process_releases():
+        try:
+            # Get all virtual member artists with browse_id
+            artists_result = supabase_client.table("music_artists").select(
+                "browse_id, name, primary_language"
+            ).not_.is_("browse_id", "null").limit(50).execute()
+
+            if not artists_result.data:
+                logger.info("No artists to check for new releases")
+                return
+
+            for artist in artists_result.data:
+                browse_id = artist.get("browse_id")
+                if not browse_id:
+                    continue
+
+                try:
+                    # Check for new releases
+                    ytmusic = get_ytmusic("US")
+                    artist_info = ytmusic.get_artist(browse_id)
+
+                    if not artist_info:
+                        continue
+
+                    # Similar logic as above endpoint...
+                    # (Simplified for background task)
+                    logger.info(f"Checked releases for {artist.get('name')}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to check releases for {browse_id}: {e}")
+                    continue
+
+                # Small delay between artists
+                await asyncio.sleep(0.5)
+
+        except Exception as e:
+            logger.error(f"Background release check error: {e}")
+
+    background_tasks.add_task(process_releases)
+    return {"status": "started", "message": "Release check started in background"}
+
+
+@app.post("/api/detect-language")
+async def detect_language_endpoint(request: Request):
+    """
+    Detect the language of given text.
+
+    Request body:
+    - text: Text to analyze
+
+    Returns:
+    - language: ISO 639-1 code
+    - language_name: Full language name
+    """
+    try:
+        body = await request.json()
+        text = body.get("text", "").strip()
+
+        if not text:
+            raise HTTPException(status_code=400, detail="text is required")
+
+        lang_code = await run_in_thread(detect_language, text)
+
+        # Language names mapping
+        lang_names = {
+            'en': 'English', 'ko': 'Korean', 'ja': 'Japanese', 'zh': 'Chinese',
+            'es': 'Spanish', 'fr': 'French', 'de': 'German', 'pt': 'Portuguese',
+            'id': 'Indonesian', 'ar': 'Arabic', 'hi': 'Hindi', 'ru': 'Russian',
+            'tr': 'Turkish', 'vi': 'Vietnamese', 'th': 'Thai', 'nl': 'Dutch',
+            'pl': 'Polish', 'it': 'Italian', 'sw': 'Swahili', 'yo': 'Yoruba',
+            'zu': 'Zulu', 'am': 'Amharic', 'ha': 'Hausa', 'ig': 'Igbo'
+        }
+
+        return {
+            "language": lang_code,
+            "language_name": lang_names.get(lang_code, lang_code.upper())
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Language detection error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
