@@ -3,10 +3,14 @@ import json
 import logging
 import base64
 import io
+import httpx
+from datetime import datetime, timedelta
 try:
     import google.generativeai as genai
+    from google.generativeai import types
 except ImportError:
     genai = None
+    types = None
 
 try:
     from google.cloud import aiplatform
@@ -38,13 +42,83 @@ if vertex_available:
 else:
     imagen_model = None
 
+def search_artist_news(artist_name: str, days: int = 1) -> list:
+    """
+    구글에서 아티스트의 실시간 뉴스를 검색
+
+    Args:
+        artist_name: 아티스트 이름
+        days: 며칠 이내 뉴스 검색 (기본값: 1일)
+
+    Returns:
+        [{"title": "...", "snippet": "...", "source": "...", "date": "..."}]
+    """
+    if not genai:
+        return []
+
+    try:
+        # Use Gemini with grounding to search for recent news
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        prompt = f"""Search for the most recent news about the music artist "{artist_name}" from the last {days} day(s).
+Today's date is {today}.
+
+Find REAL, VERIFIED news only. Focus on:
+- New song/album releases
+- Concert/tour announcements
+- Award wins
+- Collaborations
+- Official statements
+- Major events
+
+Return ONLY valid JSON array:
+[
+  {{
+    "title": "News headline",
+    "snippet": "Brief summary (1-2 sentences)",
+    "source": "News source name",
+    "date": "YYYY-MM-DD or 'today' or 'yesterday'",
+    "type": "release|concert|award|collaboration|news|event"
+  }}
+]
+
+If no recent news found, return empty array: []
+Return ONLY the JSON array, nothing else."""
+
+        # Use Gemini 2.0 with Google Search grounding for real-time data
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0.1  # Low temperature for factual responses
+            )
+        )
+
+        text = response.text.strip()
+
+        # Clean markdown
+        if text.startswith("```"):
+            lines = text.split('\n')
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            text = "\n".join(lines)
+
+        news = json.loads(text)
+        logger.info(f"Found {len(news)} news items for {artist_name}")
+        return news if isinstance(news, list) else []
+
+    except Exception as e:
+        logger.error(f"News search error for {artist_name}: {e}")
+        return []
+
+
 def gather_artist_context(artist_name: str) -> dict:
     """
     AI를 사용하여 아티스트의 현재 상황을 종합적으로 파악
+    실시간 뉴스 검색 + AI 기본 지식 결합
 
     포스팅 전 반드시 호출하여:
     1. 고인/은퇴 여부 확인 → 포스팅 스킵
-    2. 최근 활동 파악 → 맞춤 콘텐츠 생성
+    2. 실시간 뉴스 검색 (1일 이내) → 최신 정보 반영
     3. 신곡/투어 정보 → 실제 정보 기반 포스팅
 
     Returns:
@@ -52,11 +126,11 @@ def gather_artist_context(artist_name: str) -> dict:
             "status": "active|deceased|hiatus|retired|disbanded",
             "can_post": true/false,
             "skip_reason": "reason if cannot post",
-            "recent_activity": "current activity description",
+            "recent_news": [{"title": "...", "snippet": "...", "type": "..."}],
             "new_release": {"title": "...", "type": "album/single"} or null,
             "tour_info": "tour information" or null,
             "news_summary": "recent news in 1 sentence",
-            "suggested_topic": "new_release|tour|fan_thanks|comeback|hiatus_message",
+            "suggested_topic": "new_release|tour|fan_thanks|comeback|hiatus_message|news",
             "post_context": "specific context for generating the post"
         }
     """
@@ -65,33 +139,59 @@ def gather_artist_context(artist_name: str) -> dict:
             "status": "active",
             "can_post": True,
             "suggested_topic": "fan_thanks",
-            "post_context": "General fan appreciation"
+            "post_context": "General fan appreciation",
+            "recent_news": []
         }
 
     try:
-        prompt = f"""You are a music industry expert with up-to-date knowledge. Analyze the artist "{artist_name}" and provide their current context for social media posting.
+        # STEP 1: Search for real-time news (last 1 day)
+        logger.info(f"Searching real-time news for {artist_name}...")
+        recent_news = search_artist_news(artist_name, days=1)
 
-IMPORTANT:
-- If the artist has passed away (deceased), can_post MUST be false
-- If the artist is on hiatus or military service, adjust the suggested_topic accordingly
-- Include any recent releases or tour information if available
+        # Build news context for AI
+        news_context = ""
+        if recent_news:
+            news_items = [f"- {n.get('title', '')}: {n.get('snippet', '')}" for n in recent_news[:5]]
+            news_context = f"""
+RECENT NEWS FROM TODAY (VERIFIED):
+{chr(10).join(news_items)}
 
-Return ONLY valid JSON in this exact format:
+Use this news to inform your response. The post should reference this real news."""
+        else:
+            news_context = "No recent news found in the last 24 hours."
+
+        # STEP 2: Get AI analysis with news context
+        today = datetime.now().strftime("%Y-%m-%d")
+        prompt = f"""You are a music industry expert. Today is {today}.
+Analyze the artist "{artist_name}" for social media posting.
+
+{news_context}
+
+CRITICAL RULES:
+1. If the artist has passed away (deceased), can_post MUST be false
+2. If recent news exists, suggested_topic should be "news" and use that news
+3. If no recent news, use AI knowledge for context (new_release, tour, etc.)
+4. post_context MUST contain SPECIFIC, FACTUAL information only
+
+Return ONLY valid JSON:
 {{
   "status": "active" or "deceased" or "hiatus" or "retired" or "disbanded",
   "can_post": true or false,
   "skip_reason": "reason if can_post is false, otherwise null",
-  "recent_activity": "what they are currently doing (1 sentence)",
-  "new_release": {{"title": "song/album name", "type": "single or album", "year": "2024"}} or null if no recent release,
+  "recent_activity": "what they are currently doing (1 sentence, FACTUAL)",
+  "new_release": {{"title": "song/album name", "type": "single or album", "year": "2024"}} or null,
   "tour_info": "current tour info" or null,
-  "news_summary": "most recent news about them (1 sentence)",
-  "suggested_topic": "new_release" or "tour" or "fan_thanks" or "comeback" or "hiatus_message" or "studio_work",
-  "post_context": "specific context to use when generating the post (1-2 sentences)"
+  "news_summary": "most important recent news (1 sentence)",
+  "suggested_topic": "news" or "new_release" or "tour" or "fan_thanks" or "comeback",
+  "post_context": "SPECIFIC facts to use in the post (names, dates, titles - NO fiction)"
 }}
 
 Return ONLY the JSON, no other text."""
 
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(temperature=0.1)
+        )
         text = response.text.strip()
 
         # Clean markdown code blocks
@@ -102,7 +202,8 @@ Return ONLY the JSON, no other text."""
             text = "\n".join(lines)
 
         result = json.loads(text)
-        logger.info(f"Artist context: {artist_name} -> status={result.get('status')}, can_post={result.get('can_post')}, topic={result.get('suggested_topic')}")
+        result["recent_news"] = recent_news  # Include raw news data
+        logger.info(f"Artist context: {artist_name} -> status={result.get('status')}, can_post={result.get('can_post')}, topic={result.get('suggested_topic')}, news_count={len(recent_news)}")
         return result
 
     except Exception as e:
@@ -111,7 +212,8 @@ Return ONLY the JSON, no other text."""
             "status": "active",
             "can_post": True,
             "suggested_topic": "fan_thanks",
-            "post_context": "General fan appreciation"
+            "post_context": "General fan appreciation",
+            "recent_news": []
         }
 
 
@@ -146,9 +248,33 @@ def generate_contextual_post(
     new_release = context.get("new_release")
     tour_info = context.get("tour_info")
     recent_activity = context.get("recent_activity", "")
+    recent_news = context.get("recent_news", [])
+    news_summary = context.get("news_summary", "")
 
     # Build specific instructions based on context
-    if suggested_topic == "new_release" and new_release:
+    # PRIORITY: Use real-time news if available
+    if suggested_topic == "news" and (recent_news or news_summary):
+        # Build news context from recent news
+        if recent_news:
+            news_text = recent_news[0].get("snippet", news_summary) if recent_news else news_summary
+            news_title = recent_news[0].get("title", "") if recent_news else ""
+        else:
+            news_text = news_summary
+            news_title = ""
+
+        topic_instruction = f"""Share this REAL news with your fans:
+News: {news_title} - {news_text}
+
+Write a post that:
+- References this specific news naturally
+- Expresses your genuine reaction/excitement
+- Thanks fans for their support
+- Sounds authentic to your voice
+
+IMPORTANT: Use the ACTUAL news content, don't make things up."""
+        post_type = "news"
+
+    elif suggested_topic == "new_release" and new_release:
         topic_instruction = f"""Talk about your recent release "{new_release.get('title', '')}" ({new_release.get('type', 'music')}).
 Thank fans for their support and encourage them to listen."""
         post_type = "music"
