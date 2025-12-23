@@ -3890,16 +3890,13 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
                     try:
                         artist_info = ytmusic.get_artist(browse_id)
                         if artist_info:
-                            background_tasks.add_task(
-                                save_full_artist_data_background,
-                                browse_id,
-                                artist_info,
-                                country
-                            )
+                            # 동기 저장 (Cloud Run에서 백그라운드 작업이 중단되는 문제 해결)
+                            save_full_artist_data_background(browse_id, artist_info, country)
                             results["artists_saved"] += 1
-                            logger.info(f"[BATCH {batch}] Saved: {artist_name}")
-                            await asyncio.sleep(0.5)
+                            logger.info(f"[BATCH {batch}] Saved to DB: {artist_name}")
+                            await asyncio.sleep(0.3)
                     except Exception as e:
+                        logger.error(f"[BATCH {batch}] Save error: {artist_name} - {e}")
                         results["errors"].append(f"{artist_name}: {str(e)}")
 
                 await asyncio.sleep(2)  # 국가 간 딜레이
