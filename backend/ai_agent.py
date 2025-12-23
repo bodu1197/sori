@@ -69,48 +69,38 @@ def generate_artist_persona(artist_name: str, description: str, songs: list) -> 
 def chat_with_artist(persona: dict, history: list, message: str) -> str:
     """
     Chat with the artist persona.
-    history: list of {"role": "user"|"model", "parts": ["text"]}
+    history: list of {"role": "user"|"model", "content": "text"}
     """
     if not genai:
         return "AI service unavailable."
-        
-    try:
-        # Construct chat session
-        # We need to inject system prompt. Gemini python SDK supports system_instruction in model config,
-        # but here we reuse the model instance, so we prepend it to history or first message.
-        
-        system_prompt = persona.get("system_prompt", "")
-        tone = persona.get("tone", "")
-        
-        # Simple approach: one-shot generation for stateless REST API usage
-        # (Stateful chat object is harder to manage per request)
-        
-        messages = []
-        messages.append({"role": "user", "parts": [f"System Instruction: {system_prompt}\nTone: {tone}\n\nUser says: {message}"]})
-        
-        # If history exists, we should format it. 
-        # But for MVP, let's just respond to the current message with context.
-        # Ideally, we should use Convert history to Gemini format.
-        
-        # Let's try to use the chat object if history is provided
-        formatted_history = []
-        if history:
-             for h in history:
-                 role = "user" if h.get("role") == "user" else "model"
-                 formatted_history.append({"role": role, "parts": [h.get("content", "")]})
 
-        chat = model.start_chat(history=formatted_history)
-        
-        # Send message with system context if it's the start, or just message
-        if not history:
-             response = chat.send_message(f"System: {system_prompt}\nAct as {persona.get('system_prompt', 'the artist')}.\n\nUser: {message}")
-        else:
-             response = chat.send_message(message)
-             
-        return response.text
+    try:
+        system_prompt = persona.get("system_prompt", "You are a friendly music artist chatting with a fan.")
+        tone = persona.get("tone", "friendly, warm")
+
+        # Build context from recent history (last 5 messages)
+        context = ""
+        if history and len(history) > 0:
+            recent = history[-5:]
+            context = "\n".join([f"{'Fan' if h.get('role') == 'user' else 'You'}: {h.get('content', '')}" for h in recent])
+            context = f"\nRecent conversation:\n{context}\n"
+
+        # Simple one-shot prompt with context
+        prompt = f"""
+{system_prompt}
+
+Your tone: {tone}
+{context}
+The fan says: "{message}"
+
+Respond naturally as this artist (1-2 sentences, be warm and engaging). Include an emoji if appropriate.
+"""
+
+        response = model.generate_content(prompt)
+        return response.text.strip()
     except Exception as e:
         logger.error(f"Chat error: {e}")
-        return "..."
+        return ""
 
 
 def generate_artist_post(artist_name: str, persona: dict, recent_activities: list = None) -> dict | None:
