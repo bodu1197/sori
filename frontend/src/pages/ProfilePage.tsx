@@ -215,9 +215,10 @@ export default function ProfilePage() {
   const isOwnProfile = !paramUserId || paramUserId === user?.id;
   const targetUserId = isOwnProfile ? user?.id : paramUserId;
 
-  const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'discover' | 'private'>(
+  const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'discover' | 'private' | 'music'>(
     isOwnProfile ? 'discover' : 'posts'
   );
+  const [userSavedSongs, setUserSavedSongs] = useState<LikedTrack[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -314,6 +315,26 @@ export default function ProfilePage() {
               playlistId: p.id,
             }));
           setLikedSongs(likedData);
+        } else {
+          // 5. Fetch other user's saved songs from saved_songs table
+          const { data: savedSongsData } = await supabase
+            .from('saved_songs')
+            .select('*')
+            .eq('user_id', targetUserId)
+            .order('created_at', { ascending: false });
+
+          if (savedSongsData) {
+            const savedData: LikedTrack[] = savedSongsData.map((s: any) => ({
+              videoId: s.video_id,
+              title: s.title || t('common.unknown', 'Unknown'),
+              artist: s.artist || t('common.unknownArtist', 'Unknown Artist'),
+              thumbnail: s.cover_url,
+              cover: s.cover_url,
+              cover_url: s.cover_url,
+              playlistId: s.id,
+            }));
+            setUserSavedSongs(savedData);
+          }
         }
       } catch {
         // Error fetching profile
@@ -848,12 +869,21 @@ export default function ProfilePage() {
             <Heart size={24} />
           </button>
         )}
-        <button
-          onClick={() => setActiveTab('discover')}
-          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'discover' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-        >
-          <Disc size={24} />
-        </button>
+        {isOwnProfile ? (
+          <button
+            onClick={() => setActiveTab('discover')}
+            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'discover' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
+          >
+            <Disc size={24} />
+          </button>
+        ) : (
+          <button
+            onClick={() => setActiveTab('music')}
+            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'music' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
+          >
+            <Music size={24} />
+          </button>
+        )}
         {isOwnProfile && (
           <button
             onClick={() => setActiveTab('private')}
@@ -1144,6 +1174,68 @@ export default function ProfilePage() {
               <p>{t('profile.noRecommendations', 'No recommendations available')}</p>
             </div>
           )}
+        </div>
+      ) : activeTab === 'music' ? (
+        // Other User's Saved Music Tab
+        <div className="p-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-bold text-lg">{t('profile.savedMusic', 'Saved Music')}</h3>
+              <p className="text-xs text-gray-500">
+                {userSavedSongs.length} {t('profile.songs')}
+              </p>
+            </div>
+            {userSavedSongs.length > 0 && (
+              <button
+                onClick={() => {
+                  const tracks = userSavedSongs.map((s) => ({
+                    videoId: s.videoId,
+                    title: s.title,
+                    artist: s.artist,
+                    thumbnail: s.thumbnail,
+                    cover: s.cover,
+                  }));
+                  const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                  startPlayback(shuffled, 0);
+                }}
+                className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
+              >
+                <Shuffle size={16} />
+                {t('profile.shuffle')}
+              </button>
+            )}
+          </div>
+
+          {/* Track List */}
+          <div className="space-y-1">
+            {userSavedSongs.length > 0 ? (
+              userSavedSongs.map((track, index) => (
+                <TrackItem
+                  key={track.playlistId || index}
+                  track={track}
+                  index={index}
+                  onPlay={(trackItem, idx) => {
+                    const tracks = userSavedSongs.map((s) => ({
+                      videoId: s.videoId,
+                      title: s.title,
+                      artist: s.artist,
+                      thumbnail: s.thumbnail,
+                      cover: s.cover,
+                    }));
+                    startPlayback(tracks, idx);
+                  }}
+                  isPlaying={isPlaying}
+                  isCurrentTrack={currentTrack?.videoId === track.videoId}
+                />
+              ))
+            ) : (
+              <div className="py-10 text-center text-gray-500">
+                <Music size={48} className="mx-auto mb-2 opacity-50" />
+                <p>{t('profile.noSavedMusic', 'No saved music yet')}</p>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         // Private Tab
