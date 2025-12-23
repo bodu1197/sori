@@ -11,3 +11,6 @@ sample/
 .env*.local
 __pycache__/
 *.pyc
+
+# Supabase temp files
+supabase/.temp/

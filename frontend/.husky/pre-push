@@ -1,2 +1,54 @@
 #!/bin/sh
-cd frontend && npx tsc --noEmit && npm run lint
+# =============================================================================
+# SORI - Pre-Push Hook (Husky)
+# Enforces code quality before pushing
+# =============================================================================
+
+echo ""
+echo "=============================================="
+echo "  SORI Quality Gate - Pre-Push Check"
+echo "=============================================="
+echo ""
+
+cd frontend
+
+# Step 1: TypeScript Check
+echo "[1/3] TypeScript type check..."
+npx tsc --noEmit
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: TypeScript errors found!"
+    echo "Fix all type errors before pushing."
+    exit 1
+fi
+echo "  TypeScript: PASSED"
+
+# Step 2: ESLint Check (with auto-fix attempt)
+echo ""
+echo "[2/3] ESLint check (auto-fixing)..."
+npm run lint -- --fix
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: ESLint errors found!"
+    echo "Fix all lint errors before pushing."
+    exit 1
+fi
+echo "  ESLint: PASSED"
+
+# Step 3: Build Check (optional but recommended)
+echo ""
+echo "[3/3] Build verification..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: Build failed!"
+    echo "Fix build errors before pushing."
+    exit 1
+fi
+echo "  Build: PASSED"
+
+echo ""
+echo "=============================================="
+echo "  All checks passed! Pushing..."
+echo "=============================================="
+echo ""

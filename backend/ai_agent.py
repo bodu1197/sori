@@ -111,3 +111,129 @@ def chat_with_artist(persona: dict, history: list, message: str) -> str:
     except Exception as e:
         logger.error(f"Chat error: {e}")
         return "..."
+
+
+def generate_artist_post(artist_name: str, persona: dict, recent_activities: list = None) -> dict | None:
+    """
+    Generate a social media post for an artist using AI.
+    Returns: {"caption": "...", "type": "update|music|thoughts|fan", "hashtags": [...]}
+    """
+    if not genai:
+        logger.error("google-generativeai library not installed")
+        return None
+
+    # Pick a random post type to keep variety
+    import random
+    post_types = [
+        "music update (new song, album, practice session)",
+        "personal thoughts or reflection",
+        "fan appreciation message",
+        "behind-the-scenes moment",
+        "daily life update",
+        "inspiring quote or wisdom"
+    ]
+    chosen_type = random.choice(post_types)
+
+    tone = persona.get("tone", "friendly, casual, warm") if persona else "friendly, casual, warm"
+    fandom_name = persona.get("fandom_name", "fans") if persona else "fans"
+
+    prompt = f"""
+    You are {artist_name}, a music artist posting on social media.
+
+    Your personality/tone: {tone}
+    Your fan base is called: {fandom_name}
+    Post type to write: {chosen_type}
+
+    Write a SHORT, authentic social media post (1-3 sentences max).
+    Make it feel personal and genuine, like a real celebrity would post.
+    Include 1-2 relevant emojis.
+    Do NOT use hashtags in the caption itself.
+
+    Output JSON only:
+    {{
+      "caption": "The post text here",
+      "type": "{chosen_type.split('(')[0].strip()}",
+      "hashtags": ["tag1", "tag2", "tag3"]
+    }}
+
+    Return ONLY valid JSON.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        # Clean markdown code blocks
+        if text.startswith("```"):
+            lines = text.split('\n')
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            text = "\n".join(lines)
+
+        return json.loads(text)
+    except Exception as e:
+        logger.error(f"Error generating post: {e}")
+        return None
+
+
+def generate_artist_comment(artist_name: str, persona: dict, post_caption: str) -> str | None:
+    """
+    Generate a comment from an artist on a user's post.
+    """
+    if not genai:
+        return None
+
+    tone = persona.get("tone", "friendly, supportive") if persona else "friendly, supportive"
+
+    prompt = f"""
+    You are {artist_name}, a music artist commenting on a fan's post.
+
+    Your personality/tone: {tone}
+    The fan's post says: "{post_caption[:200]}"
+
+    Write a SHORT, genuine comment (1 sentence max).
+    Be supportive and make the fan feel special.
+    Include 1 emoji if appropriate.
+
+    Return ONLY the comment text, nothing else.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        logger.error(f"Error generating comment: {e}")
+        return None
+
+
+def generate_artist_dm(artist_name: str, persona: dict, context: str = "new follower") -> str | None:
+    """
+    Generate a DM from an artist to a user.
+    context: "new follower", "liked post", "birthday", etc.
+    """
+    if not genai:
+        return None
+
+    tone = persona.get("tone", "friendly, warm") if persona else "friendly, warm"
+    greeting = persona.get("greeting", f"Hey! Thanks for the support!") if persona else "Hey! Thanks for the support!"
+
+    prompt = f"""
+    You are {artist_name}, a music artist sending a DM to a fan.
+
+    Your personality/tone: {tone}
+    Context: {context}
+    Your typical greeting style: {greeting}
+
+    Write a SHORT, personal direct message (2 sentences max).
+    Make it feel genuine and exclusive.
+    Include 1-2 emojis.
+
+    Return ONLY the message text, nothing else.
+    """
+
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        logger.error(f"Error generating DM: {e}")
+        return None

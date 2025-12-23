@@ -1,2 +1,20 @@
 #!/bin/sh
-cd frontend && npx lint-staged
+# =============================================================================
+# SORI - Pre-Commit Hook (Husky)
+# Auto-fixes and validates staged files
+# =============================================================================
+
+cd frontend
+
+echo "[Pre-Commit] Running lint-staged (ESLint + Prettier)..."
+npx lint-staged
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "ERROR: Lint-staged failed!"
+    echo "Some files could not be auto-fixed."
+    echo "Please review and fix the errors manually."
+    exit 1
+fi
+
+echo "[Pre-Commit] PASSED - Files formatted and linted"

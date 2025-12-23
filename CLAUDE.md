@@ -55,3 +55,65 @@ npx sonar-scanner -Dsonar.host.url=https://sonarcloud.io
 2. **🟡 Reliability (C Rating)**: 28 bugs - review and fix
 3. **🟠 Security Hotspots**: 257 items need security review
 4. **🟡 Duplication**: 25.4% - consider refactoring duplicated code
+
+---
+
+## Quality Gate Enforcement (Pre-Push Hooks)
+
+### Automatic Checks Before Push
+
+The project enforces code quality via Husky git hooks:
+
+| Hook | Checks | Blocks Push |
+|------|--------|-------------|
+| **pre-commit** | ESLint + Prettier (auto-fix) | Yes |
+| **pre-push** | TypeScript + ESLint + Build | Yes |
+
+### What Gets Checked
+
+1. **TypeScript**: `npx tsc --noEmit` - All type errors must be fixed
+2. **ESLint**: `npm run lint --fix` - Lint errors block push (auto-fix attempted)
+3. **Build**: `npm run build` - Build must succeed
+
+### Manual Quality Check (PowerShell)
+
+```powershell
+.\scripts\quality-check.ps1
+```
+
+### Bypass (NOT Recommended)
+
+```bash
+git push --no-verify
+```
+
+### Hook Files Location
+
+- `frontend/.husky/pre-commit` - Lint-staged on commit
+- `frontend/.husky/pre-push` - Full quality check on push
+- `.git/hooks/pre-push` - Backup hook (if husky fails)
+
+---
+
+## Virtual Member System (2024-12-23)
+
+### Database Schema
+
+```sql
+-- profiles table additions
+member_type TEXT DEFAULT 'user'  -- 'user' | 'artist'
+artist_browse_id TEXT UNIQUE     -- YouTube Music browse_id
+is_verified BOOLEAN DEFAULT false
+ai_persona JSONB                 -- Gemini-generated persona
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/virtual-members/create` | POST | Create virtual member from artist |
+| `/api/virtual-members/migrate-all` | POST | Migrate all artists to virtual members |
+| `/api/virtual-members/list` | GET | List all virtual members |
+| `/api/cron/artist-activity` | POST | AI auto-posting, likes, comments |
+| `/api/cron/artist-dm` | POST | AI welcome DMs to new followers |
+| `/api/cron/test-activity` | GET | Test single AI post generation |

@@ -10,7 +10,8 @@ import json
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from ai_agent import generate_artist_persona, chat_with_artist
+from ai_agent import generate_artist_persona, chat_with_artist, generate_artist_post, generate_artist_comment, generate_artist_dm
+import random
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -103,7 +104,7 @@ ERROR_ACCESS_TOKEN_REQUIRED = "access_token required"
 # =============================================================================
 
 def db_save_artist(artist_data: dict) -> str | None:
-    """아티스트를 DB에 저장 (upsert)"""
+    """아티스트를 DB에 저장 (upsert) + 자동 가상회원 생성"""
     if not supabase_client:
         return None
 
@@ -113,11 +114,14 @@ def db_save_artist(artist_data: dict) -> str | None:
             return None
 
         thumbnails = artist_data.get("thumbnails") or []
+        artist_name = artist_data.get("name") or artist_data.get("artist") or ""
+        thumbnail_url = get_best_thumbnail(thumbnails)
+
         data = {
             "browse_id": browse_id,
-            "name": artist_data.get("name") or artist_data.get("artist") or "",
+            "name": artist_name,
             "thumbnails": json.dumps(thumbnails),
-            "thumbnail_url": get_best_thumbnail(thumbnails),  # Also save best URL
+            "thumbnail_url": thumbnail_url,
             "description": artist_data.get("description") or "",
             "subscribers": artist_data.get("subscribers") or "",
             "last_updated": datetime.now(timezone.utc).isoformat()
@@ -127,11 +131,94 @@ def db_save_artist(artist_data: dict) -> str | None:
             data, on_conflict="browse_id"
         ).execute()
 
+        # 자동 가상회원 생성 (비동기 백그라운드)
+        if result.data:
+            try:
+                # Check if virtual member already exists
+                existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
+                if not existing.data or len(existing.data) == 0:
+                    # Create virtual member in background
+                    create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
+            except Exception as vm_error:
+                logger.warning(f"Virtual member auto-creation skipped: {vm_error}")
+
         if result.data:
             return result.data[0].get("id")
         return None
     except Exception as e:
         logger.warning(f"DB save artist error: {e}")
+        return None
+
+
+def create_virtual_member_sync(browse_id: str, artist_name: str, thumbnail_url: str) -> str | None:
+    """Synchronously create a virtual member for an artist"""
+    if not supabase_client:
+        return None
+
+    try:
+        import uuid
+        import requests
+
+        virtual_email = f"{browse_id}@sori.virtual"
+        random_password = str(uuid.uuid4())
+
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        if not supabase_url or not service_key:
+            logger.warning("Supabase credentials not configured for virtual member creation")
+            return None
+
+        # Create auth user
+        create_user_response = requests.post(
+            f"{supabase_url}/auth/v1/admin/users",
+            headers={
+                "apikey": service_key,
+                "Authorization": f"Bearer {service_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "email": virtual_email,
+                "password": random_password,
+                "email_confirm": True,
+                "user_metadata": {
+                    "full_name": artist_name,
+                    "avatar_url": thumbnail_url,
+                    "member_type": "artist",
+                    "artist_browse_id": browse_id
+                }
+            },
+            timeout=10
+        )
+
+        if create_user_response.status_code not in [200, 201]:
+            return None
+
+        user_data = create_user_response.json()
+        user_id = user_data.get("id")
+
+        # Generate username (ensure minimum 3 chars)
+        base_username = artist_name.lower().replace(" ", "").replace(".", "").replace("-", "")[:20]
+        if len(base_username) < 3:
+            base_username = f"{base_username}_official"
+
+        # Update profiles
+        supabase_client.table("profiles").upsert({
+            "id": user_id,
+            "username": base_username,
+            "full_name": artist_name,
+            "avatar_url": thumbnail_url,
+            "member_type": "artist",
+            "artist_browse_id": browse_id,
+            "is_verified": True,
+            "bio": f"Official SORI profile for {artist_name}"
+        }).execute()
+
+        logger.info(f"Virtual member auto-created: {artist_name} ({browse_id})")
+        return user_id
+
+    except Exception as e:
+        logger.warning(f"Virtual member sync creation failed: {e}")
         return None
 
 def db_save_album(album_data: dict, artist_id: str = None) -> str | None:
@@ -3011,6 +3098,506 @@ async def chat_artist_endpoint(request: Request):
     except Exception as e:
         logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# =============================================================================
+# Virtual Member System - Artist Auto-Registration
+# =============================================================================
+
+@app.post("/api/virtual-members/create")
+async def create_virtual_member(request: Request):
+    """
+    Create a virtual member from an artist in music_artists table.
+    This creates a real auth.users entry and profiles entry.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        body = await request.json()
+        browse_id = body.get("browseId")
+
+        if not browse_id:
+            raise HTTPException(status_code=400, detail="browseId required")
+
+        # 1. Check if already exists in profiles
+        existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
+        if existing.data and len(existing.data) > 0:
+            return {"status": "exists", "profileId": existing.data[0]["id"]}
+
+        # 2. Get artist info from music_artists
+        artist = supabase_client.table("music_artists").select("*").eq("browse_id", browse_id).single().execute()
+        if not artist.data:
+            raise HTTPException(status_code=404, detail="Artist not found in music_artists")
+
+        artist_data = artist.data
+        artist_name = artist_data.get("name", "Unknown Artist")
+        thumbnail_url = artist_data.get("thumbnail_url", "")
+
+        # 3. Create auth user via Supabase Admin API
+        import uuid
+        import requests
+
+        virtual_email = f"{browse_id}@sori.virtual"
+        random_password = str(uuid.uuid4())
+
+        # Supabase Admin API call
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        create_user_response = requests.post(
+            f"{supabase_url}/auth/v1/admin/users",
+            headers={
+                "apikey": service_key,
+                "Authorization": f"Bearer {service_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "email": virtual_email,
+                "password": random_password,
+                "email_confirm": True,
+                "user_metadata": {
+                    "full_name": artist_name,
+                    "avatar_url": thumbnail_url,
+                    "member_type": "artist",
+                    "artist_browse_id": browse_id
+                }
+            }
+        )
+
+        if create_user_response.status_code not in [200, 201]:
+            error_detail = create_user_response.json()
+            # If user already exists, try to find them
+            if "already" in str(error_detail).lower():
+                return {"status": "exists", "message": "User already exists"}
+            raise HTTPException(status_code=500, detail=f"Failed to create user: {error_detail}")
+
+        user_data = create_user_response.json()
+        user_id = user_data.get("id")
+
+        # 4. Update profiles table with artist info
+        # (Supabase trigger may have already created a profile, so we update)
+        supabase_client.table("profiles").upsert({
+            "id": user_id,
+            "username": artist_name.lower().replace(" ", "_").replace(".", "")[:30],
+            "full_name": artist_name,
+            "avatar_url": thumbnail_url,
+            "member_type": "artist",
+            "artist_browse_id": browse_id,
+            "is_verified": True,
+            "bio": f"Official SORI profile for {artist_name}"
+        }).execute()
+
+        # 5. Generate AI persona
+        try:
+            top_songs = []
+            if artist_data.get("songs_playlist_id"):
+                # Fetch top songs for persona generation
+                ytmusic = get_ytmusic("US")
+                playlist_data = ytmusic.get_playlist(artist_data["songs_playlist_id"])
+                top_songs = playlist_data.get("tracks", [])[:10]
+
+            persona = await run_in_thread(
+                generate_artist_persona,
+                artist_name,
+                artist_data.get("description") or f"{artist_name} is a popular music artist.",
+                top_songs
+            )
+
+            if persona:
+                supabase_client.table("profiles").update({
+                    "ai_persona": persona
+                }).eq("id", user_id).execute()
+        except Exception as e:
+            logger.warning(f"Persona generation failed: {e}")
+
+        logger.info(f"Virtual member created: {artist_name} ({browse_id})")
+
+        return {
+            "status": "created",
+            "profileId": user_id,
+            "name": artist_name,
+            "browseId": browse_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Virtual member creation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/virtual-members/migrate-all")
+async def migrate_all_artists(request: Request, background_tasks: BackgroundTasks):
+    """
+    Migrate all existing artists from music_artists to virtual members.
+    Runs in background to avoid timeout.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        # Get all artists that don't have a profile yet
+        artists = supabase_client.table("music_artists").select("browse_id, name").execute()
+
+        if not artists.data:
+            return {"status": "no_artists", "count": 0}
+
+        # Check which ones already have profiles
+        existing = supabase_client.table("profiles").select("artist_browse_id").not_.is_("artist_browse_id", "null").execute()
+        existing_ids = set([p["artist_browse_id"] for p in existing.data]) if existing.data else set()
+
+        to_migrate = [a for a in artists.data if a["browse_id"] not in existing_ids]
+
+        async def migrate_artists():
+            for artist in to_migrate:
+                try:
+                    # Call create endpoint internally
+                    import aiohttp
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(
+                            f"http://localhost:{os.getenv('PORT', 8080)}/api/virtual-members/create",
+                            json={"browseId": artist["browse_id"]}
+                        ) as resp:
+                            await resp.json()
+                except Exception as e:
+                    logger.error(f"Migration failed for {artist['name']}: {e}")
+                await asyncio.sleep(0.5)  # Rate limit
+
+        background_tasks.add_task(migrate_artists)
+
+        return {
+            "status": "started",
+            "total_artists": len(artists.data),
+            "already_migrated": len(existing_ids),
+            "to_migrate": len(to_migrate)
+        }
+
+    except Exception as e:
+        logger.error(f"Migration error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/virtual-members/list")
+async def list_virtual_members():
+    """
+    List all virtual members (artists with profiles).
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        result = supabase_client.table("profiles").select(
+            "id, username, full_name, avatar_url, artist_browse_id, is_verified, created_at"
+        ).eq("member_type", "artist").order("created_at", desc=True).execute()
+
+        return {
+            "status": "success",
+            "count": len(result.data) if result.data else 0,
+            "members": result.data or []
+        }
+    except Exception as e:
+        logger.error(f"List virtual members error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# AI Activity Engine - Automated Artist Activities
+# =============================================================================
+
+@app.post("/api/cron/artist-activity")
+async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
+    """
+    Cron job to generate AI-driven artist activities.
+    Call this periodically (e.g., every hour) via Cloud Scheduler or Vercel Cron.
+
+    Activities: Auto-posting, liking user posts, commenting
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        # Configuration
+        MAX_POSTS_PER_RUN = 3  # Max posts to create per cron run
+        MAX_LIKES_PER_RUN = 5  # Max likes per run
+        MAX_COMMENTS_PER_RUN = 2  # Max comments per run
+
+        results = {
+            "posts_created": 0,
+            "likes_added": 0,
+            "comments_added": 0,
+            "errors": []
+        }
+
+        # 1. Get random virtual members (artists with profiles)
+        artists_result = supabase_client.table("profiles").select(
+            "id, username, full_name, avatar_url, artist_browse_id, ai_persona"
+        ).eq("member_type", "artist").execute()
+
+        if not artists_result.data or len(artists_result.data) == 0:
+            return {"status": "no_artists", "message": "No virtual members found"}
+
+        artists = artists_result.data
+        random.shuffle(artists)
+
+        # 2. Generate posts for random artists
+        for artist in artists[:MAX_POSTS_PER_RUN]:
+            try:
+                persona = artist.get("ai_persona") or {}
+                artist_name = artist.get("full_name") or artist.get("username")
+
+                # Generate post content via AI
+                post_data = await run_in_thread(generate_artist_post, artist_name, persona)
+
+                if post_data and post_data.get("caption"):
+                    # Insert post into DB
+                    new_post = {
+                        "user_id": artist["id"],
+                        "caption": post_data["caption"],
+                        "is_public": True,
+                        "like_count": 0,
+                        "comment_count": 0,
+                        "repost_count": 0
+                    }
+
+                    supabase_client.table("posts").insert(new_post).execute()
+                    results["posts_created"] += 1
+                    logger.info(f"Created post for {artist_name}: {post_data['caption'][:50]}...")
+
+            except Exception as e:
+                results["errors"].append(f"Post error for {artist.get('full_name')}: {str(e)}")
+                logger.error(f"Post creation error: {e}")
+
+        # 3. Like random user posts (artists liking fan content)
+        try:
+            # Get recent public posts (not from artists themselves)
+            recent_posts = supabase_client.table("posts").select(
+                "id, user_id, caption"
+            ).eq("is_public", True).order(
+                "created_at", desc=True
+            ).limit(20).execute()
+
+            if recent_posts.data:
+                random.shuffle(recent_posts.data)
+                random.shuffle(artists)
+
+                for post in recent_posts.data[:MAX_LIKES_PER_RUN]:
+                    # Pick a random artist to like
+                    liker = random.choice(artists)
+
+                    # Check if already liked
+                    existing = supabase_client.table("post_likes").select("id").eq(
+                        "post_id", post["id"]
+                    ).eq("user_id", liker["id"]).execute()
+
+                    if not existing.data:
+                        # Add like
+                        supabase_client.table("post_likes").insert({
+                            "post_id": post["id"],
+                            "user_id": liker["id"]
+                        }).execute()
+
+                        # Update like count
+                        supabase_client.table("posts").update({
+                            "like_count": supabase_client.table("posts").select("like_count").eq("id", post["id"]).execute().data[0]["like_count"] + 1
+                        }).eq("id", post["id"]).execute()
+
+                        results["likes_added"] += 1
+
+        except Exception as e:
+            results["errors"].append(f"Like error: {str(e)}")
+            logger.error(f"Like error: {e}")
+
+        # 4. Add comments on random posts
+        try:
+            if recent_posts.data:
+                random.shuffle(recent_posts.data)
+
+                for post in recent_posts.data[:MAX_COMMENTS_PER_RUN]:
+                    commenter = random.choice(artists)
+                    persona = commenter.get("ai_persona") or {}
+                    artist_name = commenter.get("full_name") or commenter.get("username")
+
+                    # Generate comment via AI
+                    comment_text = await run_in_thread(
+                        generate_artist_comment,
+                        artist_name,
+                        persona,
+                        post.get("caption", "")
+                    )
+
+                    if comment_text:
+                        supabase_client.table("post_comments").insert({
+                            "post_id": post["id"],
+                            "user_id": commenter["id"],
+                            "content": comment_text
+                        }).execute()
+
+                        # Update comment count
+                        supabase_client.table("posts").update({
+                            "comment_count": supabase_client.table("posts").select("comment_count").eq("id", post["id"]).execute().data[0]["comment_count"] + 1
+                        }).eq("id", post["id"]).execute()
+
+                        results["comments_added"] += 1
+                        logger.info(f"{artist_name} commented on post: {comment_text[:50]}...")
+
+        except Exception as e:
+            results["errors"].append(f"Comment error: {str(e)}")
+            logger.error(f"Comment error: {e}")
+
+        return {
+            "status": "success",
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Artist activity cron error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cron/artist-dm")
+async def send_artist_dms(request: Request):
+    """
+    Send DMs from artists to new followers.
+    Call periodically to welcome new followers.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        results = {
+            "dms_sent": 0,
+            "errors": []
+        }
+
+        # Get artist virtual members
+        artists_result = supabase_client.table("profiles").select(
+            "id, username, full_name, ai_persona, artist_browse_id"
+        ).eq("member_type", "artist").execute()
+
+        if not artists_result.data:
+            return {"status": "no_artists"}
+
+        # For each artist, check for recent new followers who haven't received a DM
+        for artist in artists_result.data:
+            try:
+                # Get recent followers of this artist (from artist_follows table)
+                recent_follows = supabase_client.table("artist_follows").select(
+                    "user_id, created_at"
+                ).eq("artist_browse_id", artist.get("artist_browse_id")).order(
+                    "created_at", desc=True
+                ).limit(5).execute()
+
+                if not recent_follows.data:
+                    continue
+
+                persona = artist.get("ai_persona") or {}
+                artist_name = artist.get("full_name") or artist.get("username")
+
+                for follow in recent_follows.data:
+                    follower_id = follow["user_id"]
+
+                    # Check if DM already sent (check messages table or a flag)
+                    # For MVP, we'll just send without checking (can add dedup later)
+
+                    # Generate DM content
+                    dm_text = await run_in_thread(
+                        generate_artist_dm,
+                        artist_name,
+                        persona,
+                        "new follower - thank you for the follow!"
+                    )
+
+                    if dm_text:
+                        # Insert into messages/conversations
+                        # First, find or create conversation
+                        conv_result = supabase_client.table("conversations").insert({
+                            "created_at": datetime.now(timezone.utc).isoformat()
+                        }).execute()
+
+                        if conv_result.data:
+                            conv_id = conv_result.data[0]["id"]
+
+                            # Add participants
+                            supabase_client.table("conversation_participants").insert([
+                                {"conversation_id": conv_id, "user_id": artist["id"]},
+                                {"conversation_id": conv_id, "user_id": follower_id}
+                            ]).execute()
+
+                            # Send the message
+                            supabase_client.table("messages").insert({
+                                "conversation_id": conv_id,
+                                "sender_id": artist["id"],
+                                "content": dm_text
+                            }).execute()
+
+                            results["dms_sent"] += 1
+                            logger.info(f"DM sent from {artist_name} to {follower_id}")
+
+            except Exception as e:
+                results["errors"].append(f"DM error for {artist.get('full_name')}: {str(e)}")
+                logger.error(f"DM error: {e}")
+
+        return {
+            "status": "success",
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Artist DM cron error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/cron/test-activity")
+async def test_artist_activity():
+    """
+    Test endpoint to manually trigger one artist post.
+    For debugging/demo purposes.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        # Get a random virtual member
+        artists_result = supabase_client.table("profiles").select(
+            "id, username, full_name, avatar_url, ai_persona"
+        ).eq("member_type", "artist").limit(10).execute()
+
+        if not artists_result.data:
+            return {"status": "error", "message": "No virtual members found. Run /api/virtual-members/migrate-all first."}
+
+        artist = random.choice(artists_result.data)
+        persona = artist.get("ai_persona") or {}
+        artist_name = artist.get("full_name") or artist.get("username")
+
+        # Generate post
+        post_data = await run_in_thread(generate_artist_post, artist_name, persona)
+
+        if not post_data:
+            return {"status": "error", "message": "Failed to generate post content"}
+
+        # Insert post
+        new_post = {
+            "user_id": artist["id"],
+            "caption": post_data.get("caption", "Hello from AI!"),
+            "is_public": True,
+            "like_count": 0,
+            "comment_count": 0,
+            "repost_count": 0
+        }
+
+        result = supabase_client.table("posts").insert(new_post).execute()
+
+        return {
+            "status": "success",
+            "artist": artist_name,
+            "post": post_data,
+            "db_result": result.data[0] if result.data else None
+        }
+
+    except Exception as e:
+        logger.error(f"Test activity error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
