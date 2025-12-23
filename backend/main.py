@@ -1113,20 +1113,37 @@ async def get_home_feed(request: Request, country: str = None, limit: int = 6):
     if cached:
         return {"country": country, "source": "cache", "sections": cached}
 
-    try:
-        ytmusic = get_ytmusic(country)
+    # 재시도 로직 (YTMusic API 간헐적 빈 응답 대응)
+    max_retries = 3
+    last_error = None
 
-        # get_home()은 홈 화면의 모든 섹션을 반환
-        # limit: 가져올 섹션 수 (기본 6개)
-        home_sections = ytmusic.get_home(limit=limit)
+    for attempt in range(max_retries):
+        try:
+            ytmusic = get_ytmusic(country)
 
-        # 30분 캐시
-        cache_set(cache_key, home_sections, ttl=1800)
+            # get_home()은 홈 화면의 모든 섹션을 반환
+            home_sections = ytmusic.get_home(limit=limit)
 
-        return {"country": country, "source": "api", "sections": home_sections}
-    except Exception as e:
-        logger.error(f"Home feed error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            # 유효한 응답인지 확인
+            if home_sections and isinstance(home_sections, list) and len(home_sections) > 0:
+                # 30분 캐시
+                cache_set(cache_key, home_sections, ttl=1800)
+                return {"country": country, "source": "api", "sections": home_sections}
+            else:
+                logger.warning(f"Home feed empty response (attempt {attempt + 1}/{max_retries})")
+                last_error = "Empty response from YTMusic API"
+
+        except Exception as e:
+            logger.warning(f"Home feed attempt {attempt + 1}/{max_retries} failed: {e}")
+            last_error = str(e)
+
+        # 재시도 전 대기 (exponential backoff)
+        if attempt < max_retries - 1:
+            await asyncio.sleep(0.5 * (attempt + 1))
+
+    # 모든 재시도 실패 시 빈 응답 반환 (500 에러 대신)
+    logger.error(f"Home feed failed after {max_retries} attempts: {last_error}")
+    return {"country": country, "source": "fallback", "sections": [], "error": "Temporary service unavailable"}
 
 
 # =============================================================================
