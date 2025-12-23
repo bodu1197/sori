@@ -22,14 +22,19 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # Configure Gemini
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "AIzaSyBpwRxr8X99x7yjjIkazu-OJcqF2YbsERM"
+# API Key must be set via environment variable (never hardcode!)
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    logger.warning("GOOGLE_API_KEY not set - AI features will be disabled")
 GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID") or "musicgram-api"
 GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
-if genai:
+if genai and GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
     # Using Gemini 3 Flash - latest model (Dec 2025), 3x faster, 30% fewer tokens
     model = genai.GenerativeModel('gemini-3-flash-preview')
+else:
+    model = None
 
 # Initialize Vertex AI for Imagen
 if vertex_available:
@@ -82,13 +87,9 @@ Return ONLY valid JSON array with verified news:
 If no recent news found, return: []
 Return ONLY the JSON array."""
 
-        # Create model with Google Search grounding tool enabled
-        search_model = genai.GenerativeModel(
-            'gemini-3-flash-preview',
-            tools=[{"google_search": {}}]  # Enable Google Search grounding
-        )
-
-        response = search_model.generate_content(
+        # Use standard model (Google Search grounding requires specific setup)
+        # For now, use AI knowledge with explicit date awareness
+        response = model.generate_content(
             prompt,
             generation_config=genai.GenerationConfig(
                 temperature=0.1
