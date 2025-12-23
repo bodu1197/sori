@@ -13,6 +13,8 @@ import {
   ListMusic,
   Music,
   Users,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
@@ -99,10 +101,6 @@ type SearchTab = 'music' | 'users';
 export default function SearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-
-  const navigateToProfile = (browseId?: string) => {
-    if (browseId) navigate(`/artist/${browseId}`);
-  };
   const { user } = useAuthStore();
   const { startPlayback, openTrackPanel, setTrackPanelLoading } = usePlayerStore();
 
@@ -195,6 +193,10 @@ export default function SearchPage() {
   const [likedAlbums, setLikedAlbums] = useState<Set<string>>(new Set());
   const [savingAlbums, setSavingAlbums] = useState<Set<string>>(new Set());
 
+  // Artist follow state
+  const [followedArtists, setFollowedArtists] = useState<Set<string>>(new Set());
+  const [followingArtist, setFollowingArtist] = useState(false);
+
   // Load liked songs from DB on mount
   useEffect(() => {
     const loadLikedSongs = async () => {
@@ -214,6 +216,64 @@ export default function SearchPage() {
 
     loadLikedSongs();
   }, [user]);
+
+  // Check if current artist is followed
+  const checkArtistFollowed = async (browseId: string) => {
+    if (!user || !browseId) return;
+
+    try {
+      const { data } = await supabase
+        .from('artist_follows')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('artist_browse_id', browseId)
+        .single();
+
+      if (data) {
+        setFollowedArtists((prev) => new Set(prev).add(browseId));
+      }
+    } catch {
+      // Not followed
+    }
+  };
+
+  // Toggle artist follow
+  const toggleArtistFollow = async (browseId: string, artistName: string) => {
+    if (!user || !browseId || followingArtist) return;
+
+    setFollowingArtist(true);
+    const isFollowed = followedArtists.has(browseId);
+
+    try {
+      if (isFollowed) {
+        // Unfollow
+        await supabase
+          .from('artist_follows')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('artist_browse_id', browseId);
+
+        setFollowedArtists((prev) => {
+          const next = new Set(prev);
+          next.delete(browseId);
+          return next;
+        });
+      } else {
+        // Follow
+        await supabase.from('artist_follows').insert({
+          user_id: user.id,
+          artist_browse_id: browseId,
+          artist_name: artistName,
+        });
+
+        setFollowedArtists((prev) => new Set(prev).add(browseId));
+      }
+    } catch (err) {
+      console.error('Error toggling artist follow:', err);
+    } finally {
+      setFollowingArtist(false);
+    }
+  };
 
   // Placeholder image for artist/album
   const PLACEHOLDER =
@@ -370,6 +430,12 @@ export default function SearchPage() {
           : null;
 
         setSearchArtist(artist);
+
+        // Check if artist is followed
+        if (artist?.browseId) {
+          checkArtistFollowed(artist.browseId);
+        }
+
         // 앨범 데이터 변환
         setSearchAlbums(
           (data.albums || []).map(
@@ -663,8 +729,81 @@ export default function SearchPage() {
   const handleShuffleSearchSongs = () => playOrShuffleSongs(true);
 
   // Search for similar artist
-  const handleSearchSimilarArtist = (artistName: string) => {
+  // Search for similar artist by name
+  const handleSearchSimilarArtist = async (artistName: string) => {
+    if (artistName.trim().length < 2) return;
+
     setSearchQuery(artistName);
+    setSearchLoading(true);
+    setAllSongsTracks([]);
+    setAllSongsExpanded(false);
+    setShowAllSongs(false);
+    setExpandedAlbums(new Set());
+    setAlbumTracks({});
+    setLoadingAlbums(new Set());
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(artistName.trim())}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        const artist = data.artist
+          ? {
+              artist: data.artist.name,
+              browseId: data.artist.browseId,
+              thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
+              songsPlaylistId: data.artist.songsPlaylistId,
+              related: (data.similarArtists || []).map(
+                (a: { browseId: string; name: string; thumbnail: string }) => ({
+                  browseId: a.browseId,
+                  title: a.name,
+                  thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
+                })
+              ),
+            }
+          : null;
+
+        setSearchArtist(artist);
+
+        if (artist?.browseId) {
+          checkArtistFollowed(artist.browseId);
+        }
+
+        setSearchAlbums(
+          (data.albums || []).map(
+            (a: {
+              browseId: string;
+              title: string;
+              artists: Array<{ name: string; id?: string }>;
+              thumbnails: Array<{ url: string }>;
+              year?: string;
+              type?: string;
+            }) => ({
+              browseId: a.browseId,
+              title: a.title,
+              artists: a.artists,
+              thumbnails: a.thumbnails,
+              year: a.year,
+              type: a.type || 'Album',
+            })
+          )
+        );
+        setSearchSongs(data.songs || []);
+      } else {
+        setSearchArtist(null);
+        setSearchAlbums([]);
+        setSearchSongs([]);
+      }
+    } catch {
+      setSearchArtist(null);
+      setSearchAlbums([]);
+      setSearchSongs([]);
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
   // Fetch album and show in panel
@@ -1022,11 +1161,8 @@ export default function SearchPage() {
                 {/* 1. Artist Card - 2층 구조 */}
                 {searchArtist && (
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
-                    {/* 2층: 사진, 이름, 좋아요 버튼 */}
-                    <div
-                      className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                      onClick={() => navigateToProfile(searchArtist.browseId)}
-                    >
+                    {/* 2층: 사진, 이름, 팔로우 버튼 */}
+                    <div className="flex items-center gap-4 p-4">
                       <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0 ring-2 ring-gray-200 dark:ring-gray-700 relative">
                         <img
                           src={getBestThumbnail(searchArtist.thumbnails)}
@@ -1045,8 +1181,29 @@ export default function SearchPage() {
                           {searchArtist.subscribers || 'Artist'}
                         </p>
                       </div>
-                      <button className="p-2 text-gray-400 hover:text-red-500 transition">
-                        <Heart size={24} />
+                      <button
+                        onClick={() =>
+                          searchArtist.browseId &&
+                          toggleArtistFollow(searchArtist.browseId, searchArtist.artist)
+                        }
+                        disabled={followingArtist}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                          searchArtist.browseId && followedArtists.has(searchArtist.browseId)
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        } ${followingArtist ? 'opacity-50' : ''}`}
+                      >
+                        {searchArtist.browseId && followedArtists.has(searchArtist.browseId) ? (
+                          <>
+                            <UserCheck size={16} />
+                            {t('profile.following')}
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus size={16} />
+                            {t('profile.follow')}
+                          </>
+                        )}
                       </button>
                     </div>
 
@@ -1417,7 +1574,7 @@ export default function SearchPage() {
                           <button
                             type="button"
                             key={artist.browseId || `related-${i}`}
-                            onClick={() => navigateToProfile(artist.browseId)}
+                            onClick={() => handleSearchSimilarArtist(artistName)}
                             className="flex flex-col items-center cursor-pointer group bg-transparent border-0 p-0"
                           >
                             <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
