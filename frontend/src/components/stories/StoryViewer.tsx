@@ -56,10 +56,11 @@ export default function StoryViewer({
   const currentGroup = groups[currentGroupIndex];
   const currentStory = currentGroup?.stories[currentStoryIndex];
 
-  // Mark story as viewed
+  // Mark story as viewed (locally only - RPC function not yet implemented)
   useEffect(() => {
     if (currentStory && !viewedStories.has(currentStory.id) && !isOwnStory) {
-      supabase.rpc('mark_story_viewed', { p_story_id: currentStory.id }).then(() => {});
+      // TODO: Implement story_views table and mark_story_viewed RPC function
+      // supabase.rpc('mark_story_viewed', { p_story_id: currentStory.id }).catch(() => {});
       onStoryViewed(currentStory.id);
     }
   }, [currentStory, viewedStories, onStoryViewed, isOwnStory]);
