@@ -320,67 +320,74 @@ Original text:
         return None
 
 
-def generate_artist_post_multilingual(
+def generate_artist_post_factbased(
     artist_name: str,
     persona: dict,
     language: str,
-    post_type: str = None,
-    context: dict = None
+    real_data: dict
 ) -> dict | None:
     """
-    Generate a social media post in the artist's native language.
+    Generate a social media post based on REAL data only.
+    No fictional content like "had a smoothie" or fake daily life updates.
 
     Args:
         artist_name: Name of the artist
         persona: AI persona dict
         language: ISO 639-1 code for the post language
-        post_type: Optional specific type (new_album, concert, etc.)
-        context: Optional context dict (album_name, concert_venue, etc.)
+        real_data: Dict containing real information:
+            - latest_album: {title, thumbnail, year}
+            - popular_tracks: [{title, views}]
+            - fan_count: int (optional)
+            - post_type: "new_release" | "fan_thanks" | "music_promotion"
     """
     if not genai:
         return None
 
-    import random
-
     lang_name = LANG_NAMES.get(language, 'English')
-    tone = persona.get("tone", "friendly, casual, warm") if persona else "friendly, casual, warm"
+    tone = persona.get("tone", "friendly, warm") if persona else "friendly, warm"
     fandom = persona.get("fandom_name", "fans") if persona else "fans"
 
-    # Determine post content based on type
-    if post_type == "new_album" and context:
-        type_instruction = f"Announce your new album '{context.get('album_name', 'new album')}' with excitement!"
-    elif post_type == "new_single" and context:
-        type_instruction = f"Announce your new single '{context.get('single_name', 'new song')}' to your fans!"
-    elif post_type == "concert" and context:
-        venue = context.get('venue', '')
-        date = context.get('date', '')
-        type_instruction = f"Announce your upcoming concert at {venue} on {date}!"
+    post_type = real_data.get("post_type", "music_promotion")
+    latest_album = real_data.get("latest_album")
+    popular_tracks = real_data.get("popular_tracks", [])
+
+    # Only generate content about REAL things
+    if post_type == "new_release" and latest_album:
+        album_title = latest_album.get("title", "")
+        type_instruction = f"""Express excitement about your album "{album_title}".
+Thank fans for their support. Encourage them to listen."""
+        content_type = "music"
+
+    elif post_type == "music_promotion" and popular_tracks:
+        track_names = ", ".join([t.get("title", "") for t in popular_tracks[:3] if t.get("title")])
+        type_instruction = f"""Thank fans for streaming your music including: {track_names}.
+Express genuine gratitude. Keep it short and heartfelt."""
+        content_type = "fan"
+
     else:
-        types = [
-            "Share a personal thought or reflection",
-            "Express gratitude to your fans",
-            "Share what you're working on in the studio",
-            "Share a daily life moment"
-        ]
-        type_instruction = random.choice(types)
+        # Default: Simple fan appreciation (no fictional content)
+        type_instruction = """Express genuine gratitude to your fans for their continued support.
+Keep it simple, warm, and authentic. No specific events or activities."""
+        content_type = "fan"
 
     prompt = f"""You are {artist_name}, a music artist posting on social media.
 
-IMPORTANT: Write the post in {lang_name} language ONLY.
+CRITICAL RULES:
+1. Write ONLY in {lang_name} language
+2. Do NOT invent fictional activities (no "had coffee", "at the gym", "eating food", etc.)
+3. ONLY talk about: music, gratitude to fans, or working on music
+4. Keep it short (1-2 sentences max)
 
 Your personality/tone: {tone}
-Your fan base is called: {fandom}
-What to post about: {type_instruction}
+Your fan base: {fandom}
 
-Write a SHORT, authentic social media post (1-3 sentences).
-Make it feel personal and genuine.
-Include 1-2 relevant emojis.
+Task: {type_instruction}
 
 Output JSON only:
 {{
-  "caption": "The post text in {lang_name}",
-  "type": "update|music|thoughts|fan|announcement",
-  "hashtags": ["tag1", "tag2", "tag3"]
+  "caption": "Post text in {lang_name}",
+  "type": "{content_type}",
+  "hashtags": ["tag1", "tag2"]
 }}
 
 Return ONLY valid JSON."""
@@ -399,8 +406,37 @@ Return ONLY valid JSON."""
         result["language"] = language
         return result
     except Exception as e:
-        logger.error(f"Error generating multilingual post: {e}")
+        logger.error(f"Error generating fact-based post: {e}")
         return None
+
+
+# Legacy function for backward compatibility
+def generate_artist_post_multilingual(
+    artist_name: str,
+    persona: dict,
+    language: str,
+    post_type: str = None,
+    context: dict = None
+) -> dict | None:
+    """
+    DEPRECATED: Use generate_artist_post_factbased instead.
+    This function now redirects to the fact-based version.
+    """
+    # Convert to new format
+    real_data = {"post_type": "fan_thanks"}
+
+    if post_type == "new_album" and context:
+        real_data = {
+            "post_type": "new_release",
+            "latest_album": {"title": context.get("album_name", "")}
+        }
+    elif post_type == "new_single" and context:
+        real_data = {
+            "post_type": "music_promotion",
+            "popular_tracks": [{"title": context.get("single_name", "")}]
+        }
+
+    return generate_artist_post_factbased(artist_name, persona, language, real_data)
 
 
 # =============================================================================

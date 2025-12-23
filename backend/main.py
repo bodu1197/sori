@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from ai_agent import (
     generate_artist_persona, chat_with_artist, generate_artist_post,
     generate_artist_comment, generate_artist_dm,
-    detect_language, translate_text, generate_artist_post_multilingual,
+    detect_language, translate_text, generate_artist_post_factbased,
     generate_post_image
 )
 import uuid as uuid_lib
@@ -3352,33 +3352,31 @@ async def list_virtual_members():
 @app.post("/api/cron/artist-activity")
 async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
     """
-    Cron job to generate AI-driven artist posts in their native language.
-    Call this periodically (e.g., every hour) via Cloud Scheduler or Vercel Cron.
+    Cron job to generate AI-driven artist posts based on REAL DATA only.
 
-    Note: Artists only POST on their own feed. They do NOT:
-    - Proactively like user posts
-    - Proactively comment on user posts
-    - Proactively send DMs
-    These actions only happen as RESPONSES to user interactions.
+    IMPORTANT: NO fictional content (no fake daily life, meals, activities).
+    Posts are ONLY about:
+    1. Real album releases (with actual album art)
+    2. Real tracks (with actual thumbnail)
+    3. Fan appreciation (generic, safe)
 
-    Multilingual: Artists post in their native language.
-    Users can use the translation button to translate posts.
+    Artists post in their native language.
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     try:
         # Configuration
-        MAX_POSTS_PER_RUN = 3  # Max posts to create per cron run
+        MAX_POSTS_PER_RUN = 3
 
         results = {
             "posts_created": 0,
             "languages_used": [],
+            "post_types": [],
             "errors": []
         }
 
         # 1. Get random virtual members (artists with profiles)
-        # Join with music_artists to get primary_language
         artists_result = supabase_client.table("profiles").select(
             "id, username, full_name, avatar_url, artist_browse_id, ai_persona"
         ).eq("member_type", "artist").execute()
@@ -3389,15 +3387,15 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
         artists = artists_result.data
         random.shuffle(artists)
 
-        # 2. Generate posts for random artists in their native language
+        # 2. Generate posts using REAL data only
         for artist in artists[:MAX_POSTS_PER_RUN]:
             try:
                 persona = artist.get("ai_persona") or {}
                 artist_name = artist.get("full_name") or artist.get("username")
                 browse_id = artist.get("artist_browse_id")
 
-                # Get artist's primary language from music_artists table
-                artist_language = "en"  # Default to English
+                # Get artist's data from music_artists table
+                artist_language = "en"
                 if browse_id:
                     music_artist = supabase_client.table("music_artists").select(
                         "primary_language"
@@ -3405,47 +3403,69 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                     if music_artist.data:
                         artist_language = music_artist.data[0].get("primary_language") or "en"
 
-                # Generate multilingual post content via AI
+                # ========== FETCH REAL DATA ==========
+                real_data = {"post_type": "fan_thanks"}
+                cover_url = artist.get("avatar_url")  # Default to avatar
+
+                # Try to get real album data
+                if browse_id:
+                    # Get latest album with thumbnail
+                    albums = supabase_client.table("music_albums").select(
+                        "title, thumbnail_url, year"
+                    ).eq("artist_browse_id", browse_id).order(
+                        "year", desc=True
+                    ).limit(3).execute()
+
+                    # Get popular tracks
+                    tracks = supabase_client.table("music_tracks").select(
+                        "title, thumbnail_url"
+                    ).eq("artist_browse_id", browse_id).limit(5).execute()
+
+                    # Decide post type based on available data
+                    if albums.data and len(albums.data) > 0:
+                        # Post about real album
+                        album = random.choice(albums.data)
+                        real_data = {
+                            "post_type": "new_release",
+                            "latest_album": {
+                                "title": album.get("title"),
+                                "year": album.get("year")
+                            }
+                        }
+                        # Use REAL album art as cover
+                        if album.get("thumbnail_url"):
+                            cover_url = album["thumbnail_url"]
+                            logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
+
+                    elif tracks.data and len(tracks.data) > 0:
+                        # Post about real tracks
+                        real_data = {
+                            "post_type": "music_promotion",
+                            "popular_tracks": tracks.data[:3]
+                        }
+                        # Use track thumbnail as cover
+                        track_with_thumb = next(
+                            (t for t in tracks.data if t.get("thumbnail_url")),
+                            None
+                        )
+                        if track_with_thumb:
+                            cover_url = track_with_thumb["thumbnail_url"]
+                            logger.info(f"Using real track art for {artist_name}")
+
+                # ========== GENERATE POST ==========
                 post_data = await run_in_thread(
-                    generate_artist_post_multilingual,
+                    generate_artist_post_factbased,
                     artist_name,
                     persona,
-                    artist_language
+                    artist_language,
+                    real_data
                 )
 
                 if post_data and post_data.get("caption"):
-                    post_type = post_data.get("type", "update")
+                    post_type = post_data.get("type", "fan")
                     caption = post_data["caption"]
 
-                    # Generate AI image for the post
-                    cover_url = None
-                    try:
-                        image_bytes = await run_in_thread(
-                            generate_post_image,
-                            post_type,
-                            caption,
-                            artist_name
-                        )
-
-                        if image_bytes:
-                            # Upload to Supabase Storage
-                            file_name = f"posts/{uuid_lib.uuid4()}.png"
-                            storage_result = supabase_client.storage.from_("post-images").upload(
-                                file_name,
-                                image_bytes,
-                                {"content-type": "image/png"}
-                            )
-
-                            if storage_result:
-                                # Get public URL
-                                cover_url = supabase_client.storage.from_("post-images").get_public_url(file_name)
-                                logger.info(f"Generated image for {artist_name}: {cover_url}")
-                    except Exception as img_error:
-                        logger.warning(f"Image generation failed for {artist_name}: {img_error}")
-                        # Fallback to artist avatar
-                        cover_url = artist.get("avatar_url")
-
-                    # Insert post into DB with language and cover
+                    # Insert post with REAL image (album art or avatar)
                     new_post = {
                         "user_id": artist["id"],
                         "caption": caption,
@@ -3462,7 +3482,8 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                     supabase_client.table("posts").insert(new_post).execute()
                     results["posts_created"] += 1
                     results["languages_used"].append(artist_language)
-                    logger.info(f"Created {artist_language} post for {artist_name}: {post_data['caption'][:50]}...")
+                    results["post_types"].append(real_data.get("post_type"))
+                    logger.info(f"Created {artist_language} post for {artist_name} (type: {real_data.get('post_type')}): {caption[:50]}...")
 
             except Exception as e:
                 results["errors"].append(f"Post error for {artist.get('full_name')}: {str(e)}")
