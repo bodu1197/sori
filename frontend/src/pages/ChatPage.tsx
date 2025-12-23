@@ -225,9 +225,9 @@ export default function ChatPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              recipient_id: otherUser.id,
-              message_content: messageContent,
-              conversation_id: conversationId,
+              recipientId: otherUser.id,
+              userMessage: messageContent,
+              conversationId: conversationId,
             }),
           });
         } catch (autoReplyError) {
