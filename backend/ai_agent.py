@@ -44,7 +44,7 @@ else:
 
 def search_artist_news(artist_name: str, days: int = 1) -> list:
     """
-    구글에서 아티스트의 실시간 뉴스를 검색
+    구글에서 아티스트의 실시간 뉴스를 검색 (Gemini + Google Search Grounding)
 
     Args:
         artist_name: 아티스트 이름
@@ -57,39 +57,41 @@ def search_artist_news(artist_name: str, days: int = 1) -> list:
         return []
 
     try:
-        # Use Gemini with grounding to search for recent news
         today = datetime.now().strftime("%Y-%m-%d")
 
-        prompt = f"""Search for the most recent news about the music artist "{artist_name}" from the last {days} day(s).
-Today's date is {today}.
+        prompt = f"""Find the latest news about the music artist "{artist_name}" from today ({today}).
 
-Find REAL, VERIFIED news only. Focus on:
+Search for REAL, current news about:
 - New song/album releases
 - Concert/tour announcements
-- Award wins
+- Award wins or nominations
 - Collaborations
 - Official statements
 - Major events
 
-Return ONLY valid JSON array:
+Return ONLY valid JSON array with verified news:
 [
   {{
     "title": "News headline",
     "snippet": "Brief summary (1-2 sentences)",
     "source": "News source name",
-    "date": "YYYY-MM-DD or 'today' or 'yesterday'",
     "type": "release|concert|award|collaboration|news|event"
   }}
 ]
 
-If no recent news found, return empty array: []
-Return ONLY the JSON array, nothing else."""
+If no recent news found, return: []
+Return ONLY the JSON array."""
 
-        # Use Gemini 2.0 with Google Search grounding for real-time data
-        response = model.generate_content(
+        # Create model with Google Search grounding tool enabled
+        search_model = genai.GenerativeModel(
+            'gemini-2.0-flash-exp',
+            tools=[{"google_search": {}}]  # Enable Google Search grounding
+        )
+
+        response = search_model.generate_content(
             prompt,
             generation_config=genai.GenerationConfig(
-                temperature=0.1  # Low temperature for factual responses
+                temperature=0.1
             )
         )
 
@@ -103,7 +105,7 @@ Return ONLY the JSON array, nothing else."""
             text = "\n".join(lines)
 
         news = json.loads(text)
-        logger.info(f"Found {len(news)} news items for {artist_name}")
+        logger.info(f"Found {len(news)} news items for {artist_name} via Google Search grounding")
         return news if isinstance(news, list) else []
 
     except Exception as e:
