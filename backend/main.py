@@ -3487,8 +3487,8 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
 
         results = {
             "posts_created": 0,
+            "stories_created": 0,  # Greetings moved to stories
             "skipped_artists": [],
-            "quality_skipped": 0,  # Low-quality fan_thanks posts rejected
             "languages_used": [],
             "context_topics": [],
             "errors": []
@@ -3593,15 +3593,39 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                         context["suggested_topic"] = "music_recommendation"
                         context["post_context"] = f"Recommend your song '{song_title}' to fans. Share why you love this track."
 
-                # ========== QUALITY CONTROL: Limit fan_thanks to 10% ==========
-                # 의미없는 인사글 포스팅 비율 제한 (콘텐츠 품질 향상)
+                # ========== QUALITY CONTROL: fan_thanks → Story only ==========
+                # 인사글은 스토리로만, 포스팅에는 절대 인사글 금지
                 suggested_topic = context.get("suggested_topic", "fan_thanks")
                 if suggested_topic == "fan_thanks" and not video_id:
-                    # Only 10% chance to post generic greeting without video
-                    if random.random() > 0.10:
-                        results["quality_skipped"] += 1
-                        logger.info(f"[QUALITY] {artist_name}: Low-quality fan_thanks rejected ({results['quality_skipped']} skipped)")
-                        continue  # Skip to next artist
+                    # Create a STORY instead of a post for greetings
+                    try:
+                        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+                        fandom_name = persona.get("fandom_name", "fans") if persona else "fans"
+
+                        # Greeting messages by language
+                        greetings = {
+                            "ko": f"💕 사랑해요 {fandom_name}!",
+                            "ja": f"💕 愛してる {fandom_name}!",
+                            "zh": f"💕 爱你们 {fandom_name}!",
+                            "es": f"💕 ¡Os quiero {fandom_name}!",
+                        }
+                        greeting_text = greetings.get(artist_language, f"💕 Love you {fandom_name}!")
+
+                        story_data = {
+                            "user_id": artist["id"],
+                            "content_type": "greeting",
+                            "text_content": greeting_text,
+                            "cover_url": cover_url,
+                            "background_color": "#1a1a2e",
+                            "expires_at": expires_at,
+                            "is_active": True
+                        }
+                        supabase_client.table("stories").insert(story_data).execute()
+                        results["stories_created"] += 1
+                        logger.info(f"[STORY] {artist_name}: Greeting → Story (not post)")
+                    except Exception as story_err:
+                        logger.error(f"Story creation error: {story_err}")
+                    continue  # Skip post, move to next artist
 
                 post_data = await run_in_thread(
                     generate_contextual_post,
