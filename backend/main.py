@@ -3307,10 +3307,14 @@ async def list_virtual_members():
 @app.post("/api/cron/artist-activity")
 async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
     """
-    Cron job to generate AI-driven artist activities.
+    Cron job to generate AI-driven artist posts.
     Call this periodically (e.g., every hour) via Cloud Scheduler or Vercel Cron.
 
-    Activities: Auto-posting, liking user posts, commenting
+    Note: Artists only POST on their own feed. They do NOT:
+    - Proactively like user posts
+    - Proactively comment on user posts
+    - Proactively send DMs
+    These actions only happen as RESPONSES to user interactions.
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail="Database not configured")
@@ -3318,13 +3322,9 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
     try:
         # Configuration
         MAX_POSTS_PER_RUN = 3  # Max posts to create per cron run
-        MAX_LIKES_PER_RUN = 5  # Max likes per run
-        MAX_COMMENTS_PER_RUN = 2  # Max comments per run
 
         results = {
             "posts_created": 0,
-            "likes_added": 0,
-            "comments_added": 0,
             "errors": []
         }
 
@@ -3367,83 +3367,6 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                 results["errors"].append(f"Post error for {artist.get('full_name')}: {str(e)}")
                 logger.error(f"Post creation error: {e}")
 
-        # 3. Like random user posts (artists liking fan content)
-        try:
-            # Get recent public posts (not from artists themselves)
-            recent_posts = supabase_client.table("posts").select(
-                "id, user_id, caption"
-            ).eq("is_public", True).order(
-                "created_at", desc=True
-            ).limit(20).execute()
-
-            if recent_posts.data:
-                random.shuffle(recent_posts.data)
-                random.shuffle(artists)
-
-                for post in recent_posts.data[:MAX_LIKES_PER_RUN]:
-                    # Pick a random artist to like
-                    liker = random.choice(artists)
-
-                    # Check if already liked
-                    existing = supabase_client.table("post_likes").select("id").eq(
-                        "post_id", post["id"]
-                    ).eq("user_id", liker["id"]).execute()
-
-                    if not existing.data:
-                        # Add like
-                        supabase_client.table("post_likes").insert({
-                            "post_id": post["id"],
-                            "user_id": liker["id"]
-                        }).execute()
-
-                        # Update like count
-                        supabase_client.table("posts").update({
-                            "like_count": supabase_client.table("posts").select("like_count").eq("id", post["id"]).execute().data[0]["like_count"] + 1
-                        }).eq("id", post["id"]).execute()
-
-                        results["likes_added"] += 1
-
-        except Exception as e:
-            results["errors"].append(f"Like error: {str(e)}")
-            logger.error(f"Like error: {e}")
-
-        # 4. Add comments on random posts
-        try:
-            if recent_posts.data:
-                random.shuffle(recent_posts.data)
-
-                for post in recent_posts.data[:MAX_COMMENTS_PER_RUN]:
-                    commenter = random.choice(artists)
-                    persona = commenter.get("ai_persona") or {}
-                    artist_name = commenter.get("full_name") or commenter.get("username")
-
-                    # Generate comment via AI
-                    comment_text = await run_in_thread(
-                        generate_artist_comment,
-                        artist_name,
-                        persona,
-                        post.get("caption", "")
-                    )
-
-                    if comment_text:
-                        supabase_client.table("post_comments").insert({
-                            "post_id": post["id"],
-                            "user_id": commenter["id"],
-                            "content": comment_text
-                        }).execute()
-
-                        # Update comment count
-                        supabase_client.table("posts").update({
-                            "comment_count": supabase_client.table("posts").select("comment_count").eq("id", post["id"]).execute().data[0]["comment_count"] + 1
-                        }).eq("id", post["id"]).execute()
-
-                        results["comments_added"] += 1
-                        logger.info(f"{artist_name} commented on post: {comment_text[:50]}...")
-
-        except Exception as e:
-            results["errors"].append(f"Comment error: {str(e)}")
-            logger.error(f"Comment error: {e}")
-
         return {
             "status": "success",
             "results": results
@@ -3454,96 +3377,152 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/cron/artist-dm")
-async def send_artist_dms(request: Request):
+@app.post("/api/messages/auto-reply")
+async def auto_reply_to_virtual_member(request: Request):
     """
-    Send DMs from artists to new followers.
-    Call periodically to welcome new followers.
+    REACTIVE AI Response: Called when a user sends a message to a virtual member.
+    The AI responds ONLY when the user initiates the conversation.
+
+    Flow:
+    1. User sends message to virtual member (artist)
+    2. Frontend calls this endpoint with conversation_id and the user's message
+    3. AI generates a response based on artist persona
+    4. Response is inserted into the conversation
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail="Database not configured")
 
     try:
-        results = {
-            "dms_sent": 0,
-            "errors": []
-        }
+        body = await request.json()
+        conversation_id = body.get("conversationId")
+        user_message = body.get("userMessage")
+        recipient_id = body.get("recipientId")  # The virtual member's user ID
 
-        # Get artist virtual members
-        artists_result = supabase_client.table("profiles").select(
-            "id, username, full_name, ai_persona, artist_browse_id"
-        ).eq("member_type", "artist").execute()
+        if not conversation_id or not user_message or not recipient_id:
+            raise HTTPException(status_code=400, detail="conversationId, userMessage, and recipientId required")
 
-        if not artists_result.data:
-            return {"status": "no_artists"}
+        # 1. Check if recipient is a virtual member (artist)
+        recipient = supabase_client.table("profiles").select(
+            "id, username, full_name, ai_persona, member_type, artist_browse_id"
+        ).eq("id", recipient_id).single().execute()
 
-        # For each artist, check for recent new followers who haven't received a DM
-        for artist in artists_result.data:
-            try:
-                # Get recent followers of this artist (from artist_follows table)
-                recent_follows = supabase_client.table("artist_follows").select(
-                    "user_id, created_at"
-                ).eq("artist_browse_id", artist.get("artist_browse_id")).order(
-                    "created_at", desc=True
-                ).limit(5).execute()
+        if not recipient.data:
+            raise HTTPException(status_code=404, detail="Recipient not found")
 
-                if not recent_follows.data:
-                    continue
+        if recipient.data.get("member_type") != "artist":
+            # Not a virtual member, no auto-reply needed
+            return {"status": "skipped", "reason": "Recipient is not a virtual member"}
 
-                persona = artist.get("ai_persona") or {}
-                artist_name = artist.get("full_name") or artist.get("username")
+        # 2. Get artist info for AI response
+        artist_name = recipient.data.get("full_name") or recipient.data.get("username")
+        persona = recipient.data.get("ai_persona") or {}
 
-                for follow in recent_follows.data:
-                    follower_id = follow["user_id"]
+        # 3. Generate AI response
+        response_text = await run_in_thread(
+            generate_artist_dm,
+            artist_name,
+            persona,
+            user_message  # The actual user message for context
+        )
 
-                    # Check if DM already sent (check messages table or a flag)
-                    # For MVP, we'll just send without checking (can add dedup later)
+        if not response_text:
+            return {"status": "error", "message": "Failed to generate AI response"}
 
-                    # Generate DM content
-                    dm_text = await run_in_thread(
-                        generate_artist_dm,
-                        artist_name,
-                        persona,
-                        "new follower - thank you for the follow!"
-                    )
+        # 4. Insert AI response into conversation
+        message_result = supabase_client.table("messages").insert({
+            "conversation_id": conversation_id,
+            "sender_id": recipient_id,  # The virtual member is the sender
+            "content": response_text
+        }).execute()
 
-                    if dm_text:
-                        # Insert into messages/conversations
-                        # First, find or create conversation
-                        conv_result = supabase_client.table("conversations").insert({
-                            "created_at": datetime.now(timezone.utc).isoformat()
-                        }).execute()
-
-                        if conv_result.data:
-                            conv_id = conv_result.data[0]["id"]
-
-                            # Add participants
-                            supabase_client.table("conversation_participants").insert([
-                                {"conversation_id": conv_id, "user_id": artist["id"]},
-                                {"conversation_id": conv_id, "user_id": follower_id}
-                            ]).execute()
-
-                            # Send the message
-                            supabase_client.table("messages").insert({
-                                "conversation_id": conv_id,
-                                "sender_id": artist["id"],
-                                "content": dm_text
-                            }).execute()
-
-                            results["dms_sent"] += 1
-                            logger.info(f"DM sent from {artist_name} to {follower_id}")
-
-            except Exception as e:
-                results["errors"].append(f"DM error for {artist.get('full_name')}: {str(e)}")
-                logger.error(f"DM error: {e}")
+        logger.info(f"AI reply from {artist_name}: {response_text[:50]}...")
 
         return {
             "status": "success",
-            "results": results
+            "response": response_text,
+            "messageId": message_result.data[0]["id"] if message_result.data else None
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Artist DM cron error: {e}")
+        logger.error(f"Auto-reply error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/comments/auto-reply")
+async def auto_reply_to_artist_post(request: Request):
+    """
+    REACTIVE AI Response: When a user comments on an artist's post,
+    the artist may reply back.
+
+    Flow:
+    1. User comments on artist's post
+    2. Frontend calls this endpoint
+    3. AI decides whether to reply and generates response
+    4. Reply is inserted as a comment
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        body = await request.json()
+        post_id = body.get("postId")
+        user_comment = body.get("userComment")
+        post_owner_id = body.get("postOwnerId")
+
+        if not post_id or not user_comment or not post_owner_id:
+            raise HTTPException(status_code=400, detail="postId, userComment, and postOwnerId required")
+
+        # 1. Check if post owner is a virtual member
+        owner = supabase_client.table("profiles").select(
+            "id, username, full_name, ai_persona, member_type"
+        ).eq("id", post_owner_id).single().execute()
+
+        if not owner.data or owner.data.get("member_type") != "artist":
+            return {"status": "skipped", "reason": "Post owner is not a virtual member"}
+
+        # 2. Get artist info
+        artist_name = owner.data.get("full_name") or owner.data.get("username")
+        persona = owner.data.get("ai_persona") or {}
+
+        # 3. Generate AI reply comment
+        reply_text = await run_in_thread(
+            generate_artist_comment,
+            artist_name,
+            persona,
+            user_comment
+        )
+
+        if not reply_text:
+            return {"status": "skipped", "reason": "AI chose not to reply"}
+
+        # 4. Insert reply comment
+        comment_result = supabase_client.table("post_comments").insert({
+            "post_id": post_id,
+            "user_id": post_owner_id,
+            "content": reply_text
+        }).execute()
+
+        # Update comment count
+        post = supabase_client.table("posts").select("comment_count").eq("id", post_id).single().execute()
+        if post.data:
+            supabase_client.table("posts").update({
+                "comment_count": (post.data.get("comment_count") or 0) + 1
+            }).eq("id", post_id).execute()
+
+        logger.info(f"AI comment from {artist_name}: {reply_text[:50]}...")
+
+        return {
+            "status": "success",
+            "reply": reply_text,
+            "commentId": comment_result.data[0]["id"] if comment_result.data else None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Comment auto-reply error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
