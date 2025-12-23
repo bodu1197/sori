@@ -13,8 +13,8 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "AIzaSyBpwRxr8X99x7yjjIkazu-OJcq
 
 if genai:
     genai.configure(api_key=GOOGLE_API_KEY)
-    # Using flash model for faster chat response
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Using gemini-2.0-flash-exp for faster chat response
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
 def generate_artist_persona(artist_name: str, description: str, songs: list) -> dict | None:
     """
