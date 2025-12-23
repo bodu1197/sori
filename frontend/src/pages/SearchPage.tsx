@@ -217,41 +217,65 @@ export default function SearchPage() {
     loadLikedSongs();
   }, [user]);
 
-  // Check if current artist is followed
+  // Check if current artist is followed (using existing follows table via profile UUID)
   const checkArtistFollowed = async (browseId: string) => {
     if (!user || !browseId) return;
 
     try {
-      const { data } = await supabase
-        .from('artist_follows')
+      // First, get the artist's profile UUID from profiles table
+      const { data: profileData } = await supabase
+        .from('profiles')
         .select('id')
-        .eq('user_id', user.id)
         .eq('artist_browse_id', browseId)
+        .single();
+
+      if (!profileData) return;
+
+      // Check if following in the existing follows table
+      const { data } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_id', user.id)
+        .eq('following_id', profileData.id)
         .single();
 
       if (data) {
         setFollowedArtists((prev) => new Set(prev).add(browseId));
       }
     } catch {
-      // Not followed
+      // Not followed or artist has no profile
     }
   };
 
-  // Toggle artist follow
-  const toggleArtistFollow = async (browseId: string, artistName: string) => {
+  // Toggle artist follow (using existing follows table via profile UUID)
+  const toggleArtistFollow = async (browseId: string, _artistName: string) => {
     if (!user || !browseId || followingArtist) return;
 
     setFollowingArtist(true);
     const isFollowed = followedArtists.has(browseId);
 
     try {
+      // First, get the artist's profile UUID from profiles table
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('artist_browse_id', browseId)
+        .single();
+
+      if (!profileData) {
+        console.error('Artist profile not found for browseId:', browseId);
+        return;
+      }
+
+      const artistProfileId = profileData.id;
+
       if (isFollowed) {
-        // Unfollow
+        // Unfollow using existing follows table
         await supabase
-          .from('artist_follows')
+          .from('follows')
           .delete()
-          .eq('user_id', user.id)
-          .eq('artist_browse_id', browseId);
+          .eq('follower_id', user.id)
+          .eq('following_id', artistProfileId);
 
         setFollowedArtists((prev) => {
           const next = new Set(prev);
@@ -259,11 +283,10 @@ export default function SearchPage() {
           return next;
         });
       } else {
-        // Follow
-        await supabase.from('artist_follows').insert({
-          user_id: user.id,
-          artist_browse_id: browseId,
-          artist_name: artistName,
+        // Follow using existing follows table
+        await supabase.from('follows').insert({
+          follower_id: user.id,
+          following_id: artistProfileId,
         });
 
         setFollowedArtists((prev) => new Set(prev).add(browseId));
