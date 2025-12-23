@@ -298,32 +298,39 @@ function ForYouSection() {
     <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
       <button
         onClick={handleBannerClick}
-        className="w-full relative overflow-hidden rounded-2xl aspect-[3/1] group transition-transform active:scale-[0.98]"
+        className="w-full relative overflow-hidden rounded-2xl aspect-[2.5/1] sm:aspect-[3/1] group transition-transform active:scale-[0.98]"
       >
         {/* Animated Background Gradient - Darker & Smoother */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-950 animate-gradient-x"></div>
         <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors"></div>
 
         {/* Content */}
-        <div className="absolute inset-0 p-5 flex flex-col justify-center text-left">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="absolute inset-0 p-3 sm:p-5 flex flex-col justify-center text-left">
+          <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
             <span className="px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] font-medium text-white/90 uppercase tracking-wider border border-white/10">
               {countryName ? t('feed.popularIn', { country: countryName }) : t('feed.recommended')}
             </span>
           </div>
 
-          <h2 className="text-xl md:text-2xl font-bold text-white mb-1 drop-shadow-md">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-0.5 sm:mb-1 drop-shadow-md">
             {context.greeting || t('feed.welcome', 'Welcome back')}
           </h2>
 
-          <p className="text-sm text-white/90 line-clamp-1 max-w-[80%] drop-shadow-sm">
+          <p className="text-xs sm:text-sm text-white/90 line-clamp-1 max-w-[70%] sm:max-w-[80%] drop-shadow-sm">
             {context.recommendation?.message || t('feed.findingMusic', 'Discover your daily mix')}{' '}
             {context.temperature !== null && `(${context.temperature}°C)`}
           </p>
 
           {/* Floating Play Icon */}
-          <div className="absolute right-5 bottom-5 w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:bg-white group-hover:scale-110 transition-all duration-300">
-            <Play size={20} className="text-white group-hover:text-purple-600 ml-1 fill-current" />
+          <div className="absolute right-3 bottom-3 sm:right-5 sm:bottom-5 w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:bg-white group-hover:scale-110 transition-all duration-300">
+            <Play
+              size={18}
+              className="text-white group-hover:text-purple-600 ml-0.5 fill-current sm:hidden"
+            />
+            <Play
+              size={20}
+              className="text-white group-hover:text-purple-600 ml-1 fill-current hidden sm:block"
+            />
           </div>
         </div>
 

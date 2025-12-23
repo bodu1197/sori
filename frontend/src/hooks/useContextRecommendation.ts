@@ -97,17 +97,26 @@ async function fetchWeatherData(
   };
 }
 
-export default function useContextRecommendation(): ContextState {
-  const [context, setContext] = useState<ContextState>({
-    timeOfDay: 'day',
-    greeting: 'Hello',
+// Get initial context synchronously (no async needed for time-based values)
+function getInitialContext(): ContextState {
+  const hour = new Date().getHours();
+  const { timeOfDay, greeting } = getTimeContext(hour);
+  const { mood, recommendation } = getMoodAndRecommendation(timeOfDay, null, null, '');
+
+  return {
+    timeOfDay,
+    greeting,
     weather: null,
     temperature: null,
-    mood: 'upbeat',
-    recommendation: null,
+    mood,
+    recommendation,
     loading: true,
     error: null,
-  });
+  };
+}
+
+export default function useContextRecommendation(): ContextState {
+  const [context, setContext] = useState<ContextState>(getInitialContext);
 
   useEffect(() => {
     async function fetchContext() {
