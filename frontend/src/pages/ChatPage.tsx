@@ -22,7 +22,13 @@ interface OtherUser {
   username: string;
   avatar_url?: string;
   full_name?: string;
+  member_type?: string;
+  artist_browse_id?: string;
 }
+
+// Backend API URL
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
 export default function ChatPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -71,7 +77,9 @@ export default function ChatPage() {
               id,
               username,
               avatar_url,
-              full_name
+              full_name,
+              member_type,
+              artist_browse_id
             )
           `
           )
@@ -208,6 +216,24 @@ export default function ChatPage() {
       // Replace temp message with real one from database
       if (data) {
         setMessages((prev) => prev.map((msg) => (msg.id === tempId ? data : msg)));
+      }
+
+      // If recipient is a virtual member (artist), request auto-reply
+      if (otherUser?.member_type === 'artist' || otherUser?.artist_browse_id) {
+        try {
+          await fetch(`${API_BASE_URL}/api/messages/auto-reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipient_id: otherUser.id,
+              message_content: messageContent,
+              conversation_id: conversationId,
+            }),
+          });
+        } catch (autoReplyError) {
+          console.error('Auto-reply request failed:', autoReplyError);
+          // Don't throw - auto-reply failure shouldn't affect message sending
+        }
       }
 
       inputRef.current?.focus();
