@@ -3488,6 +3488,7 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
         results = {
             "posts_created": 0,
             "skipped_artists": [],
+            "quality_skipped": 0,  # Low-quality fan_thanks posts rejected
             "languages_used": [],
             "context_topics": [],
             "errors": []
@@ -3591,6 +3592,16 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                     if context.get("suggested_topic") == "fan_thanks":
                         context["suggested_topic"] = "music_recommendation"
                         context["post_context"] = f"Recommend your song '{song_title}' to fans. Share why you love this track."
+
+                # ========== QUALITY CONTROL: Limit fan_thanks to 10% ==========
+                # 의미없는 인사글 포스팅 비율 제한 (콘텐츠 품질 향상)
+                suggested_topic = context.get("suggested_topic", "fan_thanks")
+                if suggested_topic == "fan_thanks" and not video_id:
+                    # Only 10% chance to post generic greeting without video
+                    if random.random() > 0.10:
+                        results["quality_skipped"] += 1
+                        logger.info(f"[QUALITY] {artist_name}: Low-quality fan_thanks rejected ({results['quality_skipped']} skipped)")
+                        continue  # Skip to next artist
 
                 post_data = await run_in_thread(
                     generate_contextual_post,
