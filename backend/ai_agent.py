@@ -31,8 +31,8 @@ GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
 if genai and GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    # Using Gemini 3 Flash - latest model (Dec 2025), 3x faster, 30% fewer tokens
-    model = genai.GenerativeModel('gemini-3-flash-preview')
+    # Gemini 2.5 Flash-Lite - fastest, most cost-effective multimodal model
+    model = genai.GenerativeModel('gemini-2.5-flash-lite')
 else:
     model = None
 
