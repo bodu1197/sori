@@ -3439,15 +3439,39 @@ async def auto_reply_to_virtual_member(request: Request):
         artist_name = recipient.data.get("full_name") or recipient.data.get("username")
         persona = recipient.data.get("ai_persona") or {}
 
-        # 3. Generate AI response
+        # If no persona exists, create a basic one
+        if not persona:
+            persona = {
+                "system_prompt": f"You are {artist_name}, a music artist chatting with a fan. Be friendly, warm, and authentic. Keep responses short (1-2 sentences).",
+                "tone": "friendly, warm, casual",
+                "greeting": f"Hey! Thanks for reaching out! 💕"
+            }
+
+        # 3. Get recent conversation history for context
+        history = []
+        try:
+            history_result = supabase_client.table("messages").select(
+                "sender_id, content"
+            ).eq("conversation_id", conversation_id).order(
+                "created_at", desc=False
+            ).limit(10).execute()
+
+            if history_result.data:
+                for msg in history_result.data:
+                    role = "model" if msg["sender_id"] == recipient_id else "user"
+                    history.append({"role": role, "content": msg["content"]})
+        except Exception as hist_error:
+            logger.warning(f"Could not fetch history: {hist_error}")
+
+        # 4. Generate AI response using chat function
         response_text = await run_in_thread(
-            generate_artist_dm,
-            artist_name,
+            chat_with_artist,
             persona,
-            user_message  # The actual user message for context
+            history,
+            user_message
         )
 
-        if not response_text:
+        if not response_text or response_text == "...":
             return {"status": "error", "message": "Failed to generate AI response"}
 
         # 4. Insert AI response into conversation
