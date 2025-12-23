@@ -38,6 +38,242 @@ if vertex_available:
 else:
     imagen_model = None
 
+def gather_artist_context(artist_name: str) -> dict:
+    """
+    AI를 사용하여 아티스트의 현재 상황을 종합적으로 파악
+
+    포스팅 전 반드시 호출하여:
+    1. 고인/은퇴 여부 확인 → 포스팅 스킵
+    2. 최근 활동 파악 → 맞춤 콘텐츠 생성
+    3. 신곡/투어 정보 → 실제 정보 기반 포스팅
+
+    Returns:
+        {
+            "status": "active|deceased|hiatus|retired|disbanded",
+            "can_post": true/false,
+            "skip_reason": "reason if cannot post",
+            "recent_activity": "current activity description",
+            "new_release": {"title": "...", "type": "album/single"} or null,
+            "tour_info": "tour information" or null,
+            "news_summary": "recent news in 1 sentence",
+            "suggested_topic": "new_release|tour|fan_thanks|comeback|hiatus_message",
+            "post_context": "specific context for generating the post"
+        }
+    """
+    if not genai or not artist_name:
+        return {
+            "status": "active",
+            "can_post": True,
+            "suggested_topic": "fan_thanks",
+            "post_context": "General fan appreciation"
+        }
+
+    try:
+        prompt = f"""You are a music industry expert with up-to-date knowledge. Analyze the artist "{artist_name}" and provide their current context for social media posting.
+
+IMPORTANT:
+- If the artist has passed away (deceased), can_post MUST be false
+- If the artist is on hiatus or military service, adjust the suggested_topic accordingly
+- Include any recent releases or tour information if available
+
+Return ONLY valid JSON in this exact format:
+{{
+  "status": "active" or "deceased" or "hiatus" or "retired" or "disbanded",
+  "can_post": true or false,
+  "skip_reason": "reason if can_post is false, otherwise null",
+  "recent_activity": "what they are currently doing (1 sentence)",
+  "new_release": {{"title": "song/album name", "type": "single or album", "year": "2024"}} or null if no recent release,
+  "tour_info": "current tour info" or null,
+  "news_summary": "most recent news about them (1 sentence)",
+  "suggested_topic": "new_release" or "tour" or "fan_thanks" or "comeback" or "hiatus_message" or "studio_work",
+  "post_context": "specific context to use when generating the post (1-2 sentences)"
+}}
+
+Return ONLY the JSON, no other text."""
+
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        # Clean markdown code blocks
+        if text.startswith("```"):
+            lines = text.split('\n')
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            text = "\n".join(lines)
+
+        result = json.loads(text)
+        logger.info(f"Artist context: {artist_name} -> status={result.get('status')}, can_post={result.get('can_post')}, topic={result.get('suggested_topic')}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Gather artist context error: {e}")
+        return {
+            "status": "active",
+            "can_post": True,
+            "suggested_topic": "fan_thanks",
+            "post_context": "General fan appreciation"
+        }
+
+
+def generate_contextual_post(
+    artist_name: str,
+    persona: dict,
+    language: str,
+    context: dict
+) -> dict | None:
+    """
+    아티스트 컨텍스트를 기반으로 상황에 맞는 포스트 생성
+
+    Args:
+        artist_name: 아티스트 이름
+        persona: AI 페르소나
+        language: 포스팅 언어 (ko, en, ja, etc.)
+        context: gather_artist_context()에서 반환된 컨텍스트
+    """
+    if not genai:
+        return None
+
+    if not context.get("can_post", True):
+        logger.info(f"Skipping post for {artist_name}: {context.get('skip_reason')}")
+        return None
+
+    lang_name = LANG_NAMES.get(language, 'English')
+    tone = persona.get("tone", "friendly, warm") if persona else "friendly, warm"
+    fandom = persona.get("fandom_name", "fans") if persona else "fans"
+
+    suggested_topic = context.get("suggested_topic", "fan_thanks")
+    post_context = context.get("post_context", "General appreciation for fans")
+    new_release = context.get("new_release")
+    tour_info = context.get("tour_info")
+    recent_activity = context.get("recent_activity", "")
+
+    # Build specific instructions based on context
+    if suggested_topic == "new_release" and new_release:
+        topic_instruction = f"""Talk about your recent release "{new_release.get('title', '')}" ({new_release.get('type', 'music')}).
+Thank fans for their support and encourage them to listen."""
+        post_type = "music"
+
+    elif suggested_topic == "tour" and tour_info:
+        topic_instruction = f"""Share excitement about your tour/concert: {tour_info}.
+Thank fans who came or encourage them to come."""
+        post_type = "tour"
+
+    elif suggested_topic == "hiatus_message":
+        topic_instruction = f"""You are currently on hiatus. {recent_activity}
+Send a warm message to fans saying you miss them and will return soon."""
+        post_type = "hiatus"
+
+    elif suggested_topic == "comeback":
+        topic_instruction = f"""Hint at or announce your upcoming comeback.
+Build excitement among fans."""
+        post_type = "comeback"
+
+    elif suggested_topic == "studio_work":
+        topic_instruction = """Share that you're working on new music in the studio.
+Build anticipation without revealing too much."""
+        post_type = "music"
+
+    else:  # fan_thanks
+        topic_instruction = f"""Express genuine gratitude to your fans.
+Context: {post_context}"""
+        post_type = "fan"
+
+    prompt = f"""You are {artist_name}, a music artist posting on social media.
+
+CRITICAL RULES:
+1. Write ONLY in {lang_name}
+2. Keep it SHORT (1-2 sentences max)
+3. Be authentic to your personality
+4. Include 1-2 relevant emojis
+5. Do NOT make up fake activities or events
+
+Your personality: {tone}
+Your fan base: {fandom}
+
+TASK: {topic_instruction}
+
+Output JSON only:
+{{
+  "caption": "Your post in {lang_name}",
+  "type": "{post_type}",
+  "hashtags": ["tag1", "tag2"]
+}}
+
+Return ONLY valid JSON."""
+
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        if text.startswith("```"):
+            lines = text.split('\n')
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            text = "\n".join(lines)
+
+        result = json.loads(text)
+        result["language"] = language
+        result["context_used"] = suggested_topic
+        return result
+
+    except Exception as e:
+        logger.error(f"Generate contextual post error: {e}")
+        return None
+
+
+def check_artist_status(artist_name: str) -> dict:
+    """
+    AI를 사용하여 아티스트의 상태 확인 (고인 여부, 활동 상태 등)
+
+    Returns:
+        {
+            "status": "active" | "deceased" | "retired" | "disbanded" | "hiatus",
+            "confidence": "high" | "medium" | "low",
+            "reason": "설명"
+        }
+    """
+    if not genai or not artist_name:
+        return {"status": "active", "confidence": "low", "reason": "AI unavailable"}
+
+    try:
+        prompt = f"""Analyze the music artist "{artist_name}" and determine their current status.
+
+Answer in this exact JSON format only:
+{{
+  "status": "active" or "deceased" or "retired" or "disbanded" or "hiatus",
+  "confidence": "high" or "medium" or "low",
+  "reason": "brief explanation in English"
+}}
+
+Status definitions:
+- active: Currently making music or performing
+- deceased: The artist has passed away
+- retired: Officially retired from music
+- disbanded: Group has officially disbanded
+- hiatus: Temporarily inactive
+
+If you're unsure, use "active" with "low" confidence.
+Return ONLY valid JSON."""
+
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+
+        # Clean markdown code blocks
+        if text.startswith("```"):
+            lines = text.split('\n')
+            if lines[0].startswith("```"): lines = lines[1:]
+            if lines[-1].startswith("```"): lines = lines[:-1]
+            text = "\n".join(lines)
+
+        result = json.loads(text)
+        logger.info(f"Artist status check: {artist_name} -> {result.get('status')}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Artist status check error: {e}")
+        return {"status": "active", "confidence": "low", "reason": f"Error: {str(e)}"}
+
+
 def generate_artist_persona(artist_name: str, description: str, songs: list) -> dict | None:
     """
     Generate AI persona for an artist based on their description and songs.
