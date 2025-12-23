@@ -1196,12 +1196,12 @@ export default function SearchPage() {
                         {searchArtist.browseId && followedArtists.has(searchArtist.browseId) ? (
                           <>
                             <UserCheck size={16} />
-                            {t('profile.following')}
+                            Following
                           </>
                         ) : (
                           <>
                             <UserPlus size={16} />
-                            {t('profile.follow')}
+                            Follow
                           </>
                         )}
                       </button>
