@@ -1,20 +1,42 @@
 import os
 import json
 import logging
+import base64
+import io
 try:
     import google.generativeai as genai
 except ImportError:
     genai = None
 
+try:
+    from google.cloud import aiplatform
+    from vertexai.preview.vision_models import ImageGenerationModel
+    vertex_available = True
+except ImportError:
+    vertex_available = False
+
 logger = logging.getLogger(__name__)
 
 # Configure Gemini
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or "AIzaSyBpwRxr8X99x7yjjIkazu-OJcqF2YbsERM"
+GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID") or "musicgram-api"
+GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
 if genai:
     genai.configure(api_key=GOOGLE_API_KEY)
     # Using gemini-2.0-flash-exp for faster chat response
     model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+# Initialize Vertex AI for Imagen
+if vertex_available:
+    try:
+        aiplatform.init(project=GOOGLE_PROJECT_ID, location=GOOGLE_LOCATION)
+        imagen_model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
+    except Exception as e:
+        logger.warning(f"Vertex AI initialization failed: {e}")
+        imagen_model = None
+else:
+    imagen_model = None
 
 def generate_artist_persona(artist_name: str, description: str, songs: list) -> dict | None:
     """
@@ -379,3 +401,102 @@ Return ONLY valid JSON."""
     except Exception as e:
         logger.error(f"Error generating multilingual post: {e}")
         return None
+
+
+# =============================================================================
+# Image Generation (Imagen 3)
+# =============================================================================
+
+# Post type to image prompt mapping
+POST_TYPE_IMAGE_PROMPTS = {
+    "music": "Professional music studio with modern equipment, warm lighting, artistic atmosphere, high quality photography",
+    "music update": "Recording studio session, microphone, headphones, artistic lighting, professional photography",
+    "personal thoughts": "Peaceful sunset scenery, contemplative mood, aesthetic photography, soft colors",
+    "thoughts": "Serene landscape with soft lighting, reflective mood, artistic composition",
+    "fan appreciation": "Concert stage with colorful lights, crowd silhouettes, hearts, celebratory atmosphere",
+    "fan": "Concert venue with fans, warm atmosphere, celebration, community feeling",
+    "behind-the-scenes": "Backstage area with equipment, candid moment, professional setting, documentary style",
+    "behind": "Behind the scenes of photoshoot, cameras, lighting setup, professional environment",
+    "daily life": "Aesthetic coffee shop interior, modern lifestyle, warm ambiance, Instagram worthy",
+    "daily": "Urban lifestyle scene, modern cafe, aesthetic interior, natural lighting",
+    "inspiring": "Majestic mountain sunrise, motivational scenery, dramatic lighting, epic landscape",
+    "quote": "Sunrise over mountains, inspirational landscape, golden hour, breathtaking view",
+    "update": "Modern creative workspace, artistic setup, professional environment, clean aesthetic",
+    "announcement": "Celebration confetti, exciting news reveal, vibrant colors, dynamic composition"
+}
+
+
+def generate_post_image(post_type: str, caption: str, artist_name: str = None) -> bytes | None:
+    """
+    Generate an image for a post using Google Imagen 3.
+
+    Args:
+        post_type: Type of post (music, thoughts, fan, etc.)
+        caption: The post caption for context
+        artist_name: Optional artist name for personalization
+
+    Returns:
+        Image bytes or None if generation fails
+    """
+    if not imagen_model:
+        logger.warning("Imagen model not available")
+        return None
+
+    try:
+        # Get base prompt from post type
+        base_prompt = POST_TYPE_IMAGE_PROMPTS.get(
+            post_type.lower(),
+            POST_TYPE_IMAGE_PROMPTS.get("update")
+        )
+
+        # Create detailed prompt
+        prompt = f"{base_prompt}. Style: modern, aesthetic, social media worthy, 512x512, high quality"
+
+        # Generate image
+        response = imagen_model.generate_images(
+            prompt=prompt,
+            number_of_images=1,
+            aspect_ratio="1:1",
+            safety_filter_level="block_some",
+            person_generation="dont_allow"  # Avoid generating people for copyright safety
+        )
+
+        if response.images:
+            # Return image bytes
+            return response.images[0]._image_bytes
+
+        return None
+
+    except Exception as e:
+        logger.error(f"Image generation error: {e}")
+        return None
+
+
+def generate_post_image_prompt(post_type: str, caption: str) -> str:
+    """
+    Generate an image prompt based on post type and caption.
+    Uses Gemini to create a contextual prompt.
+    """
+    if not genai:
+        return POST_TYPE_IMAGE_PROMPTS.get(post_type.lower(), POST_TYPE_IMAGE_PROMPTS["update"])
+
+    try:
+        prompt = f"""Create a short image generation prompt (1-2 sentences) for this social media post.
+
+Post type: {post_type}
+Caption: {caption}
+
+Requirements:
+- Describe a scene/setting that matches the mood
+- Do NOT include any people or faces
+- Focus on atmosphere, lighting, objects
+- Make it aesthetic and Instagram-worthy
+
+Return ONLY the image prompt, nothing else."""
+
+        response = model.generate_content(prompt)
+        return response.text.strip()
+
+    except Exception as e:
+        logger.error(f"Prompt generation error: {e}")
+        return POST_TYPE_IMAGE_PROMPTS.get(post_type.lower(), POST_TYPE_IMAGE_PROMPTS["update"])

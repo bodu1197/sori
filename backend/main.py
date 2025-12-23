@@ -13,8 +13,10 @@ from concurrent.futures import ThreadPoolExecutor
 from ai_agent import (
     generate_artist_persona, chat_with_artist, generate_artist_post,
     generate_artist_comment, generate_artist_dm,
-    detect_language, translate_text, generate_artist_post_multilingual
+    detect_language, translate_text, generate_artist_post_multilingual,
+    generate_post_image
 )
+import uuid as uuid_lib
 import random
 
 # 로깅 설정
@@ -3412,11 +3414,45 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                 )
 
                 if post_data and post_data.get("caption"):
-                    # Insert post into DB with language
+                    post_type = post_data.get("type", "update")
+                    caption = post_data["caption"]
+
+                    # Generate AI image for the post
+                    cover_url = None
+                    try:
+                        image_bytes = await run_in_thread(
+                            generate_post_image,
+                            post_type,
+                            caption,
+                            artist_name
+                        )
+
+                        if image_bytes:
+                            # Upload to Supabase Storage
+                            file_name = f"posts/{uuid_lib.uuid4()}.png"
+                            storage_result = supabase_client.storage.from_("post-images").upload(
+                                file_name,
+                                image_bytes,
+                                {"content-type": "image/png"}
+                            )
+
+                            if storage_result:
+                                # Get public URL
+                                cover_url = supabase_client.storage.from_("post-images").get_public_url(file_name)
+                                logger.info(f"Generated image for {artist_name}: {cover_url}")
+                    except Exception as img_error:
+                        logger.warning(f"Image generation failed for {artist_name}: {img_error}")
+                        # Fallback to artist avatar
+                        cover_url = artist.get("avatar_url")
+
+                    # Insert post into DB with language and cover
                     new_post = {
                         "user_id": artist["id"],
-                        "caption": post_data["caption"],
-                        "language": artist_language,  # Store post language
+                        "caption": caption,
+                        "language": artist_language,
+                        "cover_url": cover_url,
+                        "title": post_type,
+                        "artist": artist_name,
                         "is_public": True,
                         "like_count": 0,
                         "comment_count": 0,
