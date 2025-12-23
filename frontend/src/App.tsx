@@ -1,5 +1,16 @@
-import { useEffect, ReactNode } from 'react';
+import { useEffect, ReactNode, useLayoutEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
+// Scroll to top on route change
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
 import MobileLayout from './components/layout/MobileLayout';
 import FeedPage from './pages/FeedPage';
 import ProfilePage from './pages/ProfilePage';
@@ -48,6 +59,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
 
