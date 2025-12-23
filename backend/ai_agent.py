@@ -28,8 +28,8 @@ GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
 if genai:
     genai.configure(api_key=GOOGLE_API_KEY)
-    # Using gemini-2.0-flash-exp for faster chat response
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    # Using Gemini 3 Flash - latest model (Dec 2025), 3x faster, 30% fewer tokens
+    model = genai.GenerativeModel('gemini-3-flash')
 
 # Initialize Vertex AI for Imagen
 if vertex_available:
@@ -84,7 +84,7 @@ Return ONLY the JSON array."""
 
         # Create model with Google Search grounding tool enabled
         search_model = genai.GenerativeModel(
-            'gemini-2.0-flash-exp',
+            'gemini-3-flash',
             tools=[{"google_search": {}}]  # Enable Google Search grounding
         )
 
