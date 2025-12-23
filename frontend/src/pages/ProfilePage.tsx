@@ -316,25 +316,20 @@ export default function ProfilePage() {
             }));
           setLikedSongs(likedData);
         } else {
-          // 5. Fetch other user's saved songs from saved_songs table
-          const { data: savedSongsData } = await supabase
-            .from('saved_songs')
-            .select('*')
-            .eq('user_id', targetUserId)
-            .order('created_at', { ascending: false });
-
-          if (savedSongsData) {
-            const savedData: LikedTrack[] = savedSongsData.map((s: any) => ({
-              videoId: s.video_id,
-              title: s.title || t('common.unknown', 'Unknown'),
-              artist: s.artist || t('common.unknownArtist', 'Unknown Artist'),
-              thumbnail: s.cover_url,
-              cover: s.cover_url,
-              cover_url: s.cover_url,
-              playlistId: s.id,
+          // 5. Fetch other user's music from playlists table (same as own profile)
+          const savedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
+            .filter((p) => p.video_id)
+            .map((p) => ({
+              videoId: p.video_id as string,
+              title: p.title || t('common.unknown', 'Unknown'),
+              artist:
+                (profileData as Profile)?.username || t('common.unknownArtist', 'Unknown Artist'),
+              thumbnail: p.cover_url,
+              cover: p.cover_url,
+              cover_url: p.cover_url,
+              playlistId: p.id,
             }));
-            setUserSavedSongs(savedData);
-          }
+          setUserSavedSongs(savedData);
         }
       } catch {
         // Error fetching profile
