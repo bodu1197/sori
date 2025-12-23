@@ -106,11 +106,72 @@ async def run_in_thread(func, *args, **kwargs):
 ERROR_ACCESS_TOKEN_REQUIRED = "access_token required"
 
 # =============================================================================
+# 언어 감지 함수
+# =============================================================================
+
+# 알려진 K-pop 그룹 (영어 이름이지만 한국어 사용)
+KPOP_GROUPS = {
+    "BTS", "BLACKPINK", "LE SSERAFIM", "NewJeans", "STAYC", "IVE", "aespa",
+    "TWICE", "EXO", "NCT", "ENHYPEN", "TXT", "ITZY", "NMIXX", "(G)I-DLE",
+    "Red Velvet", "SEVENTEEN", "Stray Kids", "ATEEZ", "THE BOYZ", "Kep1er",
+    "fromis_9", "VIVIZ", "MAMAMOO", "Oh My Girl", "Lovelyz", "GFRIEND",
+    "MONSTA X", "TREASURE", "iKON", "WINNER", "2NE1", "Big Bang", "BIGBANG",
+    "Girls' Generation", "SNSD", "SHINee", "Super Junior", "f(x)", "miss A",
+    "Wonder Girls", "2PM", "GOT7", "DAY6", "Xdinary Heroes", "ILLIT",
+    "KISS OF LIFE", "BABYMONSTER", "tripleS", "ZEROBASEONE", "BOYNEXTDOOR",
+    "RIIZE", "TWS", "QWER", "H1-KEY", "Billlie", "CLASS:y", "Weeekly"
+}
+
+def detect_artist_language(name: str, description: str = "") -> str:
+    """
+    아티스트 이름/설명에서 주요 언어 감지
+
+    Returns:
+        "ko" - 한국어 (한글 포함 또는 K-pop 그룹)
+        "ja" - 일본어 (히라가나/가타카나 포함)
+        "zh" - 중국어 (한자만 포함)
+        "en" - 영어 (기본값)
+    """
+    import re
+
+    if not name:
+        return "en"
+
+    # 1. K-pop 그룹 체크 (영어 이름이지만 한국 아티스트)
+    name_normalized = name.strip()
+    for kpop in KPOP_GROUPS:
+        if kpop.lower() in name_normalized.lower():
+            return "ko"
+
+    # 2. 한글 감지 (가-힣)
+    if re.search(r'[가-힣]', name):
+        return "ko"
+
+    # 3. 일본어 감지 (히라가나, 가타카나)
+    if re.search(r'[\u3040-\u309F\u30A0-\u30FF]', name):
+        return "ja"
+
+    # 4. 중국어 감지 (한자만 있고 한글/일본어 없을 때)
+    if re.search(r'[\u4E00-\u9FFF]', name) and not re.search(r'[가-힣\u3040-\u30FF]', name):
+        return "zh"
+
+    # 5. Description에서도 확인
+    if description:
+        desc_sample = description[:500]
+        if re.search(r'[가-힣]', desc_sample):
+            return "ko"
+        if re.search(r'[\u3040-\u309F\u30A0-\u30FF]', desc_sample):
+            return "ja"
+
+    return "en"
+
+
+# =============================================================================
 # Supabase DB 헬퍼 함수
 # =============================================================================
 
 def db_save_artist(artist_data: dict) -> str | None:
-    """아티스트를 DB에 저장 (upsert) + 자동 가상회원 생성"""
+    """아티스트를 DB에 저장 (upsert) + 자동 가상회원 생성 + 언어 자동 감지"""
     if not supabase_client:
         return None
 
@@ -121,15 +182,20 @@ def db_save_artist(artist_data: dict) -> str | None:
 
         thumbnails = artist_data.get("thumbnails") or []
         artist_name = artist_data.get("name") or artist_data.get("artist") or ""
+        description = artist_data.get("description") or ""
         thumbnail_url = get_best_thumbnail(thumbnails)
+
+        # 자동 언어 감지
+        primary_language = detect_artist_language(artist_name, description)
 
         data = {
             "browse_id": browse_id,
             "name": artist_name,
             "thumbnails": json.dumps(thumbnails),
             "thumbnail_url": thumbnail_url,
-            "description": artist_data.get("description") or "",
+            "description": description,
             "subscribers": artist_data.get("subscribers") or "",
+            "primary_language": primary_language,  # 언어 자동 설정
             "last_updated": datetime.now(timezone.utc).isoformat()
         }
 
@@ -369,7 +435,7 @@ def db_check_artist_needs_sync(browse_id: str, days: int = 7) -> bool:
         return True
 
 def db_save_artist_full(artist_data: dict) -> bool:
-    """아티스트 정보를 정규화 테이블에 저장 (upsert)"""
+    """아티스트 정보를 정규화 테이블에 저장 (upsert) + 언어 자동 감지"""
     if not supabase_client or not artist_data:
         return False
     try:
@@ -379,13 +445,19 @@ def db_save_artist_full(artist_data: dict) -> bool:
 
         # 인기곡 플레이리스트 ID만 추출 (YouTube IFrame API용)
         songs_playlist_id = artist_data.get("songsPlaylistId")
+        artist_name = artist_data.get("artist") or artist_data.get("name") or ""
+        description = artist_data.get("description") or ""
+
+        # 자동 언어 감지
+        primary_language = detect_artist_language(artist_name, description)
 
         data = {
             "browse_id": browse_id,
-            "name": artist_data.get("artist") or artist_data.get("name") or "",
+            "name": artist_name,
             "thumbnail_url": get_best_thumbnail(artist_data.get("thumbnails", [])),
             "subscribers": artist_data.get("subscribers") or "",
-            "description": artist_data.get("description") or "",
+            "description": description,
+            "primary_language": primary_language,  # 언어 자동 설정
             "top_songs_json": artist_data.get("topSongs") or [],
             "related_artists_json": artist_data.get("related") or [],
             "songs_playlist_id": songs_playlist_id,
@@ -397,7 +469,7 @@ def db_save_artist_full(artist_data: dict) -> bool:
             data, on_conflict="browse_id"
         ).execute()
 
-        logger.info(f"Artist saved: {data['name']} ({browse_id}) playlist: {songs_playlist_id}")
+        logger.info(f"Artist saved: {data['name']} ({browse_id}) lang: {primary_language}")
 
         # 자동 가상회원 생성 (비동기 백그라운드)
         try:
@@ -3541,6 +3613,65 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
 
     except Exception as e:
         logger.error(f"Artist activity cron error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/migrate-artist-languages")
+async def migrate_artist_languages(request: Request):
+    """
+    마이그레이션: 기존 아티스트들의 primary_language 업데이트
+
+    모든 music_artists 레코드를 조회하여:
+    1. 이름에서 언어 감지
+    2. K-pop 그룹 목록 체크
+    3. primary_language 필드 업데이트
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    try:
+        # 모든 아티스트 조회
+        artists = supabase_client.table("music_artists").select(
+            "browse_id, name, description, primary_language"
+        ).execute()
+
+        if not artists.data:
+            return {"status": "no_artists", "updated": 0}
+
+        updated = 0
+        results = []
+
+        for artist in artists.data:
+            name = artist.get("name") or ""
+            description = artist.get("description") or ""
+            current_lang = artist.get("primary_language")
+
+            # 언어 감지
+            detected_lang = detect_artist_language(name, description)
+
+            # 변경이 필요한 경우만 업데이트
+            if detected_lang != current_lang:
+                supabase_client.table("music_artists").update({
+                    "primary_language": detected_lang
+                }).eq("browse_id", artist["browse_id"]).execute()
+
+                updated += 1
+                results.append({
+                    "name": name,
+                    "old": current_lang,
+                    "new": detected_lang
+                })
+                logger.info(f"Updated language: {name} -> {detected_lang}")
+
+        return {
+            "status": "success",
+            "total_artists": len(artists.data),
+            "updated": updated,
+            "changes": results[:50]  # 최대 50개만 반환
+        }
+
+    except Exception as e:
+        logger.error(f"Migration error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
