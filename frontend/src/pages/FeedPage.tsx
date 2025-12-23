@@ -298,7 +298,7 @@ function ForYouSection() {
     <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
       <button
         onClick={handleBannerClick}
-        className="w-full relative overflow-hidden rounded-2xl aspect-[2.5/1] sm:aspect-[3/1] group transition-transform active:scale-[0.98]"
+        className="w-full relative overflow-hidden rounded-2xl aspect-[3.5/1] sm:aspect-[4/1] group transition-transform active:scale-[0.98]"
       >
         {/* Animated Background Gradient - Darker & Smoother */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-purple-950 to-indigo-950 animate-gradient-x"></div>
