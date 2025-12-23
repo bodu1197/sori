@@ -58,7 +58,7 @@ export default function StoriesBar() {
         const { data: artistsData } = await supabase
           .from('music_artists')
           .select('*')
-          .order('last_updated', { ascending: false })
+          .order('updated_at', { ascending: false })
           .limit(10);
 
         const sourceArtists = artistsData || [];
