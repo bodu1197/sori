@@ -302,6 +302,21 @@ Build excitement among fans."""
 Build anticipation without revealing too much."""
         post_type = "music"
 
+    elif suggested_topic == "music_recommendation":
+        # Get the selected track info from context
+        selected_track = context.get("selected_track", {})
+        track_title = selected_track.get("title", "")
+        topic_instruction = f"""Recommend your song "{track_title}" to your fans!
+
+Write a post that:
+- Shares why this song is special to you
+- Encourages fans to listen
+- Shows genuine love for this track
+- Mentions a memory or story about the song (can be creative but authentic)
+
+Keep it personal and heartfelt. The video will be embedded with the post."""
+        post_type = "music"
+
     else:  # fan_thanks
         topic_instruction = f"""Express genuine gratitude to your fans.
 Context: {post_context}"""

@@ -3542,9 +3542,11 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                     if music_artist.data:
                         artist_language = music_artist.data[0].get("primary_language") or "en"
 
-                # ========== STEP 3: GET IMAGE FROM REAL DATA ==========
+                # ========== STEP 3: GET IMAGE & VIDEO FROM REAL DATA ==========
                 # Default to avatar (upscaled to high resolution)
                 cover_url = upscale_thumbnail_url(artist.get("avatar_url"), size=544)
+                video_id = None  # YouTube video ID for iframe embed
+                song_title = None  # Track title for recommendation posts
 
                 if browse_id:
                     # Get latest album with thumbnail
@@ -3554,28 +3556,42 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                         "year", desc=True
                     ).limit(3).execute()
 
-                    # Get popular tracks
+                    # Get popular tracks WITH video_id for YouTube embed
                     tracks = supabase_client.table("music_tracks").select(
-                        "title, thumbnail_url"
-                    ).eq("artist_browse_id", browse_id).limit(5).execute()
+                        "title, thumbnail_url, video_id"
+                    ).eq("artist_browse_id", browse_id).limit(10).execute()
 
-                    # Use real album/track art if available
-                    if albums.data and len(albums.data) > 0:
+                    # Select a random track for video embed
+                    if tracks.data and len(tracks.data) > 0:
+                        tracks_with_video = [t for t in tracks.data if t.get("video_id")]
+                        if tracks_with_video:
+                            selected_track = random.choice(tracks_with_video)
+                            video_id = selected_track.get("video_id")
+                            song_title = selected_track.get("title")
+                            if selected_track.get("thumbnail_url"):
+                                cover_url = upscale_thumbnail_url(selected_track["thumbnail_url"], size=544)
+                            logger.info(f"Selected track for {artist_name}: {song_title} (video_id: {video_id})")
+
+                    # Use album art if no track selected yet
+                    if not video_id and albums.data and len(albums.data) > 0:
                         album = random.choice(albums.data)
                         if album.get("thumbnail_url"):
                             cover_url = upscale_thumbnail_url(album["thumbnail_url"], size=544)
                             logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
-                    elif tracks.data and len(tracks.data) > 0:
-                        track_with_thumb = next(
-                            (t for t in tracks.data if t.get("thumbnail_url")),
-                            None
-                        )
-                        if track_with_thumb:
-                            cover_url = upscale_thumbnail_url(track_with_thumb["thumbnail_url"], size=544)
-                            logger.info(f"Using real track art for {artist_name}")
 
                 # ========== STEP 4: GENERATE CONTEXTUAL POST ==========
                 # AI가 아티스트 상황에 맞는 포스트 생성
+                # Add selected track info to context for AI
+                if song_title and video_id:
+                    context["selected_track"] = {
+                        "title": song_title,
+                        "video_id": video_id
+                    }
+                    # If no specific news, suggest music recommendation post
+                    if context.get("suggested_topic") == "fan_thanks":
+                        context["suggested_topic"] = "music_recommendation"
+                        context["post_context"] = f"Recommend your song '{song_title}' to fans. Share why you love this track."
+
                 post_data = await run_in_thread(
                     generate_contextual_post,
                     artist_name,
@@ -3589,13 +3605,14 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                     caption = post_data["caption"]
                     context_topic = post_data.get("context_used", "fan_thanks")
 
-                    # Insert post with REAL image (album art or avatar)
+                    # Insert post with REAL image AND YouTube video_id
                     new_post = {
                         "user_id": artist["id"],
                         "caption": caption,
                         "language": artist_language,
                         "cover_url": cover_url,
-                        "title": post_type,
+                        "video_id": video_id,  # YouTube video ID for iframe embed
+                        "title": song_title or post_type,  # Use song title if available
                         "artist": artist_name,
                         "is_public": True,
                         "like_count": 0,
