@@ -392,6 +392,15 @@ def db_save_artist_full(artist_data: dict) -> bool:
         ).execute()
 
         logger.info(f"Artist saved: {data['name']} ({browse_id}) playlist: {songs_playlist_id}")
+
+        # 자동 가상회원 생성 (비동기 백그라운드)
+        try:
+            existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
+            if not existing.data or len(existing.data) == 0:
+                create_virtual_member_sync(browse_id, data['name'], data['thumbnail_url'])
+        except Exception as vm_error:
+            logger.warning(f"Virtual member auto-creation skipped: {vm_error}")
+
         return True
     except Exception as e:
         logger.warning(f"DB save artist error: {e}")
