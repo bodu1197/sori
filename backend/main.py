@@ -1624,6 +1624,94 @@ async def _process_best_artist_for_summary(
     return artists_data, albums_data, songs_search
 
 
+def _try_cached_summary(cache_key: str, q: str, country: str, background_tasks) -> dict | None:
+    """Try to get summary from cache or database."""
+    # Redis 캐시 먼저 확인
+    cached = cache_get(cache_key)
+    if cached:
+        logger.info(f"Redis cache hit: {cache_key}")
+        cached["source"] = "redis"
+        return cached
+
+    # DB에서 검색어 매핑 확인
+    artist_browse_ids = db_get_artists_by_keyword(q, country)
+    if not artist_browse_ids:
+        return None
+
+    logger.info(f"DB hit for keyword: {q} ({len(artist_browse_ids)} artists)")
+    db_result = _process_db_artists(artist_browse_ids, background_tasks, country)
+
+    if not db_result:
+        return None
+
+    result = {
+        "keyword": q,
+        "country": country,
+        "artists": db_result["artists"],
+        "songs": db_result["songs"],
+        "albums": [],
+        "albums2": db_result["albums"],
+        "allTracks": db_result["allTracks"],
+        "source": "database",
+        "updating": db_result["updating"]
+    }
+    cache_set(cache_key, result, ttl=1800)
+    if db_result["updating"]:
+        logger.info(f"Background update triggered for: {q}")
+    return result
+
+
+def _process_direct_songs(direct_song_results: list) -> list:
+    """Process direct song search results."""
+    songs_search = []
+    for song in (direct_song_results or []):
+        if isinstance(song, dict) and song.get("videoId"):
+            song_copy = dict(song)
+            song_copy["resultType"] = "song"
+            song_copy["from_direct_search"] = True
+            songs_search.append(song_copy)
+    return songs_search
+
+
+async def _fetch_ytmusic_summary(
+    q: str, country: str, background_tasks, cache_key: str
+) -> dict:
+    """Fetch summary data from ytmusicapi."""
+    ytmusic = get_ytmusic(country)
+
+    # 병렬 검색
+    future_artists = run_in_thread(ytmusic.search, q, filter="artists", limit=5)
+    future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=20)
+    artists_results, direct_song_results = await asyncio.gather(future_artists, future_songs)
+
+    # 아티스트 결과 처리
+    artists_search = artists_results or []
+    if not artists_search:
+        general_results = await run_in_thread(ytmusic.search, q, limit=40)
+        artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
+
+    # 노래 결과 정제
+    songs_search = _process_direct_songs(direct_song_results)
+
+    # Best artist 처리
+    artists_data, albums_data, songs_search = await _process_best_artist_for_summary(
+        ytmusic, artists_search, q, songs_search, background_tasks, country
+    )
+
+    result = {
+        "keyword": q,
+        "country": country,
+        "artists": artists_data,
+        "songs": songs_search,
+        "albums": [],
+        "albums2": albums_data,
+        "allTracks": [],
+        "source": "ytmusicapi"
+    }
+    cache_set(cache_key, result, ttl=1800)
+    return result
+
+
 @app.get("/api/search/summary/deprecated")
 async def search_summary_deprecated(
     request: Request,
@@ -1646,95 +1734,16 @@ async def search_summary_deprecated(
 
     cache_key = f"summary:{country}:{q}"
 
-    # ==========================================================================
-    # 1단계: DB에서 기존 데이터 확인
-    # ==========================================================================
+    # 1단계: 캐시/DB에서 기존 데이터 확인
     if not force_refresh:
-        # Redis 캐시 먼저 확인 (빠른 응답)
-        cached = cache_get(cache_key)
-        if cached:
-            logger.info(f"Redis cache hit: {cache_key}")
-            cached["source"] = "redis"
-            return cached
+        cached_result = _try_cached_summary(cache_key, q, country, background_tasks)
+        if cached_result:
+            return cached_result
 
-        # DB에서 검색어 매핑 확인
-        artist_browse_ids = db_get_artists_by_keyword(q, country)
-        if artist_browse_ids:
-            logger.info(f"DB hit for keyword: {q} ({len(artist_browse_ids)} artists)")
-            db_result = _process_db_artists(artist_browse_ids, background_tasks, country)
-            
-            if db_result:
-                result = {
-                    "keyword": q,
-                    "country": country,
-                    "artists": db_result["artists"],
-                    "songs": db_result["songs"],
-                    "albums": [],
-                    "albums2": db_result["albums"],
-                    "allTracks": db_result["allTracks"],
-                    "source": "database",
-                    "updating": db_result["updating"]
-                }
-                cache_set(cache_key, result, ttl=1800)
-                if db_result["updating"]:
-                    logger.info(f"Background update triggered for: {q}")
-                return result
-
-    # ==========================================================================
-    # 2단계: ytmusicapi에서 새로 가져오기 (병렬 처리 + 백그라운드 저장)
-    # ==========================================================================
+    # 2단계: ytmusicapi에서 새로 가져오기
     logger.info(f"Fetching from ytmusicapi: {q}")
-
     try:
-        ytmusic = get_ytmusic(country)
-
-        # 1. 아티스트와 노래 동시 검색 (병렬 실행)
-        # run_in_thread를 사용하여 blocking I/O를 별도 스레드에서 실행
-        future_artists = run_in_thread(ytmusic.search, q, filter="artists", limit=5)
-        future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=20) # 30 -> 20 limit 축소
-        
-        # 병렬 대기
-        artists_results, direct_song_results = await asyncio.gather(future_artists, future_songs)
-        
-        # 결과 처리
-        artists_search = artists_results or []
-        if not artists_search:
-            # Fallback: 일반 검색에서 아티스트 필터링
-            general_results = await run_in_thread(ytmusic.search, q, limit=40)
-            artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
-
-        # 노래 결과 정제
-        songs_search = []
-        direct_song_results = direct_song_results or []
-        for song in direct_song_results:
-            if isinstance(song, dict) and song.get("videoId"):
-                song_copy = dict(song)
-                song_copy["resultType"] = "song"
-                song_copy["from_direct_search"] = True
-                songs_search.append(song_copy)
-
-        # Process best artist
-        artists_data, albums_data, songs_search = await _process_best_artist_for_summary(
-            ytmusic, artists_search, q, songs_search, background_tasks, country
-        )
-
-        result = {
-            "keyword": q,
-            "country": country,
-            "artists": artists_data,
-            "songs": songs_search,
-            "albums": [],
-            "albums2": albums_data,
-            "allTracks": all_tracks,
-            "source": "ytmusicapi"
-        }
-
-        # Redis 캐시 저장 (백그라운드)
-        # cache_set도 가벼운 연산이므로 그냥 실행하거나 비동기 처리 가능하나 여기선 유지
-        cache_set(cache_key, result, ttl=1800)
-
-        return result
-
+        return await _fetch_ytmusic_summary(q, country, background_tasks, cache_key)
     except Exception as e:
         logger.error(f"Summary search error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
