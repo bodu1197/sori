@@ -23,6 +23,23 @@ export interface Comment {
   replies?: Comment[];
 }
 
+// Helper: Remove comment from replies
+function removeFromReplies(comment: Comment, commentId: string): Comment {
+  return {
+    ...comment,
+    replies: comment.replies?.filter((r) => r.id !== commentId),
+  };
+}
+
+// Helper: Update comments after deletion
+function updateCommentsAfterDelete(prev: Comment[], commentId: string): Comment[] {
+  const isTopLevel = prev.some((c) => c.id === commentId);
+  if (isTopLevel) {
+    return prev.filter((c) => c.id !== commentId);
+  }
+  return prev.map((c) => removeFromReplies(c, commentId));
+}
+
 export function useComments(postId: string) {
   const { user } = useAuthStore();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -168,18 +185,7 @@ export function useComments(postId: string) {
     try {
       const { error } = await supabase.from('post_comments').delete().eq('id', commentId);
       if (error) throw error;
-
-      setComments((prev) => {
-        const isTopLevel = prev.some((c) => c.id === commentId);
-        if (isTopLevel) {
-          return prev.filter((c) => c.id !== commentId);
-        } else {
-          return prev.map((c) => ({
-            ...c,
-            replies: c.replies?.filter((r) => r.id !== commentId),
-          }));
-        }
-      });
+      setComments((prev) => updateCommentsAfterDelete(prev, commentId));
     } catch (err) {
       console.error(err);
     }

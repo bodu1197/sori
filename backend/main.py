@@ -751,51 +751,64 @@ def get_best_thumbnail(thumbnails: list, size: int = 544) -> str:
     return upscale_thumbnail_url(url, size)
 
 
+def _process_album_tracks(album_detail: dict, album_browse_id: str,
+                          artist_browse_id: str, existing_video_ids: set) -> int:
+    """Process and save tracks from an album. Returns count of new tracks."""
+    new_tracks = 0
+    for idx, track in enumerate(album_detail.get("tracks") or []):
+        video_id = track.get("videoId")
+        if not video_id or video_id in existing_video_ids:
+            continue
+        track_data = {
+            "videoId": video_id,
+            "title": track.get("title") or "",
+            "duration": track.get("duration") or "",
+            "thumbnails": track.get("thumbnails") or [],
+            "isExplicit": track.get("isExplicit", False)
+        }
+        db_save_track(track_data, album_browse_id, artist_browse_id, idx + 1)
+        new_tracks += 1
+    return new_tracks
+
+
+def _process_single_album(ytmusic, album: dict, artist_browse_id: str,
+                          existing_album_ids: set, existing_video_ids: set) -> tuple[int, int]:
+    """Process a single album and its tracks. Returns (album_count, track_count)."""
+    album_browse_id = album.get("browseId")
+    if not album_browse_id or album_browse_id in existing_album_ids:
+        return 0, 0
+
+    try:
+        album_detail = ytmusic.get_album(album_browse_id)
+        if not album_detail:
+            return 0, 0
+
+        album_data = {
+            "browseId": album_browse_id,
+            "title": album_detail.get("title") or "",
+            "type": album_detail.get("type") or "Album",
+            "year": album_detail.get("year") or "",
+            "thumbnails": album_detail.get("thumbnails") or []
+        }
+        db_save_album(album_data, artist_browse_id)
+        new_tracks = _process_album_tracks(album_detail, album_browse_id, artist_browse_id, existing_video_ids)
+        return 1, new_tracks
+    except Exception as e:
+        logger.warning(f"Background album fetch error: {e}")
+        return 0, 0
+
+
 def _process_album_list(ytmusic, album_list: list, existing_album_ids: set,
                         existing_video_ids: set, artist_browse_id: str) -> tuple[int, int]:
     """Process album list and save new albums/tracks. Returns (new_albums, new_tracks)."""
     new_albums = 0
     new_tracks = 0
-
     for album in album_list:
-        album_browse_id = album.get("browseId")
-        if not album_browse_id or album_browse_id in existing_album_ids:
-            continue
-
-        try:
-            album_detail = ytmusic.get_album(album_browse_id)
-            if not album_detail:
-                continue
-
-            album_data = {
-                "browseId": album_browse_id,
-                "title": album_detail.get("title") or "",
-                "type": album_detail.get("type") or "Album",
-                "year": album_detail.get("year") or "",
-                "thumbnails": album_detail.get("thumbnails") or []
-            }
-
-            db_save_album(album_data, artist_browse_id)
-            new_albums += 1
-
-            for idx, track in enumerate(album_detail.get("tracks") or []):
-                video_id = track.get("videoId")
-                if not video_id or video_id in existing_video_ids:
-                    continue
-
-                track_data = {
-                    "videoId": video_id,
-                    "title": track.get("title") or "",
-                    "duration": track.get("duration") or "",
-                    "thumbnails": track.get("thumbnails") or [],
-                    "isExplicit": track.get("isExplicit", False)
-                }
-                db_save_track(track_data, album_browse_id, artist_browse_id, idx + 1)
-                new_tracks += 1
-
-        except Exception as e:
-            logger.warning(f"Background album fetch error: {e}")
-
+        a_count, t_count = _process_single_album(
+            ytmusic, album, artist_browse_id, existing_album_ids, existing_video_ids
+        )
+        new_albums += a_count
+        new_tracks += t_count
     return new_albums, new_tracks
 
 
@@ -2055,37 +2068,52 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _update_artist_view_tracking(artist_id: str) -> None:
+    """Update last_viewed_at for artist view tracking."""
+    if not supabase_client:
+        return
+    try:
+        supabase_client.table("music_artists").update({
+            "last_viewed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("browse_id", artist_id).execute()
+    except Exception as view_err:
+        logger.debug(f"View tracking update: {view_err}")
+
+
+def _check_artist_needs_refresh(artist_id: str, force_refresh: bool) -> bool:
+    """Check if artist data needs refresh (stale > 7 days)."""
+    if force_refresh:
+        return True
+    if not supabase_client:
+        return False
+
+    try:
+        artist_record = supabase_client.table("music_artists").select(
+            "last_synced_at"
+        ).eq("browse_id", artist_id).execute()
+
+        if not artist_record.data:
+            return False
+        last_synced_str = artist_record.data[0].get("last_synced_at")
+        if not last_synced_str:
+            return False
+
+        last_synced = datetime.fromisoformat(last_synced_str.replace("Z", TIMEZONE_SUFFIX))
+        if datetime.now(timezone.utc) - last_synced > timedelta(days=7):
+            logger.info(f"[ON-DEMAND] Refreshing stale artist: {artist_id}")
+            return True
+    except Exception as check_err:
+        logger.debug(f"Stale check error: {check_err}")
+    return False
+
+
 @app.get("/api/artist/{artist_id}")
 async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = False):
     """아티스트 상세 정보 + On-Demand 업데이트"""
     cache_key = f"artist:{artist_id}:{country}"
 
-    # last_viewed_at 업데이트 (조회 추적)
-    if supabase_client:
-        try:
-            supabase_client.table("music_artists").update({
-                "last_viewed_at": datetime.now(timezone.utc).isoformat()
-            }).eq("browse_id", artist_id).execute()
-        except Exception as view_err:
-            logger.debug(f"View tracking update: {view_err}")
-
-    # On-Demand 업데이트: last_synced_at이 7일 이상이면 자동 갱신
-    should_refresh = force_refresh
-    if not should_refresh and supabase_client:
-        try:
-            artist_record = supabase_client.table("music_artists").select(
-                "last_synced_at"
-            ).eq("browse_id", artist_id).execute()
-
-            if artist_record.data and artist_record.data[0].get("last_synced_at"):
-                last_synced = datetime.fromisoformat(
-                    artist_record.data[0]["last_synced_at"].replace("Z", TIMEZONE_SUFFIX)
-                )
-                if datetime.now(timezone.utc) - last_synced > timedelta(days=7):
-                    should_refresh = True
-                    logger.info(f"[ON-DEMAND] Refreshing stale artist: {artist_id}")
-        except Exception as check_err:
-            logger.debug(f"Stale check error: {check_err}")
+    _update_artist_view_tracking(artist_id)
+    should_refresh = _check_artist_needs_refresh(artist_id, force_refresh)
 
     if not should_refresh:
         cached = cache_get(cache_key)
@@ -2096,7 +2124,6 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
         ytmusic = get_ytmusic(country)
         artist = await run_in_thread(ytmusic.get_artist, artist_id)
 
-        # On-Demand 갱신 시 DB도 업데이트
         if should_refresh and artist:
             try:
                 save_full_artist_data_background(artist_id, artist, country)
@@ -2104,9 +2131,7 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
             except Exception as save_err:
                 logger.warning(f"On-demand save failed: {save_err}")
 
-        # 6시간 캐시
         cache_set(cache_key, artist, ttl=21600)
-
         return {"source": "api", "artist": artist, "refreshed": should_refresh}
     except Exception as e:
         logger.error(f"Artist error: {e}")
@@ -3520,44 +3545,55 @@ async def list_virtual_members():
 # =============================================================================
 
 
+def _select_track_media(tracks_data: list, artist_name: str) -> tuple:
+    """Select a track with video for media content. Returns (cover_url, video_id, song_title)."""
+    if not tracks_data:
+        return None, None, None
+
+    tracks_with_video = [t for t in tracks_data if t.get("video_id")]
+    if not tracks_with_video:
+        return None, None, None
+
+    selected = random.choice(tracks_with_video)
+    cover_url = upscale_thumbnail_url(selected["thumbnail_url"], size=544) if selected.get("thumbnail_url") else None
+    logger.info(f"Selected track for {artist_name}: {selected.get('title')} (video_id: {selected.get('video_id')})")
+    return cover_url, selected.get("video_id"), selected.get("title")
+
+
+def _select_album_cover(albums_data: list, artist_name: str) -> str | None:
+    """Select a random album cover. Returns cover_url or None."""
+    if not albums_data:
+        return None
+    album = random.choice(albums_data)
+    if album.get("thumbnail_url"):
+        logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
+        return upscale_thumbnail_url(album["thumbnail_url"], size=544)
+    return None
+
+
 def _get_real_media_content(supabase, browse_id: str, artist_name: str, avatar_url: str) -> tuple:
     """Get real media content (cover, video_id, song_title) for artist post."""
-    cover_url = upscale_thumbnail_url(avatar_url, size=544)
-    video_id = None
-    song_title = None
+    default_cover = upscale_thumbnail_url(avatar_url, size=544)
 
-    if browse_id:
-        # Get latest album with thumbnail
-        albums = supabase.table("music_albums").select(
-            "title, thumbnail_url, year"
-        ).eq("artist_browse_id", browse_id).order(
-            "year", desc=True
-        ).limit(3).execute()
+    if not browse_id:
+        return default_cover, None, None
 
-        # Get popular tracks WITH video_id for YouTube embed
-        tracks = supabase.table("music_tracks").select(
-            "title, thumbnail_url, video_id"
-        ).eq("artist_browse_id", browse_id).limit(10).execute()
+    albums = supabase.table("music_albums").select(
+        "title, thumbnail_url, year"
+    ).eq("artist_browse_id", browse_id).order("year", desc=True).limit(3).execute()
 
-        # Select a random track for video embed
-        if tracks.data and len(tracks.data) > 0:
-            tracks_with_video = [t for t in tracks.data if t.get("video_id")]
-            if tracks_with_video:
-                selected_track = random.choice(tracks_with_video)
-                video_id = selected_track.get("video_id")
-                song_title = selected_track.get("title")
-                if selected_track.get("thumbnail_url"):
-                    cover_url = upscale_thumbnail_url(selected_track["thumbnail_url"], size=544)
-                logger.info(f"Selected track for {artist_name}: {song_title} (video_id: {video_id})")
+    tracks = supabase.table("music_tracks").select(
+        "title, thumbnail_url, video_id"
+    ).eq("artist_browse_id", browse_id).limit(10).execute()
 
-        # Use album art if no track selected yet
-        if not video_id and albums.data and len(albums.data) > 0:
-            album = random.choice(albums.data)
-            if album.get("thumbnail_url"):
-                cover_url = upscale_thumbnail_url(album["thumbnail_url"], size=544)
-                logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
-    
-    return cover_url, video_id, song_title
+    # Try track first
+    cover_url, video_id, song_title = _select_track_media(tracks.data, artist_name)
+    if video_id:
+        return cover_url or default_cover, video_id, song_title
+
+    # Fallback to album art
+    album_cover = _select_album_cover(albums.data, artist_name)
+    return album_cover or default_cover, None, None
 
 
 def _create_greeting_story(supabase, artist_id, persona, artist_language, cover_url, artist_name):

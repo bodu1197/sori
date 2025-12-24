@@ -416,13 +416,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
  * Suggested Virtual Members Section
  * Shows random artist profiles with Follow buttons
  */
-interface SuggestedUser {
-  id: string;
-  username: string;
-  full_name?: string;
-  avatar_url?: string;
-  followers_count?: number;
-}
 
 function SuggestedUsersSection() {
   const { t } = useTranslation();

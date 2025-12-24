@@ -178,6 +178,51 @@ export function useHomeRecommendations() {
   return { recommendations, loadingRecs, countryName, context };
 }
 
+// Helper: Add profiles to suggestions list
+function addProfilesToSuggestions(
+  profiles: SuggestedUser[],
+  suggestions: SuggestedUser[],
+  addedIds: Set<string>,
+  followingIds: Set<string>,
+  maxCount: number,
+  shuffle = false
+): void {
+  const source = shuffle ? [...profiles].sort(() => Math.random() - 0.5) : profiles;
+  for (const profile of source) {
+    if (addedIds.has(profile.id) || followingIds.has(profile.id)) continue;
+    suggestions.push(profile);
+    addedIds.add(profile.id);
+    if (suggestions.length >= maxCount) break;
+  }
+}
+
+// Helper: Fetch artist profiles
+async function fetchArtistProfiles(options: {
+  orderBy?: string;
+  filterIds?: string[];
+  excludeIds?: Set<string>;
+  limit?: number;
+}): Promise<SuggestedUser[]> {
+  let query = supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url, followers_count')
+    .eq('member_type', 'artist');
+
+  if (options.filterIds) {
+    query = query.in('id', options.filterIds);
+  }
+  if (options.excludeIds && options.excludeIds.size > 0) {
+    query = query.not('id', 'in', `(${Array.from(options.excludeIds).join(',')})`);
+  }
+  if (options.orderBy) {
+    query = query.order(options.orderBy, { ascending: false });
+  }
+  query = query.limit(options.limit || 20);
+
+  const { data } = await query;
+  return data || [];
+}
+
 // Hook: useSuggestedUsers (For SuggestedUsersSection)
 export function useSuggestedUsers() {
   const { user } = useAuthStore();
@@ -192,74 +237,37 @@ export function useSuggestedUsers() {
       }
 
       try {
-        // 1. Get users I'm already following
         const { data: followingData } = await supabase
           .from('follows')
           .select('following_id')
           .eq('follower_id', user.id);
 
         const followingIds = new Set(followingData?.map((f) => f.following_id) || []);
-        followingIds.add(user.id); // Exclude self
+        followingIds.add(user.id);
 
         const suggestions: SuggestedUser[] = [];
         const addedIds = new Set<string>();
 
-        // 2. Tier 1: 팔로우한 아티스트의 Related Artists 기반 추천
+        // Tier 1: Related artists from followed artists
         if (followingData && followingData.length > 0) {
-          const { data: followedArtists } = await supabase
-            .from('profiles')
-            .select('artist_browse_id')
-            .in(
-              'id',
-              followingData.map((f) => f.following_id)
-            )
-            .eq('member_type', 'artist')
-            .not('artist_browse_id', 'is', null);
-
-          if (followedArtists && followedArtists.length > 0) {
-            const browseIds = followedArtists.map((a) => a.artist_browse_id).filter(Boolean);
-
-            const { data: relatedProfiles } = await supabase
-              .from('profiles')
-              .select('id, username, full_name, avatar_url, followers_count')
-              .eq('member_type', 'artist')
-              .not('id', 'in', `(${Array.from(followingIds).join(',')})`)
-              .order('followers_count', { ascending: false })
-              .limit(20);
-
-            if (relatedProfiles) {
-              for (const profile of relatedProfiles) {
-                if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
-                  suggestions.push(profile);
-                  addedIds.add(profile.id);
-                  if (suggestions.length >= 4) break;
-                }
-              }
-            }
-          }
+          const relatedProfiles = await fetchArtistProfiles({
+            excludeIds: followingIds,
+            orderBy: 'followers_count',
+            limit: 20,
+          });
+          addProfilesToSuggestions(relatedProfiles, suggestions, addedIds, followingIds, 4);
         }
 
-        // 3. Tier 2: 인기 아티스트 (팔로워 수 기준)
+        // Tier 2: Popular artists
         if (suggestions.length < 7) {
-          const { data: popularArtists } = await supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url, followers_count')
-            .eq('member_type', 'artist')
-            .order('followers_count', { ascending: false })
-            .limit(20);
-
-          if (popularArtists) {
-            for (const profile of popularArtists) {
-              if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
-                suggestions.push(profile);
-                addedIds.add(profile.id);
-                if (suggestions.length >= 7) break;
-              }
-            }
-          }
+          const popularArtists = await fetchArtistProfiles({
+            orderBy: 'followers_count',
+            limit: 20,
+          });
+          addProfilesToSuggestions(popularArtists, suggestions, addedIds, followingIds, 7);
         }
 
-        // 4. Tier 3: 최근 활동한 아티스트 (포스팅 기준)
+        // Tier 3: Recently active artists
         if (suggestions.length < 10) {
           const { data: recentPosts } = await supabase
             .from('posts')
@@ -268,45 +276,16 @@ export function useSuggestedUsers() {
             .limit(50);
 
           if (recentPosts) {
-            const recentUserIds = [...new Set(recentPosts.map((p) => p.user_id))];
-
-            const { data: activeArtists } = await supabase
-              .from('profiles')
-              .select('id, username, full_name, avatar_url, followers_count')
-              .eq('member_type', 'artist')
-              .in('id', recentUserIds);
-
-            if (activeArtists) {
-              const shuffled = activeArtists.sort(() => Math.random() - 0.5);
-              for (const profile of shuffled) {
-                if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
-                  suggestions.push(profile);
-                  addedIds.add(profile.id);
-                  if (suggestions.length >= 10) break;
-                }
-              }
-            }
+            const recentUserIds = [...new Set(recentPosts.map((p) => p.user_id))] as string[];
+            const activeArtists = await fetchArtistProfiles({ filterIds: recentUserIds });
+            addProfilesToSuggestions(activeArtists, suggestions, addedIds, followingIds, 10, true);
           }
         }
 
-        // 5. Tier 4: 랜덤 보충
+        // Tier 4: Random fill
         if (suggestions.length < 10) {
-          const { data: randomArtists } = await supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url, followers_count')
-            .eq('member_type', 'artist')
-            .limit(30);
-
-          if (randomArtists) {
-            const shuffled = randomArtists.sort(() => Math.random() - 0.5);
-            for (const profile of shuffled) {
-              if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
-                suggestions.push(profile);
-                addedIds.add(profile.id);
-                if (suggestions.length >= 10) break;
-              }
-            }
-          }
+          const randomArtists = await fetchArtistProfiles({ limit: 30 });
+          addProfilesToSuggestions(randomArtists, suggestions, addedIds, followingIds, 10, true);
         }
 
         setSuggestedUsers(suggestions);
