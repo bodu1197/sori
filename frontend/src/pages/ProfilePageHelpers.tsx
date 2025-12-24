@@ -534,3 +534,163 @@ export function useProfileLikedSongs() {
 
   return { likedSongs, setLikedSongs, deleteSong };
 }
+
+/**
+ * Hook for fetching profile data and related content
+ */
+export function useProfileData(targetUserId: string | undefined, isOwnProfile: boolean) {
+  const { t } = useTranslation();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [likedSongs, setLikedSongs] = useState<LikedTrack[]>([]);
+  const [userSavedSongs, setUserSavedSongs] = useState<LikedTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Artist music state
+  const [artistSongs, setArtistSongs] = useState<ArtistSong[]>([]);
+  const [artistAlbums, setArtistAlbums] = useState<ArtistAlbum[]>([]);
+  const [artistVideos, setArtistVideos] = useState<ArtistVideo[]>([]);
+  const [similarArtists, setSimilarArtists] = useState<SimilarArtist[]>([]);
+  const [artistMusicLoading, setArtistMusicLoading] = useState(false);
+  const [isVirtualMember, setIsVirtualMember] = useState(false);
+
+  useEffect(() => {
+    async function fetchProfileData() {
+      if (!targetUserId) return;
+
+      try {
+        setLoading(true);
+
+        // 1. Fetch Profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', targetUserId)
+          .single();
+
+        if (profileError) throw profileError;
+        const profileInfo = profileData as Profile;
+        setProfile(profileInfo);
+
+        // Check if virtual member
+        const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
+        setIsVirtualMember(isArtist);
+
+        // Fetch artist music for virtual members
+        if (isArtist && profileInfo.full_name) {
+          await fetchArtistMusic(profileInfo.full_name);
+        }
+
+        // 2. Fetch Posts
+        await fetchPosts(targetUserId, isOwnProfile);
+
+        // 3. Fetch Playlists and Liked Songs
+        await fetchPlaylistsAndSongs(targetUserId, profileInfo, isOwnProfile);
+      } catch {
+        // Error fetching profile
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function fetchArtistMusic(artistName: string) {
+      setArtistMusicLoading(true);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(artistName)}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setArtistSongs(data.songs || []);
+          setArtistAlbums(data.albums || []);
+          setArtistVideos(data.videos || []);
+          const mappedSimilar = (data.similarArtists || []).map(
+            (a: { browseId: string; name: string; thumbnail?: string }) => ({
+              browseId: a.browseId,
+              artist: a.name,
+              thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
+            })
+          );
+          setSimilarArtists(mappedSimilar);
+        }
+      } catch {
+        // Error
+      } finally {
+        setArtistMusicLoading(false);
+      }
+    }
+
+    async function fetchPosts(userId: string, ownProfile: boolean) {
+      let query = supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!ownProfile) {
+        query = query.eq('is_public', true);
+      }
+
+      const { data, error } = await query;
+      if (!error) {
+        setPosts((data as Post[]) || []);
+      }
+    }
+
+    async function fetchPlaylistsAndSongs(
+      userId: string,
+      profileInfo: Profile,
+      ownProfile: boolean
+    ) {
+      const { data: playlistData, error } = await supabase
+        .from('playlists')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) return;
+      setPlaylists((playlistData as Playlist[]) || []);
+
+      const playlistsWithVideo = ((playlistData as Playlist[]) || []).filter((p) => p.video_id);
+      const artistName = profileInfo.username || t('common.unknownArtist');
+
+      if (ownProfile) {
+        setLikedSongs(playlistsWithVideo.map((p) => mapPlaylistToLikedTrack(p, artistName)));
+      } else {
+        setUserSavedSongs(playlistsWithVideo.map((p) => mapPlaylistToLikedTrack(p, artistName)));
+      }
+    }
+
+    fetchProfileData();
+  }, [targetUserId, isOwnProfile, t]);
+
+  const deleteSong = useCallback(async (track: LikedTrack) => {
+    if (!track.playlistId) return;
+    try {
+      const { error } = await supabase.from('playlists').delete().eq('id', track.playlistId);
+      if (error) throw error;
+      setLikedSongs((prev) => prev.filter((s) => s.playlistId !== track.playlistId));
+      setPlaylists((prev) => prev.filter((p) => p.id !== track.playlistId));
+    } catch {
+      // Error
+    }
+  }, []);
+
+  return {
+    profile,
+    posts,
+    playlists,
+    likedSongs,
+    userSavedSongs,
+    loading,
+    artistSongs,
+    artistAlbums,
+    artistVideos,
+    similarArtists,
+    artistMusicLoading,
+    isVirtualMember,
+    deleteSong,
+    setLikedSongs,
+  };
+}
