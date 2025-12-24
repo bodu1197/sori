@@ -146,6 +146,7 @@ export default function MiniPlayer() {
 
         <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={playPrev}
             className="text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-1"
             title="Previous"
@@ -154,6 +155,7 @@ export default function MiniPlayer() {
           </button>
 
           <button
+            type="button"
             onClick={togglePlay}
             className="text-black dark:text-white p-1"
             disabled={isLoading}
@@ -165,6 +167,7 @@ export default function MiniPlayer() {
           </button>
 
           <button
+            type="button"
             onClick={playNext}
             className="text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white p-1"
             title="Next"
@@ -173,6 +176,7 @@ export default function MiniPlayer() {
           </button>
 
           <button
+            type="button"
             onClick={handleOpenPlaylist}
             className={`p-1 ml-1 transition-colors ${
               trackPanelOpen ? 'text-white' : 'text-green-400 hover:text-green-300'
@@ -183,6 +187,7 @@ export default function MiniPlayer() {
           </button>
 
           <button
+            type="button"
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-gray-400 hover:text-black dark:hover:text-white p-1"
             title={isExpanded ? 'Collapse' : 'Expand'}
@@ -212,6 +217,7 @@ export default function MiniPlayer() {
         <div className="h-[60px] flex items-center justify-between px-4 border-t border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={toggleShuffle}
               className={`p-2 rounded-full transition-colors ${
                 shuffleMode
@@ -224,6 +230,7 @@ export default function MiniPlayer() {
             </button>
 
             <button
+              type="button"
               onClick={toggleRepeat}
               className={`p-2 rounded-full transition-colors ${
                 repeatMode !== 'none'
@@ -244,6 +251,7 @@ export default function MiniPlayer() {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={toggleMute}
               className="p-2 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"
               title={isMuted ? 'Unmute' : 'Mute'}

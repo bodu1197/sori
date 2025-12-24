@@ -12,9 +12,17 @@ import requests
 import json
 import time
 
-# Supabase Configuration
-SUPABASE_URL = "https://nrtkbulkzhhlstaomvas.supabase.co"
-SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ydGtidWxremhobHN0YW9tdmFzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjIwMzM1MCwiZXhwIjoyMDgxNzc5MzUwfQ.mDX5Ua4Q8VYWTQsmFpEpx-1Ky_MhpNePs9SPOIuYxiI"
+# Supabase Configuration (from environment variables - NEVER hardcode secrets!)
+import os
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not SERVICE_ROLE_KEY:
+    print("ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables must be set!")
+    print("Set them before running this script:")
+    print("  $env:SUPABASE_URL='https://your-project.supabase.co'")
+    print("  $env:SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'")
+    sys.exit(1)
 
 HEADERS = {
     "apikey": SERVICE_ROLE_KEY,
