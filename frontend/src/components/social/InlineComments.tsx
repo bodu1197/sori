@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
@@ -81,25 +83,51 @@ function CommentCard({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const isOwner = user?.id === comment.user_id;
   const hasReplies = comment.replies && comment.replies.length > 0;
+
+  const shareText = comment.content.slice(0, 200);
+  const shareUrl = `${window.location.origin}/post/${comment.post_id}`;
 
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
   };
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          text: comment.content,
-        });
-      } catch {
-        // User cancelled
-      }
-    }
+  const handleShareTwitter = () => {
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
+      '_blank'
+    );
+    setShowShareMenu(false);
+  };
+
+  const handleShareFacebook = () => {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
+      '_blank'
+    );
+    setShowShareMenu(false);
+  };
+
+  const handleShareWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
+    setShowShareMenu(false);
+  };
+
+  const handleShareKakao = () => {
+    window.open(`https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`, '_blank');
+    setShowShareMenu(false);
+  };
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    setShowShareMenu(false);
   };
 
   const handleDelete = async () => {
@@ -193,9 +221,62 @@ function CommentCard({
             <MessageCircle size={16} />
             {hasReplies && <span className="text-xs">{comment.replies?.length}</span>}
           </button>
-          <button onClick={handleShare} className="text-gray-500 hover:text-green-500 transition">
-            <Share2 size={16} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              className="text-gray-500 hover:text-green-500 transition"
+            >
+              <Share2 size={16} />
+            </button>
+            {showShareMenu && (
+              <div className="absolute left-0 bottom-8 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-20 min-w-[160px]">
+                <button
+                  onClick={handleShareTwitter}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span className="w-5 h-5 bg-black dark:bg-white rounded flex items-center justify-center text-white dark:text-black text-xs font-bold">
+                    X
+                  </span>
+                  Twitter
+                </button>
+                <button
+                  onClick={handleShareFacebook}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-xs font-bold">
+                    f
+                  </span>
+                  Facebook
+                </button>
+                <button
+                  onClick={handleShareWhatsApp}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span className="w-5 h-5 bg-green-500 rounded flex items-center justify-center text-white text-xs font-bold">
+                    W
+                  </span>
+                  WhatsApp
+                </button>
+                <button
+                  onClick={handleShareKakao}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  <span className="w-5 h-5 bg-yellow-400 rounded flex items-center justify-center text-black text-xs font-bold">
+                    K
+                  </span>
+                  KakaoTalk
+                </button>
+                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                <button
+                  onClick={handleCopyLink}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                >
+                  {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                  {copied ? t('common.copied', 'Copied!') : t('common.copyLink', 'Copy Link')}
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setIsBookmarked(!isBookmarked)}
             className="text-gray-500 hover:text-yellow-500 transition"
