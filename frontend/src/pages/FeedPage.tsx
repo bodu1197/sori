@@ -687,7 +687,7 @@ function SuggestedUsersSection() {
       }
 
       try {
-        // Get users I'm already following
+        // 1. Get users I'm already following
         const { data: followingData } = await supabase
           .from('follows')
           .select('following_id')
@@ -696,20 +696,118 @@ function SuggestedUsersSection() {
         const followingIds = new Set(followingData?.map((f) => f.following_id) || []);
         followingIds.add(user.id); // Exclude self
 
-        // Fetch random virtual members (artists)
-        const { data: artistData } = await supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url, followers_count')
-          .eq('member_type', 'artist')
-          .limit(50);
+        const suggestions: SuggestedUser[] = [];
+        const addedIds = new Set<string>();
 
-        // Filter out followed users and shuffle
-        const filtered = (artistData || [])
-          .filter((u) => !followingIds.has(u.id))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 10);
+        // 2. Tier 1: 팔로우한 아티스트의 Related Artists 기반 추천
+        if (followingData && followingData.length > 0) {
+          // Get followed artists' browse IDs
+          const { data: followedArtists } = await supabase
+            .from('profiles')
+            .select('artist_browse_id')
+            .in(
+              'id',
+              followingData.map((f) => f.following_id)
+            )
+            .eq('member_type', 'artist')
+            .not('artist_browse_id', 'is', null);
 
-        setSuggestedUsers(filtered);
+          if (followedArtists && followedArtists.length > 0) {
+            const browseIds = followedArtists.map((a) => a.artist_browse_id).filter(Boolean);
+
+            // Find artists with similar browse IDs (related artists in music_artists)
+            const { data: relatedProfiles } = await supabase
+              .from('profiles')
+              .select('id, username, full_name, avatar_url, followers_count')
+              .eq('member_type', 'artist')
+              .not('id', 'in', `(${Array.from(followingIds).join(',')})`)
+              .order('followers_count', { ascending: false })
+              .limit(20);
+
+            if (relatedProfiles) {
+              for (const profile of relatedProfiles) {
+                if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
+                  suggestions.push(profile);
+                  addedIds.add(profile.id);
+                  if (suggestions.length >= 4) break; // Tier 1: 최대 4명
+                }
+              }
+            }
+          }
+        }
+
+        // 3. Tier 2: 인기 아티스트 (팔로워 수 기준)
+        if (suggestions.length < 7) {
+          const { data: popularArtists } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url, followers_count')
+            .eq('member_type', 'artist')
+            .order('followers_count', { ascending: false })
+            .limit(20);
+
+          if (popularArtists) {
+            for (const profile of popularArtists) {
+              if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
+                suggestions.push(profile);
+                addedIds.add(profile.id);
+                if (suggestions.length >= 7) break; // Tier 2: 추가 3명
+              }
+            }
+          }
+        }
+
+        // 4. Tier 3: 최근 활동한 아티스트 (포스팅 기준)
+        if (suggestions.length < 10) {
+          const { data: recentPosts } = await supabase
+            .from('posts')
+            .select('user_id')
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+          if (recentPosts) {
+            const recentUserIds = [...new Set(recentPosts.map((p) => p.user_id))];
+
+            const { data: activeArtists } = await supabase
+              .from('profiles')
+              .select('id, username, full_name, avatar_url, followers_count')
+              .eq('member_type', 'artist')
+              .in('id', recentUserIds);
+
+            if (activeArtists) {
+              // Shuffle active artists
+              const shuffled = activeArtists.sort(() => Math.random() - 0.5);
+              for (const profile of shuffled) {
+                if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
+                  suggestions.push(profile);
+                  addedIds.add(profile.id);
+                  if (suggestions.length >= 10) break;
+                }
+              }
+            }
+          }
+        }
+
+        // 5. Tier 4: 랜덤 보충 (위 조건으로 부족할 경우)
+        if (suggestions.length < 10) {
+          const { data: randomArtists } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url, followers_count')
+            .eq('member_type', 'artist')
+            .limit(30);
+
+          if (randomArtists) {
+            const shuffled = randomArtists.sort(() => Math.random() - 0.5);
+            for (const profile of shuffled) {
+              if (!addedIds.has(profile.id) && !followingIds.has(profile.id)) {
+                suggestions.push(profile);
+                addedIds.add(profile.id);
+                if (suggestions.length >= 10) break;
+              }
+            }
+          }
+        }
+
+        setSuggestedUsers(suggestions);
       } catch (err) {
         console.error('Error fetching suggested users:', err);
       } finally {
