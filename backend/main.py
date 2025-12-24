@@ -4105,6 +4105,109 @@ async def update_existing_artists(request: Request):
 
 
 # =============================================================================
+# 가상회원 자동 생성 Cron Job (30분마다)
+# =============================================================================
+
+@app.post("/api/cron/create-virtual-members")
+async def create_virtual_members_cron(request: Request):
+    """
+    music_artists에 있지만 profiles에 없는 아티스트를 가상회원으로 생성
+
+    매 30분마다 실행:
+    - music_artists 테이블에서 artist_browse_id가 profiles에 없는 아티스트 검색
+    - 배치당 최대 50명 생성 (Rate limiting)
+    - 팔로워 수가 많은 아티스트 우선 생성
+    """
+    try:
+        body = await request.json()
+    except:
+        body = {}
+
+    secret = body.get("secret", "")
+    if secret != os.getenv("CRON_SECRET", "dev-secret"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="DB not available")
+
+    results = {
+        "created": 0,
+        "skipped": 0,
+        "errors": [],
+        "created_artists": []
+    }
+
+    try:
+        batch_size = body.get("limit", 50)
+
+        # 1. music_artists에서 모든 browse_id 가져오기
+        all_artists = supabase_client.table("music_artists").select(
+            "browse_id, name, thumbnail_url, subscribers"
+        ).not_.is_("browse_id", "null").order(
+            "subscribers", desc=True  # 팔로워 많은 순
+        ).limit(500).execute()
+
+        if not all_artists.data:
+            return {
+                "status": "no_artists",
+                "message": "No artists in music_artists table",
+                "results": results
+            }
+
+        # 2. profiles에서 이미 가상회원인 artist_browse_id 목록 가져오기
+        existing_profiles = supabase_client.table("profiles").select(
+            "artist_browse_id"
+        ).eq("member_type", "artist").not_.is_("artist_browse_id", "null").execute()
+
+        existing_browse_ids = set()
+        if existing_profiles.data:
+            existing_browse_ids = {p["artist_browse_id"] for p in existing_profiles.data}
+
+        # 3. 아직 가상회원이 아닌 아티스트 필터링
+        artists_to_create = []
+        for artist in all_artists.data:
+            if artist["browse_id"] not in existing_browse_ids:
+                artists_to_create.append(artist)
+                if len(artists_to_create) >= batch_size:
+                    break
+
+        logger.info(f"[VIRTUAL MEMBER] Found {len(artists_to_create)} artists to create (out of {len(all_artists.data)} total)")
+
+        # 4. 가상회원 생성
+        for artist in artists_to_create:
+            browse_id = artist["browse_id"]
+            artist_name = artist["name"]
+            thumbnail_url = artist.get("thumbnail_url", "")
+
+            try:
+                result = create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
+                if result:
+                    results["created"] += 1
+                    results["created_artists"].append(artist_name)
+                    logger.info(f"[VIRTUAL MEMBER] Created: {artist_name}")
+                else:
+                    results["skipped"] += 1
+            except Exception as e:
+                results["errors"].append(f"{artist_name}: {str(e)}")
+                logger.warning(f"[VIRTUAL MEMBER] Error creating {artist_name}: {e}")
+
+            # Rate limiting: 0.5초 간격
+            await asyncio.sleep(0.5)
+
+        logger.info(f"[VIRTUAL MEMBER] Completed: {results['created']} created, {results['skipped']} skipped")
+
+        return {
+            "status": "success",
+            "message": f"Created {results['created']} virtual members",
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Create virtual members error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # 피라미드식 Related Artists 확장 Cron Job
 # =============================================================================
 
