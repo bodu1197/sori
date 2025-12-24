@@ -2089,10 +2089,37 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
 
 @app.get("/api/artist/{artist_id}")
 async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = False):
-    """아티스트 상세 정보"""
+    """아티스트 상세 정보 + On-Demand 업데이트"""
     cache_key = f"artist:{artist_id}:{country}"
 
-    if not force_refresh:
+    # last_viewed_at 업데이트 (조회 추적)
+    if supabase_client:
+        try:
+            supabase_client.table("music_artists").update({
+                "last_viewed_at": datetime.now(timezone.utc).isoformat()
+            }).eq("browse_id", artist_id).execute()
+        except Exception as view_err:
+            logger.debug(f"View tracking update: {view_err}")
+
+    # On-Demand 업데이트: last_synced_at이 7일 이상이면 자동 갱신
+    should_refresh = force_refresh
+    if not should_refresh and supabase_client:
+        try:
+            artist_record = supabase_client.table("music_artists").select(
+                "last_synced_at"
+            ).eq("browse_id", artist_id).execute()
+
+            if artist_record.data and artist_record.data[0].get("last_synced_at"):
+                last_synced = datetime.fromisoformat(
+                    artist_record.data[0]["last_synced_at"].replace("Z", "+00:00")
+                )
+                if datetime.now(timezone.utc) - last_synced > timedelta(days=7):
+                    should_refresh = True
+                    logger.info(f"[ON-DEMAND] Refreshing stale artist: {artist_id}")
+        except Exception as check_err:
+            logger.debug(f"Stale check error: {check_err}")
+
+    if not should_refresh:
         cached = cache_get(cache_key)
         if cached:
             return {"source": "cache", "artist": cached}
@@ -2101,10 +2128,18 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
         ytmusic = get_ytmusic(country)
         artist = ytmusic.get_artist(artist_id)
 
+        # On-Demand 갱신 시 DB도 업데이트
+        if should_refresh and artist:
+            try:
+                save_full_artist_data_background(artist_id, artist, country)
+                logger.info(f"[ON-DEMAND] Updated: {artist.get('name', artist_id)}")
+            except Exception as save_err:
+                logger.warning(f"On-demand save failed: {save_err}")
+
         # 6시간 캐시
         cache_set(cache_key, artist, ttl=21600)
 
-        return {"source": "api", "artist": artist}
+        return {"source": "api", "artist": artist, "refreshed": should_refresh}
     except Exception as e:
         logger.error(f"Artist error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -3482,8 +3517,8 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
         raise HTTPException(status_code=500, detail="Database not configured")
 
     try:
-        # Configuration
-        MAX_POSTS_PER_RUN = 3
+        # Configuration - 콜드 스타트: 50명/회, 하루 600 포스팅
+        MAX_POSTS_PER_RUN = 50
 
         results = {
             "posts_created": 0,
@@ -3939,10 +3974,14 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
 @app.post("/api/cron/update-existing-artists")
 async def update_existing_artists(request: Request):
     """
-    기존 아티스트 데이터 주기적 업데이트
-    - 새 앨범, 새 곡, 프로필 정보 갱신
-    - last_synced_at 기준 오래된 순서로 업데이트
-    - 3개월 이상 미업데이트 아티스트 우선
+    스마트 우선순위 기반 아티스트 업데이트
+
+    우선순위 티어:
+    - HOT: last_viewed_at 7일 이내 + last_synced_at 7일 초과 → 즉시 업데이트
+    - ACTIVE: last_viewed_at 30일 이내 + last_synced_at 30일 초과 → 다음 우선
+    - DORMANT: 그 외 → On-Demand에서만 처리 (여기서 스킵)
+
+    배치 크기: 200명 (기존 20명에서 10배 증가)
     """
     try:
         body = await request.json()
@@ -3957,50 +3996,65 @@ async def update_existing_artists(request: Request):
         raise HTTPException(status_code=500, detail="DB not available")
 
     results = {
-        "artists_updated": 0,
+        "hot_updated": 0,
+        "active_updated": 0,
         "artists_skipped": 0,
         "errors": []
     }
 
     try:
-        # 배치 크기 (1회당 업데이트할 아티스트 수)
-        batch_size = body.get("limit", 20)
+        # 배치 크기 (1회당 업데이트할 아티스트 수) - 10배 증가
+        batch_size = body.get("limit", 200)
+        now = datetime.now(timezone.utc)
 
-        # 3개월(90일) 이상 업데이트 안된 아티스트 우선
-        three_months_ago = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+        # 시간 기준
+        seven_days_ago = (now - timedelta(days=7)).isoformat()
+        thirty_days_ago = (now - timedelta(days=30)).isoformat()
 
-        # last_synced_at이 오래된 순서로 가져오기
-        old_artists = supabase_client.table("music_artists").select(
-            "browse_id, name, primary_language, last_synced_at"
-        ).lt("last_synced_at", three_months_ago).order(
-            "last_synced_at", desc=False
-        ).limit(batch_size).execute()
+        artists_to_update = []
 
-        artists_to_update = old_artists.data if old_artists.data else []
+        # 1단계: HOT 티어 - 최근 7일 내 조회됨 + 7일 이상 미동기화
+        hot_artists = supabase_client.table("music_artists").select(
+            "browse_id, name, primary_language, last_synced_at, last_viewed_at"
+        ).gte("last_viewed_at", seven_days_ago).lt(
+            "last_synced_at", seven_days_ago
+        ).order("last_viewed_at", desc=True).limit(batch_size).execute()
 
-        # 3개월 이상 된 아티스트가 부족하면, 1주일 이상 된 아티스트도 추가
+        if hot_artists.data:
+            for artist in hot_artists.data:
+                artist["tier"] = "HOT"
+                artists_to_update.append(artist)
+
+        logger.info(f"[UPDATE] HOT tier: {len(hot_artists.data or [])} artists")
+
+        # 2단계: ACTIVE 티어 - 배치 여유분 채우기
         if len(artists_to_update) < batch_size:
-            one_week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
             remaining = batch_size - len(artists_to_update)
-
             existing_ids = [a["browse_id"] for a in artists_to_update]
 
-            recent_artists = supabase_client.table("music_artists").select(
-                "browse_id, name, primary_language, last_synced_at"
-            ).lt("last_synced_at", one_week_ago).gte(
-                "last_synced_at", three_months_ago
-            ).order("last_synced_at", desc=False).limit(remaining).execute()
+            active_artists = supabase_client.table("music_artists").select(
+                "browse_id, name, primary_language, last_synced_at, last_viewed_at"
+            ).gte("last_viewed_at", thirty_days_ago).lt(
+                "last_viewed_at", seven_days_ago
+            ).lt("last_synced_at", thirty_days_ago).order(
+                "last_viewed_at", desc=True
+            ).limit(remaining).execute()
 
-            if recent_artists.data:
-                for artist in recent_artists.data:
+            if active_artists.data:
+                for artist in active_artists.data:
                     if artist["browse_id"] not in existing_ids:
+                        artist["tier"] = "ACTIVE"
                         artists_to_update.append(artist)
 
-        logger.info(f"[UPDATE] Found {len(artists_to_update)} artists to update")
+            logger.info(f"[UPDATE] ACTIVE tier: {len(active_artists.data or [])} artists")
+
+        # 3단계: DORMANT는 스킵 (On-Demand에서 처리)
+        logger.info(f"[UPDATE] Total to update: {len(artists_to_update)} artists (DORMANT skipped)")
 
         for artist in artists_to_update:
             browse_id = artist["browse_id"]
             artist_name = artist["name"]
+            tier = artist.get("tier", "UNKNOWN")
             country = artist.get("primary_language", "US")
 
             # 언어 코드를 국가 코드로 매핑
@@ -4019,9 +4073,15 @@ async def update_existing_artists(request: Request):
                 if artist_info:
                     # 동기 저장 (데이터 업데이트)
                     save_full_artist_data_background(browse_id, artist_info, country_code)
-                    results["artists_updated"] += 1
-                    logger.info(f"[UPDATE] Updated: {artist_name}")
-                    await asyncio.sleep(0.5)
+
+                    # 티어별 카운트
+                    if tier == "HOT":
+                        results["hot_updated"] += 1
+                    else:
+                        results["active_updated"] += 1
+
+                    logger.info(f"[UPDATE-{tier}] Updated: {artist_name}")
+                    await asyncio.sleep(0.3)  # Rate limiting 개선 (0.5 → 0.3)
                 else:
                     results["artists_skipped"] += 1
                     logger.warning(f"[UPDATE] No data for: {artist_name}")
@@ -4030,12 +4090,13 @@ async def update_existing_artists(request: Request):
                 results["errors"].append(f"{artist_name}: {str(e)}")
                 logger.error(f"[UPDATE] Error updating {artist_name}: {e}")
 
-            await asyncio.sleep(1)  # Rate limiting
+            await asyncio.sleep(0.5)  # Rate limiting (1초 → 0.5초로 단축)
 
+        total_updated = results["hot_updated"] + results["active_updated"]
         return {
             "status": "success",
             "results": results,
-            "message": f"Updated {results['artists_updated']} artists"
+            "message": f"Updated {total_updated} artists (HOT: {results['hot_updated']}, ACTIVE: {results['active_updated']})"
         }
 
     except Exception as e:

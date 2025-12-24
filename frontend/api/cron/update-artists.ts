@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       body: JSON.stringify({
         secret: CRON_SECRET,
-        limit: 20, // 1회당 20명 업데이트
+        limit: 200, // 스마트 우선순위: HOT + ACTIVE 최대 200명
       }),
     });
 

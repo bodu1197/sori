@@ -119,7 +119,7 @@ export default function SearchPage() {
   const [newUsers, setNewUsers] = useState<UserProfile[]>([]);
   const [suggestedLoading, setSuggestedLoading] = useState(false);
 
-  // Fetch suggested users (popular + new users)
+  // Fetch suggested users (random artists + recently active)
   const fetchSuggestedUsers = async () => {
     if (!user) return;
 
@@ -134,29 +134,59 @@ export default function SearchPage() {
       const followingIds = new Set(followingData?.map((f) => f.following_id) || []);
       followingIds.add(user.id); // Exclude self
 
-      // Fetch popular users (by followers count, excluding already followed)
-      const { data: popularData } = await supabase
+      // 1. 랜덤 가상회원 (아티스트) - 매번 다른 목록
+      const { data: artistData } = await supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url, followers_count')
-        .order('followers_count', { ascending: false })
-        .limit(30);
+        .eq('member_type', 'artist')
+        .limit(100);
 
-      // Filter out already followed users
-      const popular = (popularData || []).filter((u) => !followingIds.has(u.id)).slice(0, 10);
+      // 랜덤 셔플 후 10명 선택
+      const shuffledArtists = (artistData || [])
+        .filter((u) => !followingIds.has(u.id))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10);
 
-      setSuggestedUsers(popular);
+      setSuggestedUsers(shuffledArtists);
 
-      // Fetch newest users (by updated_at since created_at doesn't exist)
-      const { data: newData } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url, followers_count')
-        .order('updated_at', { ascending: false, nullsFirst: false })
-        .limit(30);
+      // 2. 최근 포스팅한 회원 (활발한 회원)
+      const { data: recentPostsData } = await supabase
+        .from('posts')
+        .select('user_id')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      // Filter out already followed users and self
-      const newFiltered = (newData || []).filter((u) => !followingIds.has(u.id)).slice(0, 10);
+      const recentUserIds = [...new Set(recentPostsData?.map((p) => p.user_id) || [])];
 
-      setNewUsers(newFiltered);
+      if (recentUserIds.length > 0) {
+        const { data: activeUsers } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, followers_count')
+          .in('id', recentUserIds)
+          .limit(20);
+
+        // 팔로우 안한 회원만, 랜덤 셔플
+        const activeFiltered = (activeUsers || [])
+          .filter((u) => !followingIds.has(u.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+
+        setNewUsers(activeFiltered);
+      } else {
+        // 포스팅 없으면 랜덤 일반회원
+        const { data: regularUsers } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, followers_count')
+          .is('member_type', null)
+          .limit(50);
+
+        const regularFiltered = (regularUsers || [])
+          .filter((u) => !followingIds.has(u.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+
+        setNewUsers(regularFiltered);
+      }
     } catch (err) {
       console.error('Error fetching suggested users:', err);
     } finally {
