@@ -5,6 +5,193 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
 import { useTrackSearch, getBestThumbnail, type SearchResult } from './CreatePostPageHelpers';
 
+// Search Step Component
+interface SearchStepProps {
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  searchResults: SearchResult[];
+  searching: boolean;
+  onSelect: (track: SearchResult) => void;
+  onPreview: (track: SearchResult) => void;
+}
+
+function SearchStep({
+  searchQuery,
+  setSearchQuery,
+  searchResults,
+  searching,
+  onSelect,
+  onPreview,
+}: SearchStepProps) {
+  return (
+    <>
+      <div className="p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Search for a song..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-3 pl-10 pr-10 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoFocus
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="px-4">
+        {searching ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={32} className="animate-spin text-gray-400" />
+          </div>
+        ) : searchResults.length === 0 ? (
+          <div className="py-12 text-center">
+            <Music size={48} className="mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500">
+              {searchQuery ? 'No songs found' : 'Search for a song to share'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {searchResults.map((track) => (
+              <button
+                type="button"
+                key={track.videoId}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
+                onClick={() => onSelect(track)}
+              >
+                <img
+                  src={getBestThumbnail(track.thumbnails) || 'https://via.placeholder.com/60'}
+                  alt={track.title}
+                  className="w-14 h-14 rounded-lg object-cover"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-black dark:text-white truncate">{track.title}</p>
+                  <p className="text-sm text-gray-500 truncate">
+                    {track.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPreview(track);
+                  }}
+                  className="p-2 text-gray-400 hover:text-black dark:hover:text-white"
+                >
+                  <Music size={20} />
+                </button>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// Details Step Component
+interface DetailsStepProps {
+  selectedTrack: SearchResult;
+  caption: string;
+  setCaption: (c: string) => void;
+  isPublic: boolean;
+  setIsPublic: (p: boolean) => void;
+  onPreview: (track: SearchResult) => void;
+  onClear: () => void;
+}
+
+function DetailsStep({
+  selectedTrack,
+  caption,
+  setCaption,
+  isPublic,
+  setIsPublic,
+  onPreview,
+  onClear,
+}: DetailsStepProps) {
+  return (
+    <div className="p-4">
+      <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl mb-6">
+        <img
+          src={getBestThumbnail(selectedTrack.thumbnails) || 'https://via.placeholder.com/80'}
+          alt={selectedTrack.title}
+          className="w-20 h-20 rounded-lg object-cover"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-black dark:text-white truncate">{selectedTrack.title}</p>
+          <p className="text-sm text-gray-500 truncate">
+            {selectedTrack.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
+          </p>
+          <button
+            onClick={() => onPreview(selectedTrack)}
+            className="mt-2 text-blue-500 text-sm font-medium"
+          >
+            Preview
+          </button>
+        </div>
+        <button onClick={onClear} className="p-2 text-gray-400">
+          <X size={20} />
+        </button>
+      </div>
+      <div className="mb-6">
+        <label
+          htmlFor="caption-input"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+        >
+          Caption
+        </label>
+        <textarea
+          id="caption-input"
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder="Write a caption... (optional)"
+          className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          rows={4}
+          maxLength={500}
+        />
+        <p className="text-right text-xs text-gray-400 mt-1">{caption.length}/500</p>
+      </div>
+      <div className="mb-6">
+        <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          Visibility
+        </span>
+        <div className="space-y-2">
+          <button
+            onClick={() => setIsPublic(true)}
+            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition ${
+              isPublic
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                : 'border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            <span className="text-black dark:text-white font-medium">Public</span>
+            {isPublic && <Check size={20} className="text-blue-500" />}
+          </button>
+          <button
+            onClick={() => setIsPublic(false)}
+            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition ${
+              !isPublic
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                : 'border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            <span className="text-black dark:text-white font-medium">Private</span>
+            {!isPublic && <Check size={20} className="text-blue-500" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CreatePostPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -97,173 +284,28 @@ export default function CreatePostPage() {
       </div>
 
       {step === 'search' ? (
-        <>
-          {/* Search Input */}
-          <div className="p-4">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Search for a song..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl py-3 pl-10 pr-10 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                >
-                  <X size={20} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Search Results */}
-          <div className="px-4">
-            {searching ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 size={32} className="animate-spin text-gray-400" />
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div className="py-12 text-center">
-                <Music size={48} className="mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-500">
-                  {searchQuery ? 'No songs found' : 'Search for a song to share'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {searchResults.map((track) => (
-                  <button
-                    type="button"
-                    key={track.videoId}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
-                    onClick={() => handleSelectTrack(track)}
-                  >
-                    <img
-                      src={getBestThumbnail(track.thumbnails) || 'https://via.placeholder.com/60'}
-                      alt={track.title}
-                      className="w-14 h-14 rounded-lg object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-black dark:text-white truncate">
-                        {track.title}
-                      </p>
-                      <p className="text-sm text-gray-500 truncate">
-                        {track.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePreview(track);
-                      }}
-                      className="p-2 text-gray-400 hover:text-black dark:hover:text-white"
-                    >
-                      <Music size={20} />
-                    </button>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        /* Details Step */
-        <div className="p-4">
-          {/* Selected Track Preview */}
-          {selectedTrack && (
-            <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl mb-6">
-              <img
-                src={getBestThumbnail(selectedTrack.thumbnails) || 'https://via.placeholder.com/80'}
-                alt={selectedTrack.title}
-                className="w-20 h-20 rounded-lg object-cover"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-black dark:text-white truncate">
-                  {selectedTrack.title}
-                </p>
-                <p className="text-sm text-gray-500 truncate">
-                  {selectedTrack.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
-                </p>
-                <button
-                  onClick={() => handlePreview(selectedTrack)}
-                  className="mt-2 text-blue-500 text-sm font-medium"
-                >
-                  Preview
-                </button>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedTrack(null);
-                  setStep('search');
-                }}
-                className="p-2 text-gray-400"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          )}
-
-          {/* Caption */}
-          <div className="mb-6">
-            <label
-              htmlFor="caption-input"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Caption
-            </label>
-            <textarea
-              id="caption-input"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Write a caption... (optional)"
-              className="w-full bg-gray-100 dark:bg-gray-800 text-black dark:text-white rounded-xl p-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              rows={4}
-              maxLength={500}
-            />
-            <p className="text-right text-xs text-gray-400 mt-1">{caption.length}/500</p>
-          </div>
-
-          {/* Visibility */}
-          <div className="mb-6">
-            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Visibility
-            </span>
-            <div className="space-y-2">
-              <button
-                onClick={() => setIsPublic(true)}
-                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition ${
-                  isPublic
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <span className="text-black dark:text-white font-medium">Public</span>
-                {isPublic && <Check size={20} className="text-blue-500" />}
-              </button>
-              <button
-                onClick={() => setIsPublic(false)}
-                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition ${
-                  !isPublic
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <span className="text-black dark:text-white font-medium">Private</span>
-                {!isPublic && <Check size={20} className="text-blue-500" />}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        <SearchStep
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchResults={searchResults}
+          searching={searching}
+          onSelect={handleSelectTrack}
+          onPreview={handlePreview}
+        />
+      ) : selectedTrack ? (
+        <DetailsStep
+          selectedTrack={selectedTrack}
+          caption={caption}
+          setCaption={setCaption}
+          isPublic={isPublic}
+          setIsPublic={setIsPublic}
+          onPreview={handlePreview}
+          onClear={() => {
+            setSelectedTrack(null);
+            setStep('search');
+          }}
+        />
+      ) : null}
     </div>
   );
 }
