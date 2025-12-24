@@ -3932,6 +3932,117 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# 기존 아티스트 데이터 업데이트 Cron Job
+# =============================================================================
+
+@app.post("/api/cron/update-existing-artists")
+async def update_existing_artists(request: Request):
+    """
+    기존 아티스트 데이터 주기적 업데이트
+    - 새 앨범, 새 곡, 프로필 정보 갱신
+    - last_synced_at 기준 오래된 순서로 업데이트
+    - 3개월 이상 미업데이트 아티스트 우선
+    """
+    try:
+        body = await request.json()
+    except:
+        body = {}
+
+    secret = body.get("secret", "")
+    if secret != os.getenv("CRON_SECRET", "dev-secret"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="DB not available")
+
+    results = {
+        "artists_updated": 0,
+        "artists_skipped": 0,
+        "errors": []
+    }
+
+    try:
+        # 배치 크기 (1회당 업데이트할 아티스트 수)
+        batch_size = body.get("limit", 20)
+
+        # 3개월(90일) 이상 업데이트 안된 아티스트 우선
+        three_months_ago = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+
+        # last_synced_at이 오래된 순서로 가져오기
+        old_artists = supabase_client.table("music_artists").select(
+            "browse_id, name, primary_language, last_synced_at"
+        ).lt("last_synced_at", three_months_ago).order(
+            "last_synced_at", desc=False
+        ).limit(batch_size).execute()
+
+        artists_to_update = old_artists.data if old_artists.data else []
+
+        # 3개월 이상 된 아티스트가 부족하면, 1주일 이상 된 아티스트도 추가
+        if len(artists_to_update) < batch_size:
+            one_week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+            remaining = batch_size - len(artists_to_update)
+
+            existing_ids = [a["browse_id"] for a in artists_to_update]
+
+            recent_artists = supabase_client.table("music_artists").select(
+                "browse_id, name, primary_language, last_synced_at"
+            ).lt("last_synced_at", one_week_ago).gte(
+                "last_synced_at", three_months_ago
+            ).order("last_synced_at", desc=False).limit(remaining).execute()
+
+            if recent_artists.data:
+                for artist in recent_artists.data:
+                    if artist["browse_id"] not in existing_ids:
+                        artists_to_update.append(artist)
+
+        logger.info(f"[UPDATE] Found {len(artists_to_update)} artists to update")
+
+        for artist in artists_to_update:
+            browse_id = artist["browse_id"]
+            artist_name = artist["name"]
+            country = artist.get("primary_language", "US")
+
+            # 언어 코드를 국가 코드로 매핑
+            lang_to_country = {
+                "ko": "KR", "ja": "JP", "zh": "TW", "es": "ES",
+                "pt": "BR", "de": "DE", "fr": "FR", "it": "IT",
+                "ru": "RU", "th": "TH", "vi": "VN", "id": "ID",
+                "hi": "IN", "ar": "SA", "tr": "TR", "en": "US"
+            }
+            country_code = lang_to_country.get(country, "US")
+
+            try:
+                ytmusic = get_ytmusic(country_code)
+                artist_info = ytmusic.get_artist(browse_id)
+
+                if artist_info:
+                    # 동기 저장 (데이터 업데이트)
+                    save_full_artist_data_background(browse_id, artist_info, country_code)
+                    results["artists_updated"] += 1
+                    logger.info(f"[UPDATE] Updated: {artist_name}")
+                    await asyncio.sleep(0.5)
+                else:
+                    results["artists_skipped"] += 1
+                    logger.warning(f"[UPDATE] No data for: {artist_name}")
+
+            except Exception as e:
+                results["errors"].append(f"{artist_name}: {str(e)}")
+                logger.error(f"[UPDATE] Error updating {artist_name}: {e}")
+
+            await asyncio.sleep(1)  # Rate limiting
+
+        return {
+            "status": "success",
+            "results": results,
+            "message": f"Updated {results['artists_updated']} artists"
+        }
+
+    except Exception as e:
+        logger.error(f"Update existing artists error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/admin/check-artist-status")
 async def check_artist_status_endpoint(name: str):
     """
