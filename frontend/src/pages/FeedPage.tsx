@@ -11,7 +11,7 @@ import useAuthStore from '../stores/useAuthStore';
 import {
   LikeButton,
   useLikeCountText,
-  CommentsModal,
+  InlineComments,
   RepostButton,
   BookmarkButton,
   ShareButton,
@@ -408,7 +408,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
   const displayName = profile?.username || profile?.full_name || 'Unknown';
   const { setTrack, currentTrack, isPlaying, openTrackPanel } = usePlayerStore();
   const likeCountText = useLikeCountText(post.like_count || 0);
-  const [showComments, setShowComments] = useState(false);
 
   // Translation support for caption
   const {
@@ -423,12 +422,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
     if (profile?.id) {
       navigate(`/profile/${profile.id}`);
     }
-  };
-
-  const handleOpenComments = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowComments(true);
   };
 
   const handlePlayClick = () => {
@@ -572,12 +565,12 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
               onLikeChange?.(post.id, count);
             }}
           />
-          <button
-            onClick={handleOpenComments}
-            className="hover:opacity-60 text-black dark:text-white"
-          >
+          <span className="flex items-center gap-1 text-black dark:text-white">
             <MessageCircle size={26} />
-          </button>
+            {(post.comment_count || 0) > 0 && (
+              <span className="text-sm font-medium">{post.comment_count}</span>
+            )}
+          </span>
           <RepostButton postId={post.id} initialCount={post.repost_count || 0} size="md" />
           <ShareButton
             postId={post.video_id || post.id}
@@ -623,22 +616,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
             )}
           </div>
         )}
-
-        {(post.comment_count || 0) > 0 ? (
-          <button
-            onClick={handleOpenComments}
-            className="text-gray-500 dark:text-gray-400 text-sm mt-1"
-          >
-            {t('feed.viewComments', { count: post.comment_count })}
-          </button>
-        ) : (
-          <button
-            onClick={handleOpenComments}
-            className="text-gray-500 dark:text-gray-400 text-sm mt-1"
-          >
-            {t('feed.addComment')}
-          </button>
-        )}
       </div>
 
       {/* Timestamp */}
@@ -648,11 +625,10 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
         </span>
       </div>
 
-      {/* Comments Modal */}
-      <CommentsModal
+      {/* Inline Comments */}
+      <InlineComments
         postId={post.id}
-        isOpen={showComments}
-        onClose={() => setShowComments(false)}
+        initialCount={post.comment_count || 0}
         onCommentCountChange={(count) => onCommentCountChange?.(post.id, count)}
       />
     </article>
