@@ -150,7 +150,7 @@ export async function getCachedTranslation(
  * Sanitize artist name by removing " - Topic" suffix
  * Uses string methods instead of regex for better security
  */
-function sanitizeArtistName(name: string | undefined): string {
+export function sanitizeArtistName(name: string | undefined): string {
   if (!name) return '';
 
   // Check for " - Topic" suffix and remove it

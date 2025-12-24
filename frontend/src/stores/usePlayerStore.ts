@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { sanitizeArtistName } from '../lib/api';
 
 export interface Track {
   videoId: string;
@@ -447,10 +448,7 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
                     return {
                       videoId,
                       title: data.title || 'Unknown',
-                      artist:
-                        data.author_name?.replace(/\s*-\s*Topic$/, '').trim() ||
-                        artistName ||
-                        'Unknown',
+                      artist: sanitizeArtistName(data.author_name) || artistName || 'Unknown',
                       thumbnail,
                     };
                   }

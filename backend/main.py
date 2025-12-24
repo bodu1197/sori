@@ -731,10 +731,10 @@ def upscale_thumbnail_url(url: str, size: int = 544) -> str:
     # 2. YouTube 이미지 (i.ytimg.com)
     elif "i.ytimg.com" in url:
         # sddefault, hqdefault -> maxresdefault
-        url = url.replace("sddefault.jpg", "maxresdefault.jpg")
-        url = url.replace("hqdefault.jpg", "maxresdefault.jpg")
-        url = url.replace("mqdefault.jpg", "maxresdefault.jpg")
-        url = url.replace("/default.jpg", "/maxresdefault.jpg")
+        url = url.replace("sddefault.jpg", THUMBNAIL_MAXRES)
+        url = url.replace("hqdefault.jpg", THUMBNAIL_MAXRES)
+        url = url.replace("mqdefault.jpg", THUMBNAIL_MAXRES)
+        url = url.replace("/default.jpg", f"/{THUMBNAIL_MAXRES}")
 
     return url
 
@@ -4040,7 +4040,7 @@ async def update_existing_artists(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="DB not available")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_AVAILABLE)
 
     results = {
         "hot_updated": 0,
@@ -4175,7 +4175,7 @@ async def create_virtual_members_cron(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="DB not available")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_AVAILABLE)
 
     results = {
         "created": 0,
@@ -4276,7 +4276,7 @@ async def expand_related_artists(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="DB not available")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_AVAILABLE)
 
     results = {
         "artists_discovered": 0,
