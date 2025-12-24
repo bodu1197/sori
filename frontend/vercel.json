@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/cron/create-virtual-members",
-      "schedule": "*/30 * * * *"
+      "schedule": "5,35 * * * *"
     },
     {
       "path": "/api/cron/update-artists",
