@@ -290,7 +290,7 @@ export default function InlineComments({
             video_url,
             created_at,
             like_count,
-            profiles:user_id (
+            profiles!post_comments_user_id_profiles_fkey (
               id,
               username,
               avatar_url,
