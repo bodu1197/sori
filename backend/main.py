@@ -2094,7 +2094,7 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
 
     try:
         ytmusic = get_ytmusic(country)
-        artist = ytmusic.get_artist(artist_id)
+        artist = await run_in_thread(ytmusic.get_artist, artist_id)
 
         # On-Demand 갱신 시 DB도 업데이트
         if should_refresh and artist:
@@ -2245,7 +2245,7 @@ async def get_album(album_id: str, country: str = "US"):
     # ytmusicapi에서 가져오기
     try:
         ytmusic = get_ytmusic(country)
-        album = ytmusic.get_album(album_id)
+        album = await run_in_thread(ytmusic.get_album, album_id)
 
         if album and supabase_client:
             # DB에 트랙 저장
@@ -2331,7 +2331,7 @@ async def get_playlist(playlist_id: str, country: str = "US", limit: int = None)
     try:
         ytmusic = get_ytmusic(country)
         # limit=None이면 전체 트랙을 가져옴
-        playlist = ytmusic.get_playlist(playlist_id, limit=limit)
+        playlist = await run_in_thread(ytmusic.get_playlist, playlist_id, limit=limit)
 
         # 트랙에 썸네일이 없으면 플레이리스트 썸네일 추가
         playlist_thumbnails = playlist.get("thumbnails", [])
@@ -3408,7 +3408,7 @@ async def create_virtual_member(request: Request):
             if artist_data.get("songs_playlist_id"):
                 # Fetch top songs for persona generation
                 ytmusic = get_ytmusic("US")
-                playlist_data = ytmusic.get_playlist(artist_data["songs_playlist_id"])
+                playlist_data = await run_in_thread(ytmusic.get_playlist, artist_data["songs_playlist_id"])
                 top_songs = playlist_data.get("tracks", [])[:10]
 
             persona = await run_in_thread(
