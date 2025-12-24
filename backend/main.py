@@ -4043,6 +4043,128 @@ async def update_existing_artists(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# 피라미드식 Related Artists 확장 Cron Job
+# =============================================================================
+
+@app.post("/api/cron/expand-related-artists")
+async def expand_related_artists(request: Request):
+    """
+    피라미드식 유사 아티스트 확장
+    - 기존 아티스트의 related_artists_json에서 새 아티스트 발굴
+    - 중복 제거, Rate limiting 적용
+    - 하루 최대 200명 제한
+    """
+    try:
+        body = await request.json()
+    except:
+        body = {}
+
+    secret = body.get("secret", "")
+    if secret != os.getenv("CRON_SECRET", "dev-secret"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not supabase_client:
+        raise HTTPException(status_code=500, detail="DB not available")
+
+    results = {
+        "artists_discovered": 0,
+        "artists_registered": 0,
+        "artists_skipped": 0,
+        "errors": []
+    }
+
+    try:
+        # 배치 크기 (1회당 처리할 기존 아티스트 수)
+        batch_size = body.get("limit", 20)
+        # 기존 아티스트당 처리할 related 수
+        related_limit = body.get("related_limit", 10)
+
+        # 최근 등록된 아티스트의 related_artists_json 조회
+        artists_with_related = supabase_client.table("music_artists").select(
+            "browse_id, name, related_artists_json, primary_language"
+        ).not_.is_("related_artists_json", "null").order(
+            "created_at", desc=True
+        ).limit(batch_size).execute()
+
+        if not artists_with_related.data:
+            return {"status": "no_artists_with_related", "results": results}
+
+        # 이미 등록된 모든 browse_id 조회 (중복 체크용)
+        existing_artists = supabase_client.table("music_artists").select(
+            "browse_id"
+        ).execute()
+        existing_ids = set(a["browse_id"] for a in existing_artists.data) if existing_artists.data else set()
+
+        logger.info(f"[EXPAND] Processing {len(artists_with_related.data)} artists, {len(existing_ids)} already exist")
+
+        new_artist_ids = []
+
+        # 각 아티스트의 related 수집
+        for artist in artists_with_related.data:
+            related_list = artist.get("related_artists_json") or []
+
+            if not isinstance(related_list, list):
+                continue
+
+            for related in related_list[:related_limit]:
+                if not isinstance(related, dict):
+                    continue
+
+                browse_id = related.get("browseId")
+                if not browse_id or browse_id in existing_ids:
+                    results["artists_skipped"] += 1
+                    continue
+
+                # 이미 이번 배치에서 추가한 경우 스킵
+                if browse_id in new_artist_ids:
+                    continue
+
+                new_artist_ids.append(browse_id)
+                results["artists_discovered"] += 1
+
+                # 일일 최대 제한 (50명)
+                if results["artists_discovered"] >= 50:
+                    break
+
+            if results["artists_discovered"] >= 50:
+                break
+
+        logger.info(f"[EXPAND] Discovered {len(new_artist_ids)} new artists to register")
+
+        # 새 아티스트 등록
+        for browse_id in new_artist_ids:
+            try:
+                # Rate limiting
+                await asyncio.sleep(1)
+
+                ytmusic = get_ytmusic("US")
+                artist_info = ytmusic.get_artist(browse_id)
+
+                if artist_info:
+                    # 동기 저장
+                    save_full_artist_data_background(browse_id, artist_info, "US")
+                    results["artists_registered"] += 1
+                    artist_name = artist_info.get("name", "Unknown")
+                    logger.info(f"[EXPAND] Registered: {artist_name}")
+                else:
+                    results["artists_skipped"] += 1
+
+            except Exception as e:
+                results["errors"].append(f"{browse_id}: {str(e)}")
+                logger.error(f"[EXPAND] Error registering {browse_id}: {e}")
+
+        return {
+            "status": "success",
+            "results": results,
+            "message": f"Discovered {results['artists_discovered']}, Registered {results['artists_registered']}"
+        }
+
+    except Exception as e:
+        logger.error(f"Expand related artists error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/admin/check-artist-status")
 async def check_artist_status_endpoint(name: str):
     """

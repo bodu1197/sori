@@ -18,6 +18,10 @@
     {
       "path": "/api/cron/update-artists",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/expand-artists",
+      "schedule": "30 */6 * * *"
     }
   ]
 }
