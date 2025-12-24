@@ -2,28 +2,33 @@
  * Search Page Helper Components and Hooks
  * Extracted from SearchPage.tsx to reduce cognitive complexity
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Heart, ChevronDown, ChevronUp, Shuffle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import useAuthStore from '../../stores/useAuthStore';
 
-// Types
-interface Thumbnail {
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
+
+// Types (Exported)
+export interface Thumbnail {
   url: string;
   width?: number;
   height?: number;
 }
 
-interface Artist {
+export interface Artist {
   name: string;
   id?: string;
 }
 
-interface Album {
+export interface Album {
   name?: string;
   id?: string;
 }
 
-interface SearchSong {
+export interface SearchSong {
   videoId: string;
   title: string;
   artists?: Artist[];
@@ -32,7 +37,33 @@ interface SearchSong {
   duration?: string;
 }
 
-interface SearchAlbum {
+export interface RelatedArtist {
+  name?: string;
+  artist?: string;
+  title?: string;
+  browseId?: string;
+  subscribers?: string;
+  thumbnails?: Thumbnail[];
+}
+
+export interface SearchArtist {
+  artist: string;
+  browseId?: string;
+  subscribers?: string;
+  thumbnails?: Thumbnail[];
+  related?: RelatedArtist[];
+  songsPlaylistId?: string;
+}
+
+export interface AlbumTrack {
+  videoId: string;
+  title: string;
+  artists?: Artist[];
+  thumbnails?: Thumbnail[];
+  duration?: string;
+}
+
+export interface SearchAlbum {
   browseId?: string;
   title: string;
   type?: string;
@@ -41,28 +72,21 @@ interface SearchAlbum {
   tracks?: AlbumTrack[];
 }
 
-interface AlbumTrack {
-  videoId: string;
-  title: string;
-  artists?: Artist[];
-  thumbnails?: Thumbnail[];
-  duration?: string;
+export interface UserProfile {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  bio?: string;
+  followers_count?: number;
 }
 
 // Helper Functions
-
-/**
- * Get the best (highest quality) thumbnail from an array
- */
 export function getBestThumbnail(thumbnails?: Thumbnail[]): string {
   if (!thumbnails || thumbnails.length === 0) return '';
-  // Usually the last one is the largest
   return thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url || '';
 }
 
-/**
- * Convert songs to playlist format for player
- */
 export function songsToPlaylist(songs: SearchSong[]) {
   return songs.map((s) => ({
     videoId: s.videoId,
@@ -72,9 +96,6 @@ export function songsToPlaylist(songs: SearchSong[]) {
   }));
 }
 
-/**
- * Convert album tracks to playlist format
- */
 export function albumTracksToPlaylist(tracks: AlbumTrack[], album: SearchAlbum) {
   return tracks.map((t) => ({
     videoId: t.videoId,
@@ -85,6 +106,298 @@ export function albumTracksToPlaylist(tracks: AlbumTrack[], album: SearchAlbum) 
 }
 
 // Custom Hooks
+
+/**
+ * Hook for managing artist follow state
+ */
+export function useArtistFollow() {
+  const { user } = useAuthStore();
+  const [followedArtists, setFollowedArtists] = useState<Set<string>>(new Set());
+  const [followingArtist, setFollowingArtist] = useState(false);
+
+  const checkArtistFollowed = useCallback(
+    async (browseId: string) => {
+      if (!user || !browseId) return;
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('artist_browse_id', browseId)
+          .single();
+
+        if (!profileData) return;
+
+        const { data } = await supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', user.id)
+          .eq('following_id', profileData.id)
+          .single();
+
+        if (data) {
+          setFollowedArtists((prev) => new Set(prev).add(browseId));
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [user]
+  );
+
+  const toggleArtistFollow = useCallback(
+    async (browseId: string, _artistName: string) => {
+      if (!user || !browseId || followingArtist) return;
+
+      setFollowingArtist(true);
+      const isFollowed = followedArtists.has(browseId);
+
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('artist_browse_id', browseId)
+          .single();
+
+        if (!profileData) return;
+        const artistProfileId = profileData.id;
+
+        if (isFollowed) {
+          await supabase
+            .from('follows')
+            .delete()
+            .eq('follower_id', user.id)
+            .eq('following_id', artistProfileId);
+
+          setFollowedArtists((prev) => {
+            const next = new Set(prev);
+            next.delete(browseId);
+            return next;
+          });
+        } else {
+          await supabase.from('follows').insert({
+            follower_id: user.id,
+            following_id: artistProfileId,
+          });
+          setFollowedArtists((prev) => new Set(prev).add(browseId));
+        }
+      } catch (err) {
+        console.error('Error toggling artist follow:', err);
+      } finally {
+        setFollowingArtist(false);
+      }
+    },
+    [user, followingArtist, followedArtists, followingArtist]
+  );
+
+  return { followedArtists, followingArtist, checkArtistFollowed, toggleArtistFollow };
+}
+
+/**
+ * Hook for managing Music Search Logic
+ */
+export function useMusicSearch() {
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchArtist, setSearchArtist] = useState<SearchArtist | null>(null);
+  const [searchAlbums, setSearchAlbums] = useState<SearchAlbum[]>([]);
+  const [searchSongs, setSearchSongs] = useState<SearchSong[]>([]);
+
+  const performSearch = useCallback(async (query: string) => {
+    if (query.trim().length < 2) return;
+
+    setSearchLoading(true);
+    // Note: State reset logic should be handled by caller or we expose a reset function?
+    // Caller should call clearSearch before new search if clean state is needed.
+    // But performSearch implies new search.
+    setSearchArtist(null);
+    setSearchAlbums([]);
+    setSearchSongs([]);
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(query.trim())}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const artist = data.artist
+          ? {
+              browseId: data.artist.browseId,
+              artist: data.artist.name,
+              name: data.artist.name,
+              thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
+              songsPlaylistId: data.artist.songsPlaylistId,
+              related: (data.similarArtists || []).map(
+                (a: { browseId: string; name: string; thumbnail: string }) => ({
+                  browseId: a.browseId,
+                  title: a.name,
+                  thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
+                })
+              ),
+            }
+          : null;
+
+        setSearchArtist(artist);
+
+        setSearchAlbums(
+          (data.albums || []).map((a: any) => ({
+            browseId: a.browseId,
+            title: a.title,
+            artists: a.artists,
+            thumbnails: a.thumbnails,
+            year: a.year,
+            type: a.type || 'Album',
+          }))
+        );
+        setSearchSongs(data.songs || []);
+
+        if (artist?.browseId && !artist.songsPlaylistId) {
+          fetch(`${API_BASE_URL}/api/artist/playlist-id?q=${encodeURIComponent(query.trim())}`)
+            .then((res) => res.json())
+            .then((playlistData) => {
+              if (playlistData.playlistId) {
+                setSearchArtist((prev) =>
+                  prev ? { ...prev, songsPlaylistId: playlistData.playlistId } : null
+                );
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } catch {
+      setSearchArtist(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchArtist(null);
+    setSearchAlbums([]);
+    setSearchSongs([]);
+  }, []);
+
+  return {
+    performSearch,
+    clearSearch,
+    searchLoading,
+    searchArtist,
+    searchAlbums,
+    searchSongs,
+    setSearchArtist,
+  };
+}
+
+/**
+ * Hook for managing User Search Logic
+ */
+export function useUserSearch() {
+  const { user } = useAuthStore();
+  const [userResults, setUserResults] = useState<UserProfile[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
+  const [suggestedUsers, setSuggestedUsers] = useState<UserProfile[]>([]);
+  const [newUsers, setNewUsers] = useState<UserProfile[]>([]);
+  const [suggestedLoading, setSuggestedLoading] = useState(false);
+
+  const performUserSearch = useCallback(
+    async (query: string) => {
+      if (query.trim().length < 2) return;
+      setUserSearchLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, bio')
+          .or(`username.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%`)
+          .neq('id', user?.id || '')
+          .limit(20);
+
+        if (error) throw error;
+        setUserResults(data || []);
+      } catch (err) {
+        console.error(err);
+        setUserResults([]);
+      } finally {
+        setUserSearchLoading(false);
+      }
+    },
+    [user?.id]
+  );
+
+  const fetchSuggestedUsers = useCallback(async () => {
+    if (!user) return;
+    setSuggestedLoading(true);
+    try {
+      const { data: followingData } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id);
+
+      const followingIds = new Set(followingData?.map((f) => f.following_id) || []);
+      followingIds.add(user.id);
+
+      const { data: artistData } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, followers_count')
+        .eq('member_type', 'artist')
+        .limit(100);
+
+      const shuffledArtists = (artistData || [])
+        .filter((u) => !followingIds.has(u.id))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10);
+      setSuggestedUsers(shuffledArtists);
+
+      const { data: recentPostsData } = await supabase
+        .from('posts')
+        .select('user_id')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      const recentUserIds = [...new Set(recentPostsData?.map((p) => p.user_id) || [])];
+
+      let activeFiltered: any[] = [];
+      if (recentUserIds.length > 0) {
+        const { data: activeUsers } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, followers_count')
+          .in('id', recentUserIds)
+          .limit(20);
+        activeFiltered = (activeUsers || [])
+          .filter((u) => !followingIds.has(u.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+      } else {
+        const { data: regularUsers } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, followers_count')
+          .is('member_type', null)
+          .limit(50);
+        activeFiltered = (regularUsers || [])
+          .filter((u) => !followingIds.has(u.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+      }
+      setNewUsers(activeFiltered);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSuggestedLoading(false);
+    }
+  }, [user]);
+
+  const clearUserSearch = useCallback(() => {
+    setUserResults([]);
+  }, []);
+
+  return {
+    performUserSearch,
+    fetchSuggestedUsers,
+    clearUserSearch,
+    userResults,
+    userSearchLoading,
+    suggestedUsers,
+    newUsers,
+    suggestedLoading,
+  };
+}
 
 /**
  * Hook for managing expanded album state
@@ -132,6 +445,11 @@ export function useExpandedAlbums() {
     setAlbumTracksCache((prev) => new Map(prev).set(albumId, tracks));
   }, []);
 
+  const clearExpanded = useCallback(() => {
+    setExpandedAlbums(new Set());
+    setLoadingAlbums(new Set());
+  }, []);
+
   return {
     isExpanded,
     isLoading,
@@ -139,6 +457,7 @@ export function useExpandedAlbums() {
     getCachedTracks,
     cacheTracks,
     setLoading,
+    clearExpanded,
   };
 }
 
