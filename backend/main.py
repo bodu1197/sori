@@ -2104,6 +2104,45 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def _fetch_full_section_items(ytmusic, section: dict, item_type: str) -> list:
+    """Fetch all items from a section (albums/singles) asynchronously."""
+    items = []
+    if not isinstance(section, dict):
+        return items
+        
+    browse_id = section.get("browseId")
+    params = section.get("params")
+    
+    # Try fetch full list
+    if browse_id and params:
+        try:
+            full_list = await run_in_thread(ytmusic.get_artist_albums, browse_id, params)
+            for item in (full_list or []):
+                 if isinstance(item, dict) and item.get("browseId"):
+                    items.append({
+                        "browseId": item.get("browseId"),
+                        "title": item.get("title") or "",
+                        "type": item.get("type") or item_type,
+                        "year": item.get("year") or "",
+                        "thumbnails": item.get("thumbnails") or []
+                    })
+            return items
+        except Exception as e:
+            logger.warning(f"Failed to fetch {item_type}s: {e}")
+            
+    # Fallback
+    for item in section.get("results", []):
+        if isinstance(item, dict) and item.get("browseId"):
+            items.append({
+                "browseId": item.get("browseId"),
+                "title": item.get("title") or "",
+                "type": item.get("type") or item_type,
+                "year": item.get("year") or "",
+                "thumbnails": item.get("thumbnails") or []
+            })
+    return items
+
+
 @app.get("/api/artist/{artist_id}/albums")
 async def get_artist_all_albums(artist_id: str, country: str = "US"):
     """
@@ -2119,73 +2158,14 @@ async def get_artist_all_albums(artist_id: str, country: str = "US"):
 
     try:
         ytmusic = get_ytmusic(country)
-        artist = ytmusic.get_artist(artist_id)
+        artist = await run_in_thread(ytmusic.get_artist, artist_id)
 
         if not artist:
             raise HTTPException(status_code=404, detail=ERROR_ARTIST_NOT_FOUND)
 
-        all_albums = []
-
-        # 전체 앨범 목록 가져오기
-        albums_section = artist.get("albums")
-        if albums_section and isinstance(albums_section, dict):
-            params = albums_section.get("params")
-            browse_id = albums_section.get("browseId")
-
-            if params and browse_id:
-                try:
-                    full_albums = ytmusic.get_artist_albums(browse_id, params) or []
-                    for album in full_albums:
-                        if isinstance(album, dict) and album.get("browseId"):
-                            all_albums.append({
-                                "browseId": album.get("browseId"),
-                                "title": album.get("title") or "",
-                                "type": album.get("type") or "Album",
-                                "year": album.get("year") or "",
-                                "thumbnails": album.get("thumbnails") or []
-                            })
-                except Exception as e:
-                    logger.warning(f"get_artist_albums error: {e}")
-                    # 샘플 목록이라도 반환
-                    for album in albums_section.get("results") or []:
-                        if isinstance(album, dict) and album.get("browseId"):
-                            all_albums.append({
-                                "browseId": album.get("browseId"),
-                                "title": album.get("title") or "",
-                                "type": album.get("type") or "Album",
-                                "year": album.get("year") or "",
-                                "thumbnails": album.get("thumbnails") or []
-                            })
-
-        # 전체 싱글 목록 가져오기
-        singles_section = artist.get("singles")
-        if singles_section and isinstance(singles_section, dict):
-            params = singles_section.get("params")
-            browse_id = singles_section.get("browseId")
-
-            if params and browse_id:
-                try:
-                    full_singles = ytmusic.get_artist_albums(browse_id, params) or []
-                    for single in full_singles:
-                        if isinstance(single, dict) and single.get("browseId"):
-                            all_albums.append({
-                                "browseId": single.get("browseId"),
-                                "title": single.get("title") or "",
-                                "type": "Single",
-                                "year": single.get("year") or "",
-                                "thumbnails": single.get("thumbnails") or []
-                            })
-                except Exception as e:
-                    logger.warning(f"get_artist_albums for singles error: {e}")
-                    for single in singles_section.get("results") or []:
-                        if isinstance(single, dict) and single.get("browseId"):
-                            all_albums.append({
-                                "browseId": single.get("browseId"),
-                                "title": single.get("title") or "",
-                                "type": "Single",
-                                "year": single.get("year") or "",
-                                "thumbnails": single.get("thumbnails") or []
-                            })
+        all_albums = await _fetch_full_section_items(ytmusic, artist.get("albums"), "Album")
+        singles = await _fetch_full_section_items(ytmusic, artist.get("singles"), "Single")
+        all_albums.extend(singles)
 
         # 1시간 캐시
         cache_set(cache_key, all_albums, ttl=3600)
@@ -4855,6 +4835,8 @@ async def get_cached_translation(post_id: str, target_language: str = "en"):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+
 @app.post("/api/artist/check-new-releases")
 async def check_artist_new_releases(request: Request):
     """
@@ -4887,62 +4869,17 @@ async def check_artist_new_releases(request: Request):
         if not artist_info:
             raise HTTPException(status_code=404, detail=ERROR_ARTIST_NOT_FOUND)
 
-        current_albums = []
-        current_singles = []
+        # Extract albums and singles using helper function
+        albums_data = await _fetch_full_section_items(
+            ytmusic, artist_info.get("albums"), "Album"
+        )
+        # Map browseId to id for compatibility
+        current_albums = [{**item, "id": item["browseId"]} for item in albums_data]
 
-        # Extract albums
-        albums_section = artist_info.get("albums", {})
-        if isinstance(albums_section, dict):
-            browse_id = albums_section.get("browseId")
-            params = albums_section.get("params")
-            if browse_id and params:
-                try:
-                    album_list = await run_in_thread(ytmusic.get_artist_albums, browse_id, params)
-                    for album in (album_list or []):
-                        if isinstance(album, dict) and album.get("browseId"):
-                            current_albums.append({
-                                "id": album.get("browseId"),
-                                "title": album.get("title"),
-                                "year": album.get("year"),
-                                "thumbnails": album.get("thumbnails", [])
-                            })
-                except Exception as e:
-                    logger.warning(f"Failed to get albums: {e}")
-                    for album in albums_section.get("results", []):
-                        if isinstance(album, dict) and album.get("browseId"):
-                            current_albums.append({
-                                "id": album.get("browseId"),
-                                "title": album.get("title"),
-                                "year": album.get("year"),
-                                "thumbnails": album.get("thumbnails", [])
-                            })
-
-        # Extract singles
-        singles_section = artist_info.get("singles", {})
-        if isinstance(singles_section, dict):
-            browse_id = singles_section.get("browseId")
-            params = singles_section.get("params")
-            if browse_id and params:
-                try:
-                    single_list = await run_in_thread(ytmusic.get_artist_albums, browse_id, params)
-                    for single in (single_list or []):
-                        if isinstance(single, dict) and single.get("browseId"):
-                            current_singles.append({
-                                "id": single.get("browseId"),
-                                "title": single.get("title"),
-                                "year": single.get("year"),
-                                "thumbnails": single.get("thumbnails", [])
-                            })
-                except Exception as e:
-                    logger.warning(f"Failed to get singles: {e}")
-                    for single in singles_section.get("results", []):
-                        if isinstance(single, dict) and single.get("browseId"):
-                            current_singles.append({
-                                "id": single.get("browseId"),
-                                "title": single.get("title"),
-                                "year": single.get("year"),
-                                "thumbnails": single.get("thumbnails", [])
-                            })
+        singles_data = await _fetch_full_section_items(
+            ytmusic, artist_info.get("singles"), "Single"
+        )
+        current_singles = [{**item, "id": item["browseId"]} for item in singles_data]
 
         # Get stored release data
         stored_result = supabase_client.table("artist_releases").select(
