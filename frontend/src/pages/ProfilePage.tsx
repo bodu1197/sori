@@ -298,15 +298,10 @@ export default function ProfilePage() {
 
         if (profileError) throw profileError;
         const profileInfo = profileData as Profile;
-
-        // 가상회원(아티스트)이면 검색 페이지로 리다이렉트
-        const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
-        if (isArtist && profileInfo.full_name) {
-          navigate(`/search?q=${encodeURIComponent(profileInfo.full_name)}`, { replace: true });
-          return;
-        }
-
         setProfile(profileInfo);
+
+        // Check if virtual member (artist)
+        const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
         setIsVirtualMember(isArtist);
 
         // 2. Fetch User's Posts (public feed posts)
