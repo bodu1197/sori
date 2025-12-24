@@ -1259,8 +1259,69 @@ async def get_home_feed(request: Request, country: str = None, limit: int = 6):
 # =============================================================================
 
 # =============================================================================
-# Summary Search API - 정규화 DB 사용 (전체 디스코그래피)
+# Shared Helper Functions for Artist Data Parsing
 # =============================================================================
+
+
+def _extract_songs_playlist_id(songs_section: dict | None) -> str | None:
+    """Extract songs playlist ID from artist info."""
+    if not songs_section or not isinstance(songs_section, dict):
+        return None
+    browse_id = songs_section.get("browseId")
+    if browse_id and browse_id.startswith("VL"):
+        return browse_id[2:]
+    return browse_id
+
+
+def _extract_top_songs(songs_section: dict | None) -> list:
+    """Extract top songs from artist songs section."""
+    top_songs = []
+    if not songs_section or not isinstance(songs_section, dict):
+        return top_songs
+    for song in songs_section.get("results", []):
+        if isinstance(song, dict) and song.get("videoId"):
+            top_songs.append({
+                "videoId": song.get("videoId"),
+                "title": song.get("title") or "",
+                "duration": song.get("duration") or "",
+                "thumbnails": song.get("thumbnails") or []
+            })
+    return top_songs
+
+
+def _extract_related_artists(related_section: dict | None, limit: int = 15) -> list:
+    """Extract related artists from artist info."""
+    related_artists = []
+    if not related_section or not isinstance(related_section, dict):
+        return related_artists
+    for rel in related_section.get("results", [])[:limit]:
+        if isinstance(rel, dict):
+            related_artists.append({
+                "browseId": rel.get("browseId") or "",
+                "name": rel.get("title") or rel.get("name") or "",
+                "subscribers": rel.get("subscribers") or "",
+                "thumbnails": rel.get("thumbnails") or []
+            })
+    return related_artists
+
+
+def _extract_albums_from_section(section: dict | None, album_type: str = "Album") -> list:
+    """Extract albums/singles from section results."""
+    albums = []
+    if not section or not isinstance(section, dict):
+        return albums
+    for item in section.get("results") or []:
+        if isinstance(item, dict) and item.get("browseId"):
+            albums.append({
+                "browseId": item.get("browseId"),
+                "title": item.get("title") or "",
+                "type": album_type if album_type == "Single" else (item.get("type") or "Album"),
+                "year": item.get("year") or "",
+                "thumbnails": item.get("thumbnails") or [],
+                "tracks": []
+            })
+    return albums
+
 
 def save_full_artist_data_background(artist_id: str, artist_info: dict, country: str):
     """백그라운드에서 아티스트의 전체 앨범/싱글/트랙 정보를 가져와 DB에 저장"""
