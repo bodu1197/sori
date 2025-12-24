@@ -304,6 +304,54 @@ export default function ProfilePage() {
         const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
         setIsVirtualMember(isArtist);
 
+        // Fetch artist music for virtual members
+        if (isArtist && profileInfo.full_name) {
+          setArtistMusicLoading(true);
+          try {
+            const searchResponse = await fetch(
+              `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(profileInfo.full_name)}`
+            );
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              setArtistAlbums(searchData.albums || []);
+
+              // songsPlaylistId로 전체 곡 목록 가져오기
+              const songsPlaylistId = searchData.artist?.songsPlaylistId;
+              if (songsPlaylistId) {
+                try {
+                  const playlistResponse = await fetch(
+                    `${API_BASE_URL}/api/playlist/${songsPlaylistId}`
+                  );
+                  if (playlistResponse.ok) {
+                    const playlistData = await playlistResponse.json();
+                    const allTracks = playlistData.playlist?.tracks || [];
+                    setArtistSongs(
+                      allTracks.map((track: any) => ({
+                        videoId: track.videoId,
+                        title: track.title,
+                        artists: track.artists,
+                        album: track.album,
+                        thumbnails: track.thumbnails,
+                        duration: track.duration,
+                      }))
+                    );
+                  } else {
+                    setArtistSongs(searchData.songs || []);
+                  }
+                } catch {
+                  setArtistSongs(searchData.songs || []);
+                }
+              } else {
+                setArtistSongs(searchData.songs || []);
+              }
+            }
+          } catch (searchErr) {
+            console.error('Error fetching artist music:', searchErr);
+          } finally {
+            setArtistMusicLoading(false);
+          }
+        }
+
         // 2. Fetch User's Posts (public feed posts)
         let postsQuery = supabase
           .from('posts')
