@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-# Trigger CI/CD Test: 2025-12-24 (Retry with permissions)
+# Trigger CI/CD Test: 2025-12-24 (Final Retry: Artifact Registry confirmed)
 import os
 import json
 import logging
