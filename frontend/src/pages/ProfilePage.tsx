@@ -298,30 +298,16 @@ export default function ProfilePage() {
 
         if (profileError) throw profileError;
         const profileInfo = profileData as Profile;
-        setProfile(profileInfo);
 
-        // Check if virtual member (artist)
+        // 가상회원(아티스트)이면 검색 페이지로 리다이렉트
         const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
-        setIsVirtualMember(isArtist);
-
-        // Fetch artist music for virtual members
         if (isArtist && profileInfo.full_name) {
-          setArtistMusicLoading(true);
-          try {
-            const searchResponse = await fetch(
-              `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(profileInfo.full_name)}`
-            );
-            if (searchResponse.ok) {
-              const searchData = await searchResponse.json();
-              setArtistSongs(searchData.songs || []);
-              setArtistAlbums(searchData.albums || []);
-            }
-          } catch (searchErr) {
-            console.error('Error fetching artist music:', searchErr);
-          } finally {
-            setArtistMusicLoading(false);
-          }
+          navigate(`/search?q=${encodeURIComponent(profileInfo.full_name)}`, { replace: true });
+          return;
         }
+
+        setProfile(profileInfo);
+        setIsVirtualMember(isArtist);
 
         // 2. Fetch User's Posts (public feed posts)
         let postsQuery = supabase
@@ -1255,7 +1241,7 @@ export default function ProfilePage() {
                         </button>
                       </div>
                       <div className="space-y-1">
-                        {artistSongs.slice(0, 10).map((song, index) => (
+                        {artistSongs.slice(0, 20).map((song, index) => (
                           <button
                             type="button"
                             key={song.videoId || index}
