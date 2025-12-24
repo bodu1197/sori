@@ -1443,11 +1443,17 @@ def parse_artist_data_lightweight(artist_id: str, artist_info: dict) -> dict:
 # Helper functions for search_summary
 # =============================================================================
 
-def _process_db_artists(artist_browse_ids: list, background_tasks, country: str) -> dict | None:
+def _process_db_artists(
+    artist_browse_ids: list,
+    background_tasks,
+    country: str,
+    top_songs_limit: int = 5
+) -> dict | None:
     """Process artists from database and prepare response data."""
     artists_data = []
     all_songs = []
     all_albums = []
+    all_tracks = []
     needs_background_update = False
 
     for browse_id in artist_browse_ids:
@@ -1457,7 +1463,7 @@ def _process_db_artists(artist_browse_ids: list, background_tasks, country: str)
         
         artists_data.append(artist_full)
 
-        for song in artist_full.get("topSongs", []):
+        for song in artist_full.get("topSongs", [])[:top_songs_limit]:
             song["artist_bid"] = browse_id
             song["resultType"] = "song"
             all_songs.append(song)
@@ -1465,6 +1471,9 @@ def _process_db_artists(artist_browse_ids: list, background_tasks, country: str)
         for album in artist_full.get("albums", []):
             album["artist_bid"] = browse_id
             all_albums.append(album)
+            
+        # Collect all tracks efficiently
+        all_tracks.extend(artist_full.get("allTracks", []))
 
         if db_check_artist_needs_sync(browse_id, days=7):
             needs_background_update = True
@@ -1477,7 +1486,7 @@ def _process_db_artists(artist_browse_ids: list, background_tasks, country: str)
         "artists": artists_data,
         "songs": all_songs,
         "albums": all_albums,
-        "allTracks": [t for a in artists_data for t in a.get("allTracks", [])],
+        "allTracks": all_tracks,
         "updating": needs_background_update
     }
 
@@ -3047,38 +3056,21 @@ async def search_summary(
         artist_browse_ids = db_get_artists_by_keyword(q, country)
         if artist_browse_ids:
             logger.info(f"DB hit for keyword: {q} ({len(artist_browse_ids)} artists)")
-            artists_data = []
-            all_songs = []
-            all_albums = []
-            needs_background_update = False
+            db_result = _process_db_artists(
+                artist_browse_ids, background_tasks, country, top_songs_limit=5
+            )
 
-            for browse_id in artist_browse_ids:
-                artist_full = db_get_full_artist_data(browse_id)
-                if artist_full:
-                    artists_data.append(artist_full)
-                    # 인기곡 5개만 (나머지는 YouTube IFrame API에서 로드)
-                    for song in artist_full.get("topSongs", [])[:5]:
-                        song["artist_bid"] = browse_id
-                        song["resultType"] = "song"
-                        all_songs.append(song)
-                    for album in artist_full.get("albums", []):
-                        album["artist_bid"] = browse_id
-                        all_albums.append(album)
-                    if db_check_artist_needs_sync(browse_id, days=7):
-                        needs_background_update = True
-                        background_tasks.add_task(background_update_artist, browse_id, country)
-
-            if artists_data:
+            if db_result:
                 result = {
                     "keyword": q,
                     "country": country,
-                    "artists": artists_data,
-                    "songs": all_songs,
+                    "artists": db_result["artists"],
+                    "songs": db_result["songs"],
                     "albums": [],
-                    "albums2": all_albums,
-                    "allTracks": [t for a in artists_data for t in a.get("allTracks", [])],
+                    "albums2": db_result["albums"],
+                    "allTracks": db_result["allTracks"],
                     "source": "database",
-                    "updating": needs_background_update
+                    "updating": db_result["updating"]
                 }
                 cache_set(cache_key, result, ttl=1800)
                 return result
@@ -4237,6 +4229,71 @@ async def create_virtual_members_cron(request: Request):
 # 피라미드식 Related Artists 확장 Cron Job
 # =============================================================================
 
+
+def _find_new_related_artists(
+    artists_with_related: list, existing_ids: set, related_limit: int, max_discovery: int = 50
+):
+    """Helper to find new related artists from existing artist data."""
+    new_artist_ids = []
+    discovered_count = 0
+    skipped_count = 0
+    
+    for artist in artists_with_related:
+        related_list = artist.get("related_artists_json") or []
+        if not isinstance(related_list, list):
+            continue
+
+        for related in related_list[:related_limit]:
+            if not isinstance(related, dict):
+                continue
+
+            browse_id = related.get("browseId")
+            if not browse_id or browse_id in existing_ids:
+                skipped_count += 1
+                continue
+
+            # Skip if already added in this batch
+            if browse_id in new_artist_ids:
+                continue
+
+            new_artist_ids.append(browse_id)
+            discovered_count += 1
+
+            if discovered_count >= max_discovery:
+                return new_artist_ids, skipped_count
+                
+    return new_artist_ids, skipped_count
+
+
+async def _register_discovered_artists(new_artist_ids: list, country: str = "US") -> dict:
+    """Helper to register newly discovered artists."""
+    results = {"registered": 0, "skipped": 0, "errors": []}
+    
+    for browse_id in new_artist_ids:
+        try:
+            # Rate limiting
+            await asyncio.sleep(1)
+
+            ytmusic = get_ytmusic(country)
+            # Use run_in_thread for blocking calls
+            artist_info = await run_in_thread(ytmusic.get_artist, browse_id)
+
+            if artist_info:
+                # Save data (blocking DB call handled in thread if possible, here using direct call as wrapper is sync)
+                save_full_artist_data_background(browse_id, artist_info, country)
+                results["registered"] += 1
+                artist_name = artist_info.get("name", "Unknown")
+                logger.info(f"[EXPAND] Registered: {artist_name}")
+            else:
+                results["skipped"] += 1
+
+        except Exception as e:
+            results["errors"].append(f"{browse_id}: {str(e)}")
+            logger.error(f"[EXPAND] Error registering {browse_id}: {e}")
+            
+    return results
+
+
 @app.post("/api/cron/expand-related-artists")
 async def expand_related_artists(request: Request):
     """
@@ -4288,61 +4345,21 @@ async def expand_related_artists(request: Request):
 
         logger.info(f"[EXPAND] Processing {len(artists_with_related.data)} artists, {len(existing_ids)} already exist")
 
-        new_artist_ids = []
-
         # 각 아티스트의 related 수집
-        for artist in artists_with_related.data:
-            related_list = artist.get("related_artists_json") or []
-
-            if not isinstance(related_list, list):
-                continue
-
-            for related in related_list[:related_limit]:
-                if not isinstance(related, dict):
-                    continue
-
-                browse_id = related.get("browseId")
-                if not browse_id or browse_id in existing_ids:
-                    results["artists_skipped"] += 1
-                    continue
-
-                # 이미 이번 배치에서 추가한 경우 스킵
-                if browse_id in new_artist_ids:
-                    continue
-
-                new_artist_ids.append(browse_id)
-                results["artists_discovered"] += 1
-
-                # 일일 최대 제한 (50명)
-                if results["artists_discovered"] >= 50:
-                    break
-
-            if results["artists_discovered"] >= 50:
-                break
+        new_artist_ids, skipped = _find_new_related_artists(
+            artists_with_related.data, existing_ids, related_limit
+        )
+        results["artists_discovered"] = len(new_artist_ids)
+        results["artists_skipped"] = skipped
 
         logger.info(f"[EXPAND] Discovered {len(new_artist_ids)} new artists to register")
 
         # 새 아티스트 등록
-        for browse_id in new_artist_ids:
-            try:
-                # Rate limiting
-                await asyncio.sleep(1)
-
-                ytmusic = get_ytmusic("US")
-                artist_info = ytmusic.get_artist(browse_id)
-
-                if artist_info:
-                    # 동기 저장
-                    save_full_artist_data_background(browse_id, artist_info, "US")
-                    results["artists_registered"] += 1
-                    artist_name = artist_info.get("name", "Unknown")
-                    logger.info(f"[EXPAND] Registered: {artist_name}")
-                else:
-                    results["artists_skipped"] += 1
-
-            except Exception as e:
-                results["errors"].append(f"{browse_id}: {str(e)}")
-                logger.error(f"[EXPAND] Error registering {browse_id}: {e}")
+        reg_results = await _register_discovered_artists(new_artist_ids)
+        
+        results["artists_registered"] = reg_results["registered"]
+        results["artists_skipped"] += reg_results["skipped"]
+        results["errors"] = reg_results["errors"]
 
         return {
             "status": "success",
