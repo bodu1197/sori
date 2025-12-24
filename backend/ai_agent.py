@@ -31,8 +31,11 @@ GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
 if genai and GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    # Gemini 2.5 Flash-Lite - fastest, most cost-effective multimodal model
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    # Use Gemini 1.5 Flash for speed + Google Search Grounding
+    tools_config = [
+        {"google_search": {}} # Enable Google Search Grounding
+    ]
+    model = genai.GenerativeModel('gemini-1.5-flash', tools=tools_config)
 else:
     model = None
 
@@ -47,55 +50,35 @@ if vertex_available:
 else:
     imagen_model = None
 
-def search_artist_news(artist_name: str, days: int = 1) -> list:
+def search_artist_news(artist_name: str, days: int = 2) -> list:
     """
-    구글에서 아티스트의 실시간 뉴스를 검색 (Gemini + Google Search Grounding)
-
-    Args:
-        artist_name: 아티스트 이름
-        days: 며칠 이내 뉴스 검색 (기본값: 1일)
-
-    Returns:
-        [{"title": "...", "snippet": "...", "source": "...", "date": "..."}]
+    Search for real-time news using Google Search Grounding via Gemini.
     """
     if not genai:
         return []
 
     try:
         today = datetime.now().strftime("%Y-%m-%d")
+        
+        # Prompt designed to trigger Google Search tool
+        prompt = f"""
+Find the latest news about the musician "{artist_name}" from the last {days} days (Today is {today}).
+Look for announcements about: concerts, tours, new albums, song releases, or major events.
 
-        prompt = f"""Find the latest news about the music artist "{artist_name}" from today ({today}).
-
-Search for REAL, current news about:
-- New song/album releases
-- Concert/tour announcements
-- Award wins or nominations
-- Collaborations
-- Official statements
-- Major events
-
-Return ONLY valid JSON array with verified news:
+Return a JSON array of news items:
 [
   {{
-    "title": "News headline",
-    "snippet": "Brief summary (1-2 sentences)",
-    "source": "News source name",
-    "type": "release|concert|award|collaboration|news|event"
+    "title": "Headline",
+    "snippet": "Short summary including date",
+    "source": "Source name",
+    "date": "YYYY-MM-DD"
   }}
 ]
-
-If no recent news found, return: []
-Return ONLY the JSON array."""
-
-        # Use standard model (Google Search grounding requires specific setup)
-        # For now, use AI knowledge with explicit date awareness
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=0.1
-            )
-        )
-
+If nothing relevant is found, return empty array [].
+"""
+        
+        # Generate content - the model should use the google_search tool automatically
+        response = model.generate_content(prompt)
         text = response.text.strip()
 
         # Clean markdown
@@ -105,9 +88,13 @@ Return ONLY the JSON array."""
             if lines[-1].startswith("```"): lines = lines[:-1]
             text = "\n".join(lines)
 
-        news = json.loads(text)
-        logger.info(f"Found {len(news)} news items for {artist_name} via Google Search grounding")
-        return news if isinstance(news, list) else []
+        try:
+            news = json.loads(text)
+            return news if isinstance(news, list) else []
+        except json.JSONDecodeError:
+             # Sometimes it might return text if search failed or no JSON structure
+            logger.warning(f"News search JSON decode failed: {text[:100]}")
+            return []
 
     except Exception as e:
         logger.error(f"News search error for {artist_name}: {e}")

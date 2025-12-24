@@ -3297,21 +3297,31 @@ async def chat_artist_endpoint(request: Request):
             try:
                 # Fetch full artist data from DB (songs, albums)
                 full_data = await run_in_thread(db_get_full_artist_data, browse_id)
+                
+                # Fetch REAL-TIME news (Search Grounding)
+                # Only if message implies a question about schedule/news/updates to save cost/latency,
+                # BUT user complained about accuracy, so we fetch it to be safe or maybe a quick check.
+                # Let's fetch it. It might add 1-2s latency but ensures accuracy.
+                # Use artist name from persona or DB
+                artist_name_for_search = full_data.get("name") if full_data else "the artist"
+                news_items = await run_in_thread(search_artist_news, artist_name_for_search)
+                
                 if full_data:
                     artist_context = {
                         "top_songs": full_data.get("topSongs", []),
                         "albums": full_data.get("albums", []),
+                        "news": news_items
                     }
                     
-                    # Optional: Add latest release as "news" if available
-                    # (This is a simple way to add some current event context)
-                    albums = full_data.get("albums", [])
-                    if albums and len(albums) > 0:
-                        latest_album = albums[0]
-                        artist_context["news"] = [{
-                            "title": f"New Release: {latest_album.get('title')}",
-                            "snippet": f"Check out my latest release '{latest_album.get('title')}' from {latest_album.get('year')}!"
-                        }]
+                    # Fallback: If no real news found, try latest album as news
+                    if not news_items:
+                        albums = full_data.get("albums", [])
+                        if albums and len(albums) > 0:
+                            latest_album = albums[0]
+                            artist_context["news"] = [{
+                                "title": f"Latest Music Release: {latest_album.get('title')}",
+                                "snippet": f"Check out my latest release '{latest_album.get('title')}' from {latest_album.get('year')}!"
+                            }]
             except Exception as context_error:
                 logger.warning(f"Failed to fetch artist context for chat: {context_error}")
 
