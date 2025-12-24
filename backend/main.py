@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-# Trigger CI/CD Test: 2025-12-24
+# Trigger CI/CD Test: 2025-12-24 (Retry with permissions)
 import os
 import json
 import logging
