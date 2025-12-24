@@ -26,6 +26,7 @@ import {
   useUserSearch,
   useExpandedAlbums,
   useShowMore,
+  useLikedSongs,
   type SearchAlbum,
   type SearchSong,
   type AlbumTrack,
@@ -101,8 +102,8 @@ export default function SearchPage() {
   const [allSongsTracks, setAllSongsTracks] = useState<SearchSong[]>([]);
   const [allSongsLoading, setAllSongsLoading] = useState(false);
 
-  // Liked Songs State
-  const [likedSongs, setLikedSongs] = useState<Set<string>>(new Set());
+  // Liked Songs Hook
+  const { likedSongs, isLiked, toggleLike } = useLikedSongs();
   const [likedAlbums, setLikedAlbums] = useState<Set<string>>(new Set());
   const [savingAlbums, setSavingAlbums] = useState<Set<string>>(new Set());
 
@@ -112,22 +113,6 @@ export default function SearchPage() {
       checkArtistFollowed(searchArtist.browseId);
     }
   }, [searchArtist, checkArtistFollowed]);
-
-  // Load liked songs from DB
-  useEffect(() => {
-    const loadLikedSongs = async () => {
-      if (!user) return;
-      try {
-        const { data } = await supabase.from('playlists').select('video_id').eq('user_id', user.id);
-        if (data) {
-          setLikedSongs(new Set(data.map((item) => item.video_id)));
-        }
-      } catch {
-        // ignore
-      }
-    };
-    loadLikedSongs();
-  }, [user]);
 
   // Load suggested users when Users tab is active
   useEffect(() => {
@@ -338,91 +323,34 @@ export default function SearchPage() {
     }
   };
 
-  // Toggle Like Logic (Reusable mostly, but needs User context)
-  const handleToggleLike = async (item: SearchSong | AlbumTrack) => {
-    // Removed albumThumbnails arg simplifies
-    if (!item.videoId || !user) return;
-    const isLiked = likedSongs.has(item.videoId);
-    try {
-      if (isLiked) {
-        const { error } = await supabase
-          .from('playlists')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('video_id', item.videoId);
-        if (!error)
-          setLikedSongs((prev) => {
-            const n = new Set(prev);
-            n.delete(item.videoId);
-            return n;
-          });
-      } else {
-        const { error } = await supabase.from('playlists').insert({
-          user_id: user.id,
-          title: item.title,
-          video_id: item.videoId,
-          cover_url: getBestThumbnail(item.thumbnails),
-          is_public: true,
-        });
-        if (!error) setLikedSongs((prev) => new Set(prev).add(item.videoId));
-      }
-    } catch {}
+  // Toggle Like uses hook
+  const handleToggleLike = (item: SearchSong | AlbumTrack) => {
+    toggleLike(item);
   };
 
   const handleToggleAlbumLike = async (album: SearchAlbum) => {
     const albumId = album.browseId || `album-${album.title}`;
     if (!user || savingAlbums.has(albumId)) return;
 
-    const isLiked = likedAlbums.has(albumId);
+    const albumIsLiked = likedAlbums.has(albumId);
     setSavingAlbums((prev) => new Set(prev).add(albumId));
 
     try {
-      // Fetch tracks if needed
-      let tracks = album.tracks || getCachedTracks(albumId) || [];
-      if (tracks.length === 0 && album.browseId) {
-        const res = await fetch(`${API_BASE_URL}/api/album/${album.browseId}`);
-        if (res.ok) {
-          const d = await res.json();
-          tracks = d.album?.tracks || [];
-          cacheTracks(albumId, tracks);
-        }
-      }
-
-      if (isLiked) {
-        // Unimplemented bulk unlike for safety/complexity reduction or implement if needed
-        // For now just toggle local state visually? No, Supabase calls needed.
-        // Simply remove from likedSongs set for now to reflect UI
-        // Implementation omitted for brevity/complexity in this refactor step unless critical.
-        // OK, let's just clear the "Album Liked" visual state.
+      if (albumIsLiked) {
         setLikedAlbums((prev) => {
           const n = new Set(prev);
           n.delete(albumId);
           return n;
         });
       } else {
-        // Like all
-        const inserts = tracks
-          .map((t) => ({
-            user_id: user.id,
-            title: t.title,
-            video_id: t.videoId,
-            cover_url: getBestThumbnail(t.thumbnails || album.thumbnails),
-            is_public: true,
-          }))
-          .filter((t) => !likedSongs.has(t.video_id));
-
-        if (inserts.length > 0) {
-          await supabase.from('playlists').insert(inserts);
-          const newIds = inserts.map((i) => i.video_id);
-          setLikedSongs((prev) => {
-            const n = new Set(prev);
-            newIds.forEach((id) => n.add(id));
-            return n;
-          });
+        const tracks = album.tracks || getCachedTracks(albumId) || [];
+        for (const track of tracks) {
+          if (!likedSongs.has(track.videoId)) {
+            await toggleLike(track);
+          }
         }
         setLikedAlbums((prev) => new Set(prev).add(albumId));
       }
-    } catch {
     } finally {
       setSavingAlbums((prev) => {
         const n = new Set(prev);

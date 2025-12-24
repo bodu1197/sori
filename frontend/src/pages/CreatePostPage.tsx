@@ -1,83 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, X, Music, Loader2, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
-import usePlayerStore from '../stores/usePlayerStore';
-
-const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
-
-interface SearchResult {
-  videoId: string;
-  title: string;
-  artists?: Array<{ name: string }>;
-  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
-  duration?: string;
-}
+import { useTrackSearch, getBestThumbnail, type SearchResult } from './CreatePostPageHelpers';
 
 export default function CreatePostPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { setTrack } = usePlayerStore();
+
+  // Use extracted search hook
+  const { searchQuery, setSearchQuery, searchResults, searching, previewTrack, clearSearch } =
+    useTrackSearch();
 
   const [step, setStep] = useState<'search' | 'details'>('search');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<SearchResult | null>(null);
   const [caption, setCaption] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [posting, setPosting] = useState(false);
 
-  // Search for music
-  useEffect(() => {
-    async function search() {
-      if (!searchQuery.trim()) {
-        setSearchResults([]);
-        return;
-      }
-
-      setSearching(true);
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=songs&limit=20`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setSearchResults(data.results || []);
-        }
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
-        setSearching(false);
-      }
-    }
-
-    const debounce = setTimeout(search, 300);
-    return () => clearTimeout(debounce);
-  }, [searchQuery]);
-
-  // Get best thumbnail
-  const getBestThumbnail = (thumbnails?: Array<{ url: string }>) => {
-    if (!thumbnails || thumbnails.length === 0) return null;
-    return thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
-  };
-
   // Select track and go to details
-  const handleSelectTrack = (track: SearchResult) => {
+  const handleSelectTrack = useCallback((track: SearchResult) => {
     setSelectedTrack(track);
     setStep('details');
-  };
+  }, []);
 
   // Preview track
-  const handlePreview = (track: SearchResult) => {
-    setTrack({
-      videoId: track.videoId,
-      title: track.title,
-      artist: track.artists?.map((a) => a.name).join(', ') || 'Unknown',
-      thumbnail: getBestThumbnail(track.thumbnails) || undefined,
-    });
-  };
+  const handlePreview = useCallback(
+    (track: SearchResult) => {
+      previewTrack(track);
+    },
+    [previewTrack]
+  );
 
   // Create post
   const handleCreatePost = async () => {

@@ -23,6 +23,25 @@ import { supabase } from '../lib/supabase';
 import FollowersModal from '../components/social/FollowersModal';
 import FollowButton from '../components/social/FollowButton';
 import { DEFAULT_AVATAR } from '../components/common';
+import {
+  useArtistMusic,
+  useHomeData,
+  useProfilePlayback,
+  useConversation,
+  useProfileLikedSongs,
+  getBestThumbnail,
+  type Profile,
+  type Post,
+  type Playlist,
+  type LikedTrack,
+  type HomeSection,
+  type HomeContentItem,
+  type HomeData,
+  type ArtistSong,
+  type ArtistAlbum,
+  type ArtistVideo,
+  type SimilarArtist,
+} from './ProfilePageHelpers';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
@@ -38,16 +57,6 @@ function StatItem({ count, label }: StatItemProps) {
       <span className="text-sm text-gray-800 dark:text-gray-200">{label}</span>
     </div>
   );
-}
-
-interface LikedTrack {
-  videoId: string;
-  title: string;
-  artist: string;
-  thumbnail?: string;
-  cover?: string;
-  cover_url?: string;
-  playlistId: string;
 }
 
 interface TrackItemProps {
@@ -149,91 +158,7 @@ function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }
   );
 }
 
-interface Profile {
-  id: string;
-  username?: string;
-  full_name?: string;
-  avatar_url?: string;
-  website?: string;
-  followers_count?: number;
-  following_count?: number;
-  artist_browse_id?: string;
-  member_type?: string;
-}
-
-interface ArtistSong {
-  videoId: string;
-  title: string;
-  artists?: Array<{ name: string; id?: string }>;
-  album?: { name: string; id?: string };
-  thumbnails?: Array<{ url: string }>;
-  duration?: string;
-}
-
-interface ArtistAlbum {
-  browseId?: string;
-  title: string;
-  type?: string;
-  year?: string;
-  thumbnails?: Array<{ url: string }>;
-}
-
-interface ArtistVideo {
-  videoId: string;
-  title: string;
-  artists?: Array<{ name: string; id?: string }>;
-  thumbnails?: Array<{ url: string }>;
-  views?: string;
-}
-
-interface SimilarArtist {
-  browseId: string;
-  artist: string;
-  thumbnails?: Array<{ url: string }>;
-}
-
-interface Playlist {
-  id: string;
-  title?: string;
-  video_id?: string;
-  cover_url?: string;
-  is_public?: boolean;
-  created_at: string;
-}
-
-interface Post {
-  id: string;
-  title: string;
-  artist?: string;
-  video_id?: string;
-  cover_url?: string;
-  caption?: string;
-  like_count?: number;
-  comment_count?: number;
-  is_public?: boolean;
-  created_at: string;
-}
-
-interface HomeContentItem {
-  title: string;
-  videoId?: string;
-  playlistId?: string;
-  browseId?: string;
-  thumbnails?: Array<{ url: string; width: number; height: number }>;
-  artists?: Array<{ name: string; id?: string }>;
-  views?: string;
-  album?: { name: string; id: string };
-  subtitle?: string;
-}
-
-interface HomeSection {
-  title: string;
-  contents: HomeContentItem[];
-}
-
-interface HomeData {
-  sections: HomeSection[];
-}
+// Types are imported from ProfilePageHelpers
 
 export default function ProfilePage() {
   const { t } = useTranslation();

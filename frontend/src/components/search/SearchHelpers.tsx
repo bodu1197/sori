@@ -477,6 +477,70 @@ export function useShowMore(initialLimit: number = 5) {
   return { showAll, toggle, getDisplayItems, hasMore };
 }
 
+/**
+ * Hook for managing liked songs state
+ */
+export function useLikedSongs() {
+  const { user } = useAuthStore();
+  const [likedSongs, setLikedSongs] = useState<Set<string>>(new Set());
+
+  const loadLikedSongs = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.from('playlists').select('video_id').eq('user_id', user.id);
+      if (data) {
+        setLikedSongs(new Set(data.map((item) => item.video_id)));
+      }
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadLikedSongs();
+  }, [loadLikedSongs]);
+
+  const isLiked = useCallback((videoId: string) => likedSongs.has(videoId), [likedSongs]);
+
+  const toggleLike = useCallback(
+    async (item: { videoId: string; title: string; thumbnails?: Thumbnail[] }) => {
+      if (!item.videoId || !user) return;
+      const liked = likedSongs.has(item.videoId);
+
+      try {
+        if (liked) {
+          const { error } = await supabase
+            .from('playlists')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('video_id', item.videoId);
+          if (!error) {
+            setLikedSongs((prev) => {
+              const n = new Set(prev);
+              n.delete(item.videoId);
+              return n;
+            });
+          }
+        } else {
+          const { error } = await supabase.from('playlists').insert({
+            user_id: user.id,
+            title: item.title,
+            video_id: item.videoId,
+            cover_url: getBestThumbnail(item.thumbnails),
+            is_public: true,
+          });
+          if (!error) setLikedSongs((prev) => new Set(prev).add(item.videoId));
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [user, likedSongs]
+  );
+
+  return { likedSongs, isLiked, toggleLike };
+}
+
 // Components
 
 interface SongListItemProps {

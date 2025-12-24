@@ -305,6 +305,112 @@ def create_virtual_member_sync(browse_id: str, artist_name: str, thumbnail_url: 
         logger.warning(f"Virtual member sync creation failed: {e}")
         return None
 
+
+# =============================================================================
+# Helper Functions for Reducing Cognitive Complexity
+# =============================================================================
+
+def _extract_artist_browse_id(artists_data: list | None) -> str | None:
+    """Extract artist browse ID from artists list."""
+    if not artists_data or not isinstance(artists_data, list) or len(artists_data) == 0:
+        return None
+    first_artist = artists_data[0]
+    return first_artist.get("id") or first_artist.get("browseId")
+
+
+def _extract_artist_name(artists_data: list | None) -> str:
+    """Extract artist name from artists list."""
+    if not artists_data or not isinstance(artists_data, list) or len(artists_data) == 0:
+        return ""
+    return artists_data[0].get("name") or ""
+
+
+def _parse_duration_to_seconds(duration: str) -> int:
+    """Parse duration string (MM:SS or HH:MM:SS) to seconds."""
+    if not duration:
+        return 0
+    try:
+        parts = duration.split(":")
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    except ValueError:
+        pass
+    return 0
+
+
+def _extract_album_info(album_data: dict | None) -> tuple[str, str | None]:
+    """Extract album title and browse ID from album data."""
+    if not album_data:
+        return "", None
+    album_title = album_data.get("name") or ""
+    album_browse_id = album_data.get("id") or album_data.get("browseId")
+    return album_title, album_browse_id
+
+
+def _transform_db_track(track: dict) -> dict:
+    """Transform DB track to API response format."""
+    return {
+        "videoId": track.get("video_id"),
+        "title": track.get("title"),
+        "duration": track.get("duration"),
+        "trackNumber": track.get("track_number"),
+        "thumbnails": [{"url": track.get("thumbnail_url")}] if track.get("thumbnail_url") else [],
+        "isExplicit": track.get("is_explicit", False)
+    }
+
+
+def _transform_db_album(album: dict, tracks_map: dict | None = None) -> dict:
+    """Transform DB album to API response format."""
+    album_bid = album.get("browse_id")
+    return {
+        "browseId": album_bid,
+        "title": album.get("title"),
+        "type": album.get("type"),
+        "year": album.get("year"),
+        "thumbnails": [{"url": album.get("thumbnail_url")}] if album.get("thumbnail_url") else [],
+        "tracks": tracks_map.get(album_bid, []) if tracks_map else []
+    }
+
+
+def _extract_songs_playlist_id_from_section(songs_section: dict | None) -> str | None:
+    """Extract playlist ID from songs section, removing VL prefix if present."""
+    if not songs_section or not isinstance(songs_section, dict):
+        return None
+    browse_id = songs_section.get("browseId")
+    if not browse_id:
+        return None
+    return browse_id[2:] if browse_id.startswith("VL") else browse_id
+
+
+def _build_default_ai_persona(artist_name: str) -> dict:
+    """Build default AI persona for an artist."""
+    return {
+        "system_prompt": f"You are {artist_name}, a music artist chatting with a fan. Be friendly, warm, and authentic. Keep responses short (1-2 sentences).",
+        "tone": "friendly, warm, casual",
+        "greeting": f"Hey! Thanks for reaching out! 💕"
+    }
+
+
+def _group_tracks_by_album(tracks: list) -> dict:
+    """Group tracks by album browse ID."""
+    album_tracks_map = {}
+    for track in tracks:
+        album_id = track.get("album_browse_id")
+        if album_id:
+            if album_id not in album_tracks_map:
+                album_tracks_map[album_id] = []
+            album_tracks_map[album_id].append({
+                "videoId": track.get("video_id"),
+                "title": track.get("title"),
+                "duration": track.get("duration"),
+                "trackNumber": track.get("track_number"),
+                "thumbnails": [{"url": track.get("thumbnail_url")}] if track.get("thumbnail_url") else []
+            })
+    return album_tracks_map
+
+
 def db_save_album(album_data: dict, artist_id: str = None) -> str | None:
     """앨범을 DB에 저장 (upsert)"""
     if not supabase_client:
@@ -315,11 +421,7 @@ def db_save_album(album_data: dict, artist_id: str = None) -> str | None:
         if not browse_id:
             return None
 
-        # 아티스트 정보 추출
-        artists = album_data.get("artists") or []
-        artist_browse_id = None
-        if artists and isinstance(artists, list) and len(artists) > 0:
-            artist_browse_id = artists[0].get("id") or artists[0].get("browseId")
+        artist_browse_id = _extract_artist_browse_id(album_data.get("artists"))
 
         data = {
             "browse_id": browse_id,
@@ -339,9 +441,7 @@ def db_save_album(album_data: dict, artist_id: str = None) -> str | None:
             data, on_conflict="browse_id"
         ).execute()
 
-        if result.data:
-            return result.data[0].get("id")
-        return None
+        return result.data[0].get("id") if result.data else None
     except Exception as e:
         logger.warning(f"DB save album error: {e}")
         return None
@@ -356,31 +456,13 @@ def db_save_track(track_data: dict, album_id: str = None, artist_id: str = None)
         if not video_id:
             return None
 
-        # 아티스트 이름 추출
-        artists = track_data.get("artists") or []
-        artist_name = ""
-        artist_browse_id = None
-        if artists and isinstance(artists, list) and len(artists) > 0:
-            artist_name = artists[0].get("name") or ""
-            artist_browse_id = artists[0].get("id") or artists[0].get("browseId")
+        artists = track_data.get("artists")
+        artist_name = _extract_artist_name(artists)
+        artist_browse_id = _extract_artist_browse_id(artists)
+        album_title, album_browse_id = _extract_album_info(track_data.get("album"))
 
-        # 앨범 정보 추출
-        album = track_data.get("album") or {}
-        album_title = album.get("name") or ""
-        album_browse_id = album.get("id") or album.get("browseId")
-
-        # 재생 시간 파싱
         duration = track_data.get("duration") or ""
-        duration_seconds = track_data.get("duration_seconds") or 0
-        if duration and not duration_seconds:
-            try:
-                parts = duration.split(":")
-                if len(parts) == 2:
-                    duration_seconds = int(parts[0]) * 60 + int(parts[1])
-                elif len(parts) == 3:
-                    duration_seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-            except ValueError:
-                pass
+        duration_seconds = track_data.get("duration_seconds") or _parse_duration_to_seconds(duration)
 
         data = {
             "video_id": video_id,
@@ -645,33 +727,9 @@ def db_get_full_artist_data(browse_id: str) -> dict | None:
 
         all_tracks = tracks_result.data or []
 
-        # 앨범별로 트랙 그룹화
-        album_tracks_map = {}
-        for track in all_tracks:
-            album_id = track.get("album_browse_id")
-            if album_id:
-                if album_id not in album_tracks_map:
-                    album_tracks_map[album_id] = []
-                album_tracks_map[album_id].append({
-                    "videoId": track.get("video_id"),
-                    "title": track.get("title"),
-                    "duration": track.get("duration"),
-                    "trackNumber": track.get("track_number"),
-                    "thumbnails": [{"url": track.get("thumbnail_url")}] if track.get("thumbnail_url") else []
-                })
-
-        # 앨범에 트랙 추가
-        albums_with_tracks = []
-        for album in albums:
-            album_entry = {
-                "browseId": album.get("browse_id"),
-                "title": album.get("title"),
-                "type": album.get("type"),
-                "year": album.get("year"),
-                "thumbnails": [{"url": album.get("thumbnail_url")}] if album.get("thumbnail_url") else [],
-                "tracks": album_tracks_map.get(album.get("browse_id"), [])
-            }
-            albums_with_tracks.append(album_entry)
+        # Group tracks by album and transform albums
+        album_tracks_map = _group_tracks_by_album(all_tracks)
+        albums_with_tracks = [_transform_db_album(album, album_tracks_map) for album in albums]
 
         return {
             "browseId": artist.get("browse_id"),
