@@ -2963,6 +2963,96 @@ async def run_migrations(secret: str = None, access_token: str = None):
 # 엔트리 포인트
 # =============================================================================
 
+# Helper functions to reduce cognitive complexity of search_summary
+
+
+def _parse_albums_from_artist_detail(artist_detail: dict, artist_id: str) -> list:
+    """Parse albums from artist detail response."""
+    albums_list = []
+    albums_section = artist_detail.get("albums", {})
+    if isinstance(albums_section, dict) and "results" in albums_section:
+        for alb in albums_section["results"]:
+            if isinstance(alb, dict) and alb.get("browseId"):
+                albums_list.append({
+                    "browseId": alb.get("browseId"),
+                    "title": alb.get("title") or "",
+                    "thumbnails": alb.get("thumbnails", []),
+                    "year": alb.get("year", ""),
+                    "artist_bid": artist_id
+                })
+    return albums_list
+
+
+def _parse_singles_from_artist_detail(artist_detail: dict, artist_id: str) -> list:
+    """Parse singles from artist detail response."""
+    singles_list = []
+    singles_section = artist_detail.get("singles", {})
+    if isinstance(singles_section, dict) and "results" in singles_section:
+        for single in singles_section["results"]:
+            if isinstance(single, dict) and single.get("browseId"):
+                singles_list.append({
+                    "browseId": single.get("browseId"),
+                    "title": single.get("title") or "",
+                    "thumbnails": single.get("thumbnails", []),
+                    "year": single.get("year", ""),
+                    "type": "Single",
+                    "artist_bid": artist_id
+                })
+    return singles_list
+
+
+def _parse_top_songs_from_artist_detail(artist_detail: dict, artist_id: str, limit: int = 5) -> tuple:
+    """Parse top songs and playlist ID from artist detail response.
+    Returns (top_songs_list, songs_playlist_id)
+    """
+    top_songs = []
+    songs_playlist_id = None
+    
+    songs_section = artist_detail.get("songs", {})
+    if isinstance(songs_section, dict):
+        # Extract playlist ID for YouTube IFrame API
+        songs_browse_id = songs_section.get("browseId")
+        if songs_browse_id:
+            songs_playlist_id = songs_browse_id[2:] if songs_browse_id.startswith("VL") else songs_browse_id
+        
+        # Extract top songs (limited for fast response)
+        for s in songs_section.get("results", [])[:limit]:
+            if isinstance(s, dict):
+                s["artist_bid"] = artist_id
+                s["resultType"] = "song"
+                top_songs.append(s)
+    
+    return top_songs, songs_playlist_id
+
+
+def _build_artist_response_data(
+    artist_id: str,
+    artist_name: str,
+    best_artist: dict,
+    artist_detail: dict,
+    albums_list: list,
+    top_songs: list,
+    related_list: list,
+    songs_playlist_id: str | None
+) -> dict:
+    """Build the artist data dict for API response."""
+    description = artist_detail.get("description", "")
+    return {
+        "browseId": artist_id,
+        "artist": artist_name,
+        "name": artist_name,
+        "thumbnails": best_artist.get("thumbnails") or [],
+        "subscribers": artist_detail.get("subscribers", ""),
+        "description": (description[:200] + "...") if description else "",
+        "topSongs": top_songs,
+        "related": related_list,
+        "albums": albums_list,
+        "allTracks": [],
+        "songsPlaylistId": songs_playlist_id
+    }
+
+
+
 @app.get("/api/search/summary")
 async def search_summary(
     request: Request,
@@ -3076,70 +3166,31 @@ async def search_summary(
                 logger.error(f"Failed to get artist detail: {e}")
                 artist_detail = {}
             
-            # 1. 앨범 정보 파싱
-            albums_list = []
-            if artist_detail and "albums" in artist_detail and "results" in artist_detail["albums"]:
-                for alb in artist_detail["albums"]["results"]:
-                    albums_list.append({
-                        "browseId": alb.get("browseId"),
-                        "title": alb.get("title"),
-                        "thumbnails": alb.get("thumbnails", []),
-                        "year": alb.get("year", ""),
-                        "artist_bid": artist_id
-                    })
+            # 1. 앨범 정보 파싱 (헬퍼 함수 사용)
+            albums_list = _parse_albums_from_artist_detail(artist_detail, artist_id)
             
-            # 2. 싱글 정보 파싱
-            if "singles" in artist_detail and "results" in artist_detail["singles"]:
-                for single in artist_detail["singles"]["results"]:
-                    albums_list.append({
-                        "browseId": single.get("browseId"),
-                        "title": single.get("title"),
-                        "thumbnails": single.get("thumbnails", []),
-                        "year": single.get("year", ""),
-                        "type": "Single",
-                        "artist_bid": artist_id
-                    })
+            # 2. 싱글 정보 파싱 (헬퍼 함수 사용)
+            singles_list = _parse_singles_from_artist_detail(artist_detail, artist_id)
+            albums_list.extend(singles_list)
 
             # 3. 관련 아티스트
-            related_list = []
-            if "related" in artist_detail and "results" in artist_detail["related"]:
-                related_list = artist_detail["related"]["results"]
+            related_section = artist_detail.get("related", {})
+            related_list = related_section.get("results", []) if isinstance(related_section, dict) else []
 
-            # 4. 공식 인기곡 (Top Songs) + 플레이리스트 ID 추출
-            top_songs = []
-            songs_playlist_id = None
-            songs_browse_id = None
+            # 4. 공식 인기곡 (Top Songs) + 플레이리스트 ID 추출 (헬퍼 함수 사용)
+            top_songs, songs_playlist_id = _parse_top_songs_from_artist_detail(artist_detail, artist_id, limit=5)
 
-            if "songs" in artist_detail and isinstance(artist_detail["songs"], dict):
-                songs_section = artist_detail["songs"]
-
-                # 핵심: "모두 표시" 버튼의 플레이리스트 ID 추출
-                songs_browse_id = songs_section.get("browseId")
-                if songs_browse_id and songs_browse_id.startswith("VL"):
-                    songs_playlist_id = songs_browse_id[2:]  # "VL" 제거
-                elif songs_browse_id:
-                    songs_playlist_id = songs_browse_id
-
-                # 인기곡 5개만 추출 (빠른 응답)
-                for s in songs_section.get("results", [])[:5]:
-                    s["artist_bid"] = artist_id
-                    s["resultType"] = "song"
-                    top_songs.append(s)
-
-            # 응답 데이터 구성 - songsPlaylistId만 반환 (YouTube IFrame API용)
-            artists_data.append({
-                "browseId": artist_id,
-                "artist": artist_name,
-                "name": artist_name,
-                "thumbnails": best_artist.get("thumbnails") or [],
-                "subscribers": artist_detail.get("subscribers", ""),
-                "description": artist_detail.get("description", "")[:200] + "..." if artist_detail.get("description") else "",
-                "topSongs": top_songs,
-                "related": related_list,
-                "albums": albums_list,
-                "allTracks": [],
-                "songsPlaylistId": songs_playlist_id  # YouTube IFrame API용 플레이리스트 ID만
-            })
+            # 응답 데이터 구성 (헬퍼 함수 사용)
+            artists_data.append(_build_artist_response_data(
+                artist_id=artist_id,
+                artist_name=artist_name,
+                best_artist=best_artist,
+                artist_detail=artist_detail,
+                albums_list=albums_list,
+                top_songs=top_songs,
+                related_list=related_list,
+                songs_playlist_id=songs_playlist_id
+            ))
             
             # 인기곡 5개만 반환 (나머지는 YouTube IFrame API에서 로드)
             songs_search = top_songs[:5]
