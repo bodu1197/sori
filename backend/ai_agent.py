@@ -31,24 +31,20 @@ GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
 if genai and GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    # Use Gemini 1.5 Flash for speed + Google Search Grounding
-    # Try to enable Google Search with compatible SDK version
+    # Use Gemini 2.0 Flash for speed (latest model)
+    # Model names: gemini-2.0-flash-exp, gemini-1.5-flash-latest
     try:
-        # New SDK format: use Tool with google_search
-        if hasattr(types, 'Tool') and hasattr(types.Tool, 'from_google_search_retrieval'):
-            google_search_tool = types.Tool.from_google_search_retrieval(
-                google_search_retrieval=types.GoogleSearchRetrieval()
-            )
-            model = genai.GenerativeModel('gemini-1.5-flash', tools=[google_search_tool])
-            logger.info("Gemini model with Google Search Grounding enabled")
-        else:
-            # Fallback: Try simpler format for older versions
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("Gemini model initialized without Google Search (SDK version incompatible)")
+        # Try Gemini 2.0 Flash first (latest and fastest)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        logger.info("Gemini 2.0 Flash model initialized")
     except Exception as e:
-        # If tool config fails, use model without tools
-        logger.warning(f"Google Search tool setup failed, using basic model: {e}")
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        try:
+            # Fallback to Gemini 1.5 Flash
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            logger.info("Gemini 1.5 Flash model initialized (fallback)")
+        except Exception as e2:
+            logger.error(f"Failed to initialize Gemini model: {e2}")
+            model = None
 else:
     model = None
 
@@ -474,7 +470,8 @@ def chat_with_artist(persona: dict, history: list, message: str, artist_context:
     history: list of {"role": "user"|"model", "content": "text"}
     artist_context: optional dict with factual data (top_songs, albums, news)
     """
-    if not genai:
+    if not genai or not model:
+        logger.error("AI service unavailable - genai or model not initialized")
         return "AI service unavailable."
 
     try:
