@@ -157,6 +157,25 @@ interface Profile {
   website?: string;
   followers_count?: number;
   following_count?: number;
+  artist_browse_id?: string;
+  member_type?: string;
+}
+
+interface ArtistSong {
+  videoId: string;
+  title: string;
+  artists?: Array<{ name: string; id?: string }>;
+  album?: { name: string; id?: string };
+  thumbnails?: Array<{ url: string }>;
+  duration?: string;
+}
+
+interface ArtistAlbum {
+  browseId?: string;
+  title: string;
+  type?: string;
+  year?: string;
+  thumbnails?: Array<{ url: string }>;
 }
 
 interface Playlist {
@@ -215,8 +234,9 @@ export default function ProfilePage() {
   const isOwnProfile = !paramUserId || paramUserId === user?.id;
   const targetUserId = isOwnProfile ? user?.id : paramUserId;
 
+  // activeTab will be set after profile loads for virtual members
   const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'discover' | 'private' | 'music'>(
-    isOwnProfile ? 'discover' : 'posts'
+    isOwnProfile ? 'discover' : 'music'
   );
   const [userSavedSongs, setUserSavedSongs] = useState<LikedTrack[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -227,6 +247,12 @@ export default function ProfilePage() {
   const [homeLoading, setHomeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [startingConversation, setStartingConversation] = useState(false);
+
+  // Artist music state (for virtual members)
+  const [artistSongs, setArtistSongs] = useState<ArtistSong[]>([]);
+  const [artistAlbums, setArtistAlbums] = useState<ArtistAlbum[]>([]);
+  const [artistMusicLoading, setArtistMusicLoading] = useState(false);
+  const [isVirtualMember, setIsVirtualMember] = useState(false);
 
   // Follow modal states
   const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -271,7 +297,31 @@ export default function ProfilePage() {
           .single();
 
         if (profileError) throw profileError;
-        setProfile(profileData as Profile);
+        const profileInfo = profileData as Profile;
+        setProfile(profileInfo);
+
+        // Check if virtual member (artist)
+        const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
+        setIsVirtualMember(isArtist);
+
+        // Fetch artist music for virtual members
+        if (isArtist && profileInfo.full_name) {
+          setArtistMusicLoading(true);
+          try {
+            const searchResponse = await fetch(
+              `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(profileInfo.full_name)}`
+            );
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              setArtistSongs(searchData.songs || []);
+              setArtistAlbums(searchData.albums || []);
+            }
+          } catch (searchErr) {
+            console.error('Error fetching artist music:', searchErr);
+          } finally {
+            setArtistMusicLoading(false);
+          }
+        }
 
         // 2. Fetch User's Posts (public feed posts)
         let postsQuery = supabase
@@ -1171,66 +1221,177 @@ export default function ProfilePage() {
           )}
         </div>
       ) : activeTab === 'music' ? (
-        // Other User's Saved Music Tab
+        // Artist Music Tab (for virtual members) or Saved Music Tab
         <div className="p-4">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-bold text-lg">{t('profile.savedMusic', 'Saved Music')}</h3>
-              <p className="text-xs text-gray-500">
-                {userSavedSongs.length} {t('profile.songs')}
-              </p>
-            </div>
-            {userSavedSongs.length > 0 && (
-              <button
-                onClick={() => {
-                  const tracks = userSavedSongs.map((s) => ({
-                    videoId: s.videoId,
-                    title: s.title,
-                    artist: s.artist,
-                    thumbnail: s.thumbnail,
-                    cover: s.cover,
-                  }));
-                  const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-                  startPlayback(shuffled, 0);
-                }}
-                className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
-              >
-                <Shuffle size={16} />
-                {t('profile.shuffle')}
-              </button>
-            )}
-          </div>
+          {isVirtualMember ? (
+            // Virtual Member: Show artist's music from search
+            <>
+              {artistMusicLoading ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Top Tracks */}
+                  {artistSongs.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-lg">{t('search.topTracks', 'Top Tracks')}</h3>
+                        <button
+                          onClick={() => {
+                            const tracks = artistSongs.map((s) => ({
+                              videoId: s.videoId,
+                              title: s.title,
+                              artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
+                              thumbnail: s.thumbnails?.[0]?.url,
+                            }));
+                            const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                            startPlayback(shuffled, 0);
+                          }}
+                          className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
+                        >
+                          <Shuffle size={16} />
+                          {t('profile.shuffle')}
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {artistSongs.slice(0, 10).map((song, index) => (
+                          <button
+                            type="button"
+                            key={song.videoId || index}
+                            onClick={() => {
+                              const tracks = artistSongs.map((s) => ({
+                                videoId: s.videoId,
+                                title: s.title,
+                                artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
+                                thumbnail: s.thumbnails?.[0]?.url,
+                              }));
+                              startPlayback(tracks, index);
+                            }}
+                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
+                          >
+                            <span className="w-6 text-center text-sm text-gray-400">
+                              {index + 1}
+                            </span>
+                            <img
+                              src={song.thumbnails?.[0]?.url || 'https://via.placeholder.com/40'}
+                              alt={song.title}
+                              className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{song.title}</div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {song.artists?.[0]?.name}
+                                {song.album?.name && ` • ${song.album.name}`}
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-400">{song.duration}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-          {/* Track List */}
-          <div className="space-y-1">
-            {userSavedSongs.length > 0 ? (
-              userSavedSongs.map((track, index) => (
-                <TrackItem
-                  key={track.playlistId || index}
-                  track={track}
-                  index={index}
-                  onPlay={(trackItem, idx) => {
-                    const tracks = userSavedSongs.map((s) => ({
-                      videoId: s.videoId,
-                      title: s.title,
-                      artist: s.artist,
-                      thumbnail: s.thumbnail,
-                      cover: s.cover,
-                    }));
-                    startPlayback(tracks, idx);
-                  }}
-                  isPlaying={isPlaying}
-                  isCurrentTrack={currentTrack?.videoId === track.videoId}
-                />
-              ))
-            ) : (
-              <div className="py-10 text-center text-gray-500">
-                <Music size={48} className="mx-auto mb-2 opacity-50" />
-                <p>{t('profile.noSavedMusic', 'No saved music yet')}</p>
+                  {/* Albums */}
+                  {artistAlbums.length > 0 && (
+                    <div>
+                      <h3 className="font-bold text-lg mb-3">
+                        {t('search.albumsAndSingles', 'Albums & Singles')}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {artistAlbums.slice(0, 6).map((album, index) => (
+                          <button
+                            type="button"
+                            key={album.browseId || index}
+                            onClick={() => album.browseId && fetchAndShowAlbum(album.browseId)}
+                            className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-left"
+                          >
+                            <img
+                              src={album.thumbnails?.[0]?.url || 'https://via.placeholder.com/60'}
+                              alt={album.title}
+                              className="w-16 h-16 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
+                            />
+                            <div className="flex-1 min-w-0 py-1">
+                              <div className="font-medium text-sm truncate">{album.title}</div>
+                              <div className="text-xs text-gray-500">
+                                {album.type || 'Album'} {album.year && `• ${album.year}`}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {artistSongs.length === 0 && artistAlbums.length === 0 && (
+                    <div className="py-10 text-center text-gray-500">
+                      <Music size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>{t('profile.noArtistMusic', 'No music found')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            // Regular User: Show saved music
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-bold text-lg">{t('profile.savedMusic', 'Saved Music')}</h3>
+                  <p className="text-xs text-gray-500">
+                    {userSavedSongs.length} {t('profile.songs')}
+                  </p>
+                </div>
+                {userSavedSongs.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const tracks = userSavedSongs.map((s) => ({
+                        videoId: s.videoId,
+                        title: s.title,
+                        artist: s.artist,
+                        thumbnail: s.thumbnail,
+                        cover: s.cover,
+                      }));
+                      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                      startPlayback(shuffled, 0);
+                    }}
+                    className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
+                  >
+                    <Shuffle size={16} />
+                    {t('profile.shuffle')}
+                  </button>
+                )}
               </div>
-            )}
-          </div>
+              <div className="space-y-1">
+                {userSavedSongs.length > 0 ? (
+                  userSavedSongs.map((track, index) => (
+                    <TrackItem
+                      key={track.playlistId || index}
+                      track={track}
+                      index={index}
+                      onPlay={(trackItem, idx) => {
+                        const tracks = userSavedSongs.map((s) => ({
+                          videoId: s.videoId,
+                          title: s.title,
+                          artist: s.artist,
+                          thumbnail: s.thumbnail,
+                          cover: s.cover,
+                        }));
+                        startPlayback(tracks, idx);
+                      }}
+                      isPlaying={isPlaying}
+                      isCurrentTrack={currentTrack?.videoId === track.videoId}
+                    />
+                  ))
+                ) : (
+                  <div className="py-10 text-center text-gray-500">
+                    <Music size={48} className="mx-auto mb-2 opacity-50" />
+                    <p>{t('profile.noSavedMusic', 'No saved music yet')}</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       ) : (
         // Private Tab
