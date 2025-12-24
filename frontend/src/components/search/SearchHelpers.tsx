@@ -716,3 +716,72 @@ export function ShowMoreButton({ showAll, remainingCount, onToggle }: ShowMoreBu
     </button>
   );
 }
+
+// User Profile List Item Component
+interface UserProfileItemProps {
+  readonly profile: UserProfile;
+  readonly onNavigate: (id: string) => void;
+  readonly followButton: React.ReactNode;
+  readonly defaultAvatar: string;
+}
+
+export function UserProfileItem({
+  profile,
+  onNavigate,
+  followButton,
+  defaultAvatar,
+}: UserProfileItemProps) {
+  return (
+    <button
+      className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer w-full text-left"
+      onClick={() => onNavigate(profile.id)}
+    >
+      <img
+        src={profile.avatar_url || defaultAvatar}
+        alt={profile.username}
+        className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-black dark:text-white truncate">{profile.username}</p>
+        {profile.full_name && <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>}
+      </div>
+      {followButton}
+    </button>
+  );
+}
+
+// User List Section Component
+interface UserListSectionProps {
+  readonly title: string;
+  readonly users: UserProfile[];
+  readonly onNavigate: (id: string) => void;
+  readonly renderFollowButton: (userId: string) => React.ReactNode;
+  readonly defaultAvatar: string;
+}
+
+export function UserListSection({
+  title,
+  users,
+  onNavigate,
+  renderFollowButton,
+  defaultAvatar,
+}: UserListSectionProps) {
+  if (users.length === 0) return null;
+
+  return (
+    <div>
+      <h3 className="text-base font-bold mb-3 text-black dark:text-white">{title}</h3>
+      <div className="space-y-2">
+        {users.map((profile) => (
+          <UserProfileItem
+            key={profile.id}
+            profile={profile}
+            onNavigate={onNavigate}
+            followButton={renderFollowButton(profile.id)}
+            defaultAvatar={defaultAvatar}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

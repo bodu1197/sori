@@ -37,6 +37,8 @@ import {
   SongListItem,
   AlbumCard,
   ShowMoreButton,
+  UserListSection,
+  UserProfileItem,
 } from '../components/search/SearchHelpers';
 
 const API_BASE_URL =
@@ -435,26 +437,13 @@ export default function SearchPage() {
             ) : hasUserResults ? (
               <div className="space-y-2">
                 {userResults.map((profile) => (
-                  <button
+                  <UserProfileItem
                     key={profile.id}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition cursor-pointer w-full text-left"
-                    onClick={() => navigate(`/profile/${profile.id}`)}
-                  >
-                    <img
-                      src={profile.avatar_url || DEFAULT_AVATAR}
-                      alt={profile.username}
-                      className="w-14 h-14 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-black dark:text-white truncate">
-                        {profile.username}
-                      </p>
-                      {profile.full_name && (
-                        <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
-                      )}
-                    </div>
-                    <FollowButton userId={profile.id} size="sm" />
-                  </button>
+                    profile={profile}
+                    onNavigate={(id) => navigate(`/profile/${id}`)}
+                    followButton={<FollowButton userId={profile.id} size="sm" />}
+                    defaultAvatar={DEFAULT_AVATAR}
+                  />
                 ))}
               </div>
             ) : suggestedLoading ? (
@@ -463,64 +452,20 @@ export default function SearchPage() {
               </div>
             ) : suggestedUsers.length > 0 || newUsers.length > 0 ? (
               <div className="space-y-6">
-                {suggestedUsers.length > 0 && (
-                  <div>
-                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                      {t('search.suggestedForYou')}
-                    </h3>
-                    <div className="space-y-2">
-                      {suggestedUsers.map((profile) => (
-                        <button
-                          key={profile.id}
-                          onClick={() => navigate(`/profile/${profile.id}`)}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 w-full text-left"
-                        >
-                          <img
-                            src={profile.avatar_url || DEFAULT_AVATAR}
-                            alt={profile.username}
-                            className="w-14 h-14 rounded-full object-cover bg-gray-200"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-black dark:text-white truncate">
-                              {profile.username}
-                            </p>
-                            <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
-                          </div>
-                          <FollowButton userId={profile.id} size="sm" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {newUsers.length > 0 && (
-                  <div>
-                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                      {t('search.newToSori')}
-                    </h3>
-                    <div className="space-y-2">
-                      {newUsers.map((profile) => (
-                        <button
-                          key={profile.id}
-                          onClick={() => navigate(`/profile/${profile.id}`)}
-                          className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 w-full text-left"
-                        >
-                          <img
-                            src={profile.avatar_url || DEFAULT_AVATAR}
-                            alt={profile.username}
-                            className="w-14 h-14 rounded-full object-cover bg-gray-200"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-black dark:text-white truncate">
-                              {profile.username}
-                            </p>
-                            <p className="text-sm text-gray-500 truncate">{profile.full_name}</p>
-                          </div>
-                          <FollowButton userId={profile.id} size="sm" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <UserListSection
+                  title={t('search.suggestedForYou')}
+                  users={suggestedUsers}
+                  onNavigate={(id) => navigate(`/profile/${id}`)}
+                  renderFollowButton={(id) => <FollowButton userId={id} size="sm" />}
+                  defaultAvatar={DEFAULT_AVATAR}
+                />
+                <UserListSection
+                  title={t('search.newToSori')}
+                  users={newUsers}
+                  onNavigate={(id) => navigate(`/profile/${id}`)}
+                  renderFollowButton={(id) => <FollowButton userId={id} size="sm" />}
+                  defaultAvatar={DEFAULT_AVATAR}
+                />
               </div>
             ) : (
               <div className="text-center py-16 text-gray-500">

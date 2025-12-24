@@ -3728,6 +3728,46 @@ def _create_artist_post(supabase, artist: dict, caption: str, artist_language: s
     supabase.table("posts").insert(new_post).execute()
 
 
+async def _process_single_artist_activity(supabase, artist: dict, results: dict) -> bool:
+    """Process activity for a single artist. Returns True if a post was created."""
+    persona = artist.get("ai_persona") or {}
+    artist_name = artist.get("full_name") or artist.get("username")
+    browse_id = artist.get("artist_browse_id")
+
+    context = await run_in_thread(gather_artist_context, artist_name)
+
+    if not context.get("can_post", True):
+        results["skipped_artists"].append({
+            "artist": artist_name, "reason": context.get("skip_reason", "Unknown"),
+            "status": context.get("status")
+        })
+        return False
+
+    artist_language = _get_artist_language(supabase, browse_id)
+    cover_url, video_id, song_title = _get_real_media_content(
+        supabase, browse_id, artist_name, artist.get("avatar_url")
+    )
+
+    if song_title and video_id:
+        _update_context_with_track(context, song_title, video_id)
+
+    if context.get("suggested_topic", "fan_thanks") == "fan_thanks" and not video_id:
+        _create_greeting_story(supabase, artist["id"], persona, artist_language, cover_url, artist_name)
+        results["stories_created"] += 1
+        return False
+
+    post_data = await run_in_thread(generate_contextual_post, artist_name, persona, artist_language, context)
+
+    if post_data and post_data.get("caption"):
+        _create_artist_post(supabase, artist, post_data["caption"], artist_language,
+                            cover_url, video_id, post_data.get("type", "fan"))
+        results["languages_used"].append(artist_language)
+        results["context_topics"].append(post_data.get("context_used", "fan_thanks"))
+        return True
+
+    return False
+
+
 @app.post("/api/cron/artist-activity")
 async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
     """스마트 포스팅 크론 잡 - AI가 아티스트 상황을 분석한 후 포스팅"""
@@ -3755,42 +3795,10 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                 break
 
             try:
-                persona = artist.get("ai_persona") or {}
-                artist_name = artist.get("full_name") or artist.get("username")
-                browse_id = artist.get("artist_browse_id")
-
-                context = await run_in_thread(gather_artist_context, artist_name)
-
-                if not context.get("can_post", True):
-                    results["skipped_artists"].append({
-                        "artist": artist_name, "reason": context.get("skip_reason", "Unknown"),
-                        "status": context.get("status")
-                    })
-                    continue
-
-                artist_language = _get_artist_language(supabase_client, browse_id)
-                cover_url, video_id, song_title = _get_real_media_content(
-                    supabase_client, browse_id, artist_name, artist.get("avatar_url")
-                )
-
-                if song_title and video_id:
-                    _update_context_with_track(context, song_title, video_id)
-
-                if context.get("suggested_topic", "fan_thanks") == "fan_thanks" and not video_id:
-                    _create_greeting_story(supabase_client, artist["id"], persona, artist_language, cover_url, artist_name)
-                    results["stories_created"] += 1
-                    continue
-
-                post_data = await run_in_thread(generate_contextual_post, artist_name, persona, artist_language, context)
-
-                if post_data and post_data.get("caption"):
-                    _create_artist_post(supabase_client, artist, post_data["caption"], artist_language,
-                                        cover_url, video_id, post_data.get("type", "fan"))
+                created = await _process_single_artist_activity(supabase_client, artist, results)
+                if created:
                     posts_created += 1
                     results["posts_created"] = posts_created
-                    results["languages_used"].append(artist_language)
-                    results["context_topics"].append(post_data.get("context_used", "fan_thanks"))
-
             except Exception as e:
                 results["errors"].append(f"Post error for {artist.get('full_name')}: {str(e)}")
 
@@ -4233,38 +4241,37 @@ async def create_virtual_members_cron(request: Request):
 # =============================================================================
 
 
+def _extract_browse_id_if_valid(related: dict, existing_ids: set, new_artist_ids: list) -> str | None:
+    """Extract browse_id from related artist if valid and not a duplicate."""
+    if not isinstance(related, dict):
+        return None
+    browse_id = related.get("browseId")
+    if not browse_id or browse_id in existing_ids or browse_id in new_artist_ids:
+        return None
+    return browse_id
+
+
 def _find_new_related_artists(
     artists_with_related: list, existing_ids: set, related_limit: int, max_discovery: int = 50
 ):
     """Helper to find new related artists from existing artist data."""
     new_artist_ids = []
-    discovered_count = 0
     skipped_count = 0
-    
+
     for artist in artists_with_related:
         related_list = artist.get("related_artists_json") or []
         if not isinstance(related_list, list):
             continue
 
         for related in related_list[:related_limit]:
-            if not isinstance(related, dict):
-                continue
-
-            browse_id = related.get("browseId")
-            if not browse_id or browse_id in existing_ids:
+            browse_id = _extract_browse_id_if_valid(related, existing_ids, new_artist_ids)
+            if browse_id:
+                new_artist_ids.append(browse_id)
+                if len(new_artist_ids) >= max_discovery:
+                    return new_artist_ids, skipped_count
+            else:
                 skipped_count += 1
-                continue
 
-            # Skip if already added in this batch
-            if browse_id in new_artist_ids:
-                continue
-
-            new_artist_ids.append(browse_id)
-            discovered_count += 1
-
-            if discovered_count >= max_discovery:
-                return new_artist_ids, skipped_count
-                
     return new_artist_ids, skipped_count
 
 
@@ -4491,18 +4498,41 @@ async def migrate_artist_languages(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _get_or_create_persona(recipient_data: dict) -> dict:
+    """Get existing persona or create a default one for an artist."""
+    artist_name = recipient_data.get("full_name") or recipient_data.get("username")
+    persona = recipient_data.get("ai_persona") or {}
+    if not persona:
+        persona = {
+            "system_prompt": f"You are {artist_name}, a music artist chatting with a fan. Be friendly, warm, and authentic. Keep responses short (1-2 sentences).",
+            "tone": "friendly, warm, casual",
+            "greeting": "Hey! Thanks for reaching out! 💕"
+        }
+    return persona
+
+
+def _fetch_conversation_history(supabase, conversation_id: str, recipient_id: str) -> list:
+    """Fetch recent conversation history formatted for AI."""
+    try:
+        history_result = supabase.table("messages").select(
+            "sender_id, content"
+        ).eq("conversation_id", conversation_id).order(
+            "created_at", desc=False
+        ).limit(10).execute()
+
+        if history_result.data:
+            return [
+                {"role": "model" if msg["sender_id"] == recipient_id else "user", "content": msg["content"]}
+                for msg in history_result.data
+            ]
+    except Exception as hist_error:
+        logger.warning(f"Could not fetch history: {hist_error}")
+    return []
+
+
 @app.post("/api/messages/auto-reply")
 async def auto_reply_to_virtual_member(request: Request):
-    """
-    REACTIVE AI Response: Called when a user sends a message to a virtual member.
-    The AI responds ONLY when the user initiates the conversation.
-
-    Flow:
-    1. User sends message to virtual member (artist)
-    2. Frontend calls this endpoint with conversation_id and the user's message
-    3. AI generates a response based on artist persona
-    4. Response is inserted into the conversation
-    """
+    """REACTIVE AI Response: Called when a user sends a message to a virtual member."""
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
@@ -4510,12 +4540,11 @@ async def auto_reply_to_virtual_member(request: Request):
         body = await request.json()
         conversation_id = body.get("conversationId")
         user_message = body.get("userMessage")
-        recipient_id = body.get("recipientId")  # The virtual member's user ID
+        recipient_id = body.get("recipientId")
 
         if not conversation_id or not user_message or not recipient_id:
             raise HTTPException(status_code=400, detail="conversationId, userMessage, and recipientId required")
 
-        # 1. Check if recipient is a virtual member (artist)
         recipient = supabase_client.table("profiles").select(
             "id, username, full_name, ai_persona, member_type, artist_browse_id"
         ).eq("id", recipient_id).single().execute()
@@ -4524,55 +4553,23 @@ async def auto_reply_to_virtual_member(request: Request):
             raise HTTPException(status_code=404, detail="Recipient not found")
 
         if recipient.data.get("member_type") != "artist":
-            # Not a virtual member, no auto-reply needed
             return {"status": "skipped", "reason": "Recipient is not a virtual member"}
 
-        # 2. Get artist info for AI response
-        artist_name = recipient.data.get("full_name") or recipient.data.get("username")
-        persona = recipient.data.get("ai_persona") or {}
+        persona = _get_or_create_persona(recipient.data)
+        history = _fetch_conversation_history(supabase_client, conversation_id, recipient_id)
 
-        # If no persona exists, create a basic one
-        if not persona:
-            persona = {
-                "system_prompt": f"You are {artist_name}, a music artist chatting with a fan. Be friendly, warm, and authentic. Keep responses short (1-2 sentences).",
-                "tone": "friendly, warm, casual",
-                "greeting": f"Hey! Thanks for reaching out! 💕"
-            }
-
-        # 3. Get recent conversation history for context
-        history = []
-        try:
-            history_result = supabase_client.table("messages").select(
-                "sender_id, content"
-            ).eq("conversation_id", conversation_id).order(
-                "created_at", desc=False
-            ).limit(10).execute()
-
-            if history_result.data:
-                for msg in history_result.data:
-                    role = "model" if msg["sender_id"] == recipient_id else "user"
-                    history.append({"role": role, "content": msg["content"]})
-        except Exception as hist_error:
-            logger.warning(f"Could not fetch history: {hist_error}")
-
-        # 4. Generate AI response using chat function
-        response_text = await run_in_thread(
-            chat_with_artist,
-            persona,
-            history,
-            user_message
-        )
+        response_text = await run_in_thread(chat_with_artist, persona, history, user_message)
 
         if not response_text or response_text == "...":
             return {"status": "error", "message": "Failed to generate AI response"}
 
-        # 4. Insert AI response into conversation
         message_result = supabase_client.table("messages").insert({
             "conversation_id": conversation_id,
-            "sender_id": recipient_id,  # The virtual member is the sender
+            "sender_id": recipient_id,
             "content": response_text
         }).execute()
 
+        artist_name = recipient.data.get("full_name") or recipient.data.get("username")
         logger.info(f"AI reply from {artist_name}: {response_text[:50]}...")
 
         return {
@@ -4972,61 +4969,55 @@ async def check_artist_new_releases(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def _check_single_artist_releases(artist: dict) -> bool:
+    """Check releases for a single artist. Returns True if successful."""
+    browse_id = artist.get("browse_id")
+    if not browse_id:
+        return False
+
+    try:
+        ytmusic = get_ytmusic("US")
+        artist_info = ytmusic.get_artist(browse_id)
+        if artist_info:
+            logger.info(f"Checked releases for {artist.get('name')}")
+            return True
+    except Exception as e:
+        logger.warning(f"Failed to check releases for {browse_id}: {e}")
+    return False
+
+
+async def _process_all_artist_releases(supabase):
+    """Process all artists for release checks."""
+    try:
+        artists_result = supabase.table("music_artists").select(
+            "browse_id, name, primary_language"
+        ).not_.is_("browse_id", "null").limit(50).execute()
+
+        if not artists_result.data:
+            logger.info("No artists to check for new releases")
+            return
+
+        for artist in artists_result.data:
+            await _check_single_artist_releases(artist)
+            await asyncio.sleep(0.5)
+
+    except Exception as e:
+        logger.error(f"Background release check error: {e}")
+
+
 @app.post("/api/cron/check-all-artist-releases")
 async def check_all_artist_releases(request: Request, background_tasks: BackgroundTasks):
-    """
-    Cron job: Check all followed artists for new releases.
-    Runs in background and creates posts for new releases.
-    """
+    """Cron job: Check all followed artists for new releases."""
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
-    # Verify admin access
     body = await request.json() if request.headers.get("content-type") == "application/json" else {}
     secret = body.get("secret") or request.query_params.get("secret")
 
     if secret != os.getenv("CRON_SECRET", "dev-secret"):
         raise HTTPException(status_code=403, detail="Invalid secret")
 
-    async def process_releases():
-        try:
-            # Get all virtual member artists with browse_id
-            artists_result = supabase_client.table("music_artists").select(
-                "browse_id, name, primary_language"
-            ).not_.is_("browse_id", "null").limit(50).execute()
-
-            if not artists_result.data:
-                logger.info("No artists to check for new releases")
-                return
-
-            for artist in artists_result.data:
-                browse_id = artist.get("browse_id")
-                if not browse_id:
-                    continue
-
-                try:
-                    # Check for new releases
-                    ytmusic = get_ytmusic("US")
-                    artist_info = ytmusic.get_artist(browse_id)
-
-                    if not artist_info:
-                        continue
-
-                    # Similar logic as above endpoint...
-                    # (Simplified for background task)
-                    logger.info(f"Checked releases for {artist.get('name')}")
-
-                except Exception as e:
-                    logger.warning(f"Failed to check releases for {browse_id}: {e}")
-                    continue
-
-                # Small delay between artists
-                await asyncio.sleep(0.5)
-
-        except Exception as e:
-            logger.error(f"Background release check error: {e}")
-
-    background_tasks.add_task(process_releases)
+    background_tasks.add_task(_process_all_artist_releases, supabase_client)
     return {"status": "started", "message": "Release check started in background"}
 
 
