@@ -12,20 +12,20 @@
       "schedule": "0 */2 * * *"
     },
     {
+      "path": "/api/cron/expand-artists",
+      "schedule": "0,10,20,30,40,50 * * * *"
+    },
+    {
       "path": "/api/cron/collect-charts",
-      "schedule": "20,50 * * * *"
+      "schedule": "3,13,23,33,43,53 * * * *"
     },
     {
       "path": "/api/cron/create-virtual-members",
-      "schedule": "0,30 * * * *"
+      "schedule": "6,16,26,36,46,56 * * * *"
     },
     {
       "path": "/api/cron/update-artists",
       "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/expand-artists",
-      "schedule": "*/10 * * * *"
     }
   ]
 }
