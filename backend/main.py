@@ -2138,43 +2138,45 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _convert_album_item(item: dict, item_type: str) -> dict | None:
+    """Convert a raw album item to standardized format."""
+    if not isinstance(item, dict) or not item.get("browseId"):
+        return None
+    return {
+        "browseId": item.get("browseId"),
+        "title": item.get("title") or "",
+        "type": item.get("type") or item_type,
+        "year": item.get("year") or "",
+        "thumbnails": item.get("thumbnails") or []
+    }
+
+
+def _convert_album_list(items: list, item_type: str) -> list:
+    """Convert a list of raw album items to standardized format."""
+    result = []
+    for item in items:
+        converted = _convert_album_item(item, item_type)
+        if converted:
+            result.append(converted)
+    return result
+
+
 async def _fetch_full_section_items(ytmusic, section: dict, item_type: str) -> list:
     """Fetch all items from a section (albums/singles) asynchronously."""
-    items = []
     if not isinstance(section, dict):
-        return items
-        
+        return []
+
     browse_id = section.get("browseId")
     params = section.get("params")
-    
-    # Try fetch full list
+
     if browse_id and params:
         try:
             full_list = await run_in_thread(ytmusic.get_artist_albums, browse_id, params)
-            for item in (full_list or []):
-                 if isinstance(item, dict) and item.get("browseId"):
-                    items.append({
-                        "browseId": item.get("browseId"),
-                        "title": item.get("title") or "",
-                        "type": item.get("type") or item_type,
-                        "year": item.get("year") or "",
-                        "thumbnails": item.get("thumbnails") or []
-                    })
-            return items
+            return _convert_album_list(full_list or [], item_type)
         except Exception as e:
             logger.warning(f"Failed to fetch {item_type}s: {e}")
-            
-    # Fallback
-    for item in section.get("results", []):
-        if isinstance(item, dict) and item.get("browseId"):
-            items.append({
-                "browseId": item.get("browseId"),
-                "title": item.get("title") or "",
-                "type": item.get("type") or item_type,
-                "year": item.get("year") or "",
-                "thumbnails": item.get("thumbnails") or []
-            })
-    return items
+
+    return _convert_album_list(section.get("results", []), item_type)
 
 
 @app.get("/api/artist/{artist_id}/albums")
@@ -3283,55 +3285,53 @@ async def provision_artist_agent(request: Request):
         logger.error(f"Provision error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+def _build_fallback_news(albums: list) -> list:
+    """Build fallback news from latest album if no real news found."""
+    if not albums:
+        return []
+    latest_album = albums[0]
+    return [{
+        "title": f"Latest Music Release: {latest_album.get('title')}",
+        "snippet": f"Check out my latest release '{latest_album.get('title')}' from {latest_album.get('year')}!"
+    }]
+
+
+async def _gather_chat_context(browse_id: str) -> dict | None:
+    """Gather artist context for chat (songs, albums, news)."""
+    try:
+        full_data = await run_in_thread(db_get_full_artist_data, browse_id)
+        if not full_data:
+            return None
+
+        artist_name = full_data.get("name", "the artist")
+        news_items = await run_in_thread(search_artist_news, artist_name)
+
+        context = {
+            "top_songs": full_data.get("topSongs", []),
+            "albums": full_data.get("albums", []),
+            "news": news_items if news_items else _build_fallback_news(full_data.get("albums", []))
+        }
+        return context
+    except Exception as context_error:
+        logger.warning(f"Failed to fetch artist context for chat: {context_error}")
+        return None
+
+
 @app.post("/api/chat/artist")
 async def chat_artist_endpoint(request: Request):
-    """
-    Chat with an AI Artist Persona
-    """
+    """Chat with an AI Artist Persona"""
     try:
         body = await request.json()
         persona = body.get("persona")
-        history = body.get("history", []) # List of {role: user/model, content: str}
+        history = body.get("history", [])
         message = body.get("message")
         browse_id = body.get("browseId")
-        
+
         if not persona or not message:
             raise HTTPException(status_code=400, detail="Missing persona or message")
-            
-        # Context gathering (Factual Data)
-        artist_context = None
-        if browse_id:
-            try:
-                # Fetch full artist data from DB (songs, albums)
-                full_data = await run_in_thread(db_get_full_artist_data, browse_id)
-                
-                # Fetch REAL-TIME news (Search Grounding)
-                # Only if message implies a question about schedule/news/updates to save cost/latency,
-                # BUT user complained about accuracy, so we fetch it to be safe or maybe a quick check.
-                # Let's fetch it. It might add 1-2s latency but ensures accuracy.
-                # Use artist name from persona or DB
-                artist_name_for_search = full_data.get("name") if full_data else "the artist"
-                news_items = await run_in_thread(search_artist_news, artist_name_for_search)
-                
-                if full_data:
-                    artist_context = {
-                        "top_songs": full_data.get("topSongs", []),
-                        "albums": full_data.get("albums", []),
-                        "news": news_items
-                    }
-                    
-                    # Fallback: If no real news found, try latest album as news
-                    if not news_items:
-                        albums = full_data.get("albums", [])
-                        if albums and len(albums) > 0:
-                            latest_album = albums[0]
-                            artist_context["news"] = [{
-                                "title": f"Latest Music Release: {latest_album.get('title')}",
-                                "snippet": f"Check out my latest release '{latest_album.get('title')}' from {latest_album.get('year')}!"
-                            }]
-            except Exception as context_error:
-                logger.warning(f"Failed to fetch artist context for chat: {context_error}")
 
+        artist_context = await _gather_chat_context(browse_id) if browse_id else None
         reply = await run_in_thread(chat_with_artist, persona, history, message, artist_context)
         return {"reply": reply}
     except Exception as e:
@@ -3627,150 +3627,116 @@ def _create_greeting_story(supabase, artist_id, persona, artist_language, cover_
         return False
 
 
+def _get_artist_language(supabase, browse_id: str) -> str:
+    """Get artist's primary language from database."""
+    if not browse_id:
+        return "en"
+    try:
+        result = supabase.table("music_artists").select(
+            "primary_language"
+        ).eq("browse_id", browse_id).limit(1).execute()
+        if result.data:
+            return result.data[0].get("primary_language") or "en"
+    except Exception:
+        pass
+    return "en"
+
+
+def _update_context_with_track(context: dict, song_title: str, video_id: str) -> None:
+    """Update context with selected track info."""
+    context["selected_track"] = {"title": song_title, "video_id": video_id}
+    if context.get("suggested_topic") == "fan_thanks":
+        context["suggested_topic"] = "music_recommendation"
+        context["post_context"] = f"Recommend your song '{song_title}' to fans. Share why you love this track."
+
+
+def _create_artist_post(supabase, artist: dict, caption: str, artist_language: str,
+                        cover_url: str, video_id: str, post_type: str) -> None:
+    """Create a new artist post in the database."""
+    new_post = {
+        "user_id": artist["id"],
+        "caption": caption,
+        "language": artist_language,
+        "image_url": cover_url,
+        "video_id": video_id,
+        "type": post_type,
+        "likes_count": 0,
+        "artist": artist.get("full_name") or artist.get("username"),
+        "is_public": True,
+        "like_count": 0,
+        "comment_count": 0,
+        "repost_count": 0
+    }
+    supabase.table("posts").insert(new_post).execute()
+
+
 @app.post("/api/cron/artist-activity")
 async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
-    """
-    스마트 포스팅 크론 잡 - AI가 아티스트 상황을 분석한 후 포스팅
-
-    포스팅 전 AI가 다음을 분석:
-    1. 고인/은퇴/해체 여부 → 해당시 포스팅 스킵
-    2. 최근 활동 상황 → 맞춤 콘텐츠 생성
-    3. 신곡/투어 정보 → 실제 정보 기반 포스팅
-
-    Artists post in their native language.
-    """
+    """스마트 포스팅 크론 잡 - AI가 아티스트 상황을 분석한 후 포스팅"""
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
-        # Configuration - 콜드 스타트: 50명/회, 하루 600 포스팅
         MAX_POSTS_PER_RUN = 50
+        results = {"posts_created": 0, "stories_created": 0, "skipped_artists": [],
+                   "languages_used": [], "context_topics": [], "errors": []}
 
-        results = {
-            "posts_created": 0,
-            "stories_created": 0,  # Greetings moved to stories
-            "skipped_artists": [],
-            "languages_used": [],
-            "context_topics": [],
-            "errors": []
-        }
-
-        # 1. Get random virtual members (artists with profiles)
         artists_result = supabase_client.table("profiles").select(
             "id, username, full_name, avatar_url, artist_browse_id, ai_persona"
         ).eq("member_type", "artist").execute()
 
-        if not artists_result.data or len(artists_result.data) == 0:
+        if not artists_result.data:
             return {"status": "no_artists", "message": "No virtual members found"}
 
         artists = artists_result.data
         random.shuffle(artists)
-
         posts_created = 0
-        artist_index = 0
 
-        # 2. Process artists until we have enough posts
-        while posts_created < MAX_POSTS_PER_RUN and artist_index < len(artists):
-            artist = artists[artist_index]
-            artist_index += 1
+        for artist in artists:
+            if posts_created >= MAX_POSTS_PER_RUN:
+                break
 
             try:
                 persona = artist.get("ai_persona") or {}
                 artist_name = artist.get("full_name") or artist.get("username")
                 browse_id = artist.get("artist_browse_id")
 
-                # ========== STEP 1: GATHER ARTIST CONTEXT ==========
-                # AI가 포스팅 전 아티스트 상황을 종합적으로 분석
                 context = await run_in_thread(gather_artist_context, artist_name)
-                logger.info(f"[CONTEXT] {artist_name}: status={context.get('status')}, can_post={context.get('can_post')}, topic={context.get('suggested_topic')}")
 
-                # 고인/은퇴/해체 아티스트는 포스팅 스킵
                 if not context.get("can_post", True):
-                    skip_reason = context.get("skip_reason", "Unknown")
                     results["skipped_artists"].append({
-                        "artist": artist_name,
-                        "reason": skip_reason,
+                        "artist": artist_name, "reason": context.get("skip_reason", "Unknown"),
                         "status": context.get("status")
                     })
-                    logger.warning(f"[SKIP] {artist_name}: {skip_reason}")
-                    continue  # 다음 아티스트로
+                    continue
 
-                # ========== STEP 2: GET ARTIST LANGUAGE ==========
-                artist_language = "en"
-                if browse_id:
-                    music_artist = supabase_client.table("music_artists").select(
-                        "primary_language"
-                    ).eq("browse_id", browse_id).limit(1).execute()
-                    if music_artist.data:
-                        artist_language = music_artist.data[0].get("primary_language") or "en"
-
-                # ========== STEP 3: GET IMAGE & VIDEO FROM REAL DATA ==========
+                artist_language = _get_artist_language(supabase_client, browse_id)
                 cover_url, video_id, song_title = _get_real_media_content(
-                     supabase_client, browse_id, artist_name, artist.get("avatar_url")
+                    supabase_client, browse_id, artist_name, artist.get("avatar_url")
                 )
 
-                # ========== STEP 4: GENERATE CONTEXTUAL POST ==========
                 if song_title and video_id:
-                    context["selected_track"] = {
-                        "title": song_title,
-                        "video_id": video_id
-                    }
-                    if context.get("suggested_topic") == "fan_thanks":
-                        context["suggested_topic"] = "music_recommendation"
-                        context["post_context"] = f"Recommend your song '{song_title}' to fans. Share why you love this track."
+                    _update_context_with_track(context, song_title, video_id)
 
-                # ========== QUALITY CONTROL: fan_thanks → Story only ==========
-                suggested_topic = context.get("suggested_topic", "fan_thanks")
-                if suggested_topic == "fan_thanks" and not video_id:
-                     _create_greeting_story(supabase_client, artist["id"], persona, artist_language, cover_url, artist_name)
-                     results["stories_created"] += 1
-                     logger.info(f"[STORY] {artist_name}: Greeting → Story (not post)")
-                     continue
+                if context.get("suggested_topic", "fan_thanks") == "fan_thanks" and not video_id:
+                    _create_greeting_story(supabase_client, artist["id"], persona, artist_language, cover_url, artist_name)
+                    results["stories_created"] += 1
+                    continue
 
-                post_data = await run_in_thread(
-                    generate_contextual_post,
-                    artist_name,
-                    persona,
-                    artist_language,
-                    context
-                )
+                post_data = await run_in_thread(generate_contextual_post, artist_name, persona, artist_language, context)
 
                 if post_data and post_data.get("caption"):
-                    post_type = post_data.get("type", "fan")
-                    caption = post_data["caption"]
-                    context_topic = post_data.get("context_used", "fan_thanks")
-
-                    # Insert post with REAL image AND YouTube video_id
-                    new_post = {
-                        "user_id": artist["id"],
-                        "caption": caption,
-                        "language": artist_language,
-                        "image_url": cover_url,
-                        "video_id": video_id,  # YouTube video ID for iframe embed
-                        "type": post_type,  # Use song title if available
-                        "likes_count": 0,
-                        "artist": artist_name,
-                        "is_public": True,
-                        "like_count": 0,
-                        "comment_count": 0,
-                        "repost_count": 0
-                    }
-
-                    supabase_client.table("posts").insert(new_post).execute()
+                    _create_artist_post(supabase_client, artist, post_data["caption"], artist_language,
+                                        cover_url, video_id, post_data.get("type", "fan"))
                     posts_created += 1
                     results["posts_created"] = posts_created
                     results["languages_used"].append(artist_language)
-                    results["context_topics"].append(context_topic)
-                    logger.info(f"[POST] {artist_name} ({artist_language}, topic={context_topic}): {caption[:50]}...")
+                    results["context_topics"].append(post_data.get("context_used", "fan_thanks"))
 
             except Exception as e:
                 results["errors"].append(f"Post error for {artist.get('full_name')}: {str(e)}")
-                logger.error(f"Post creation error: {e}")
 
-        return {
-            "status": "success",
-            "results": results
-        }
+        return {"status": "success", "results": results}
 
     except Exception as e:
         logger.error(f"Artist activity cron error: {e}")
@@ -3809,6 +3775,74 @@ CHART_COUNTRIES = [
 ]
 
 
+def _is_artist_in_db(browse_id: str) -> bool:
+    """Check if artist already exists in database."""
+    existing = supabase_client.table("music_artists").select(
+        "browse_id"
+    ).eq("browse_id", browse_id).limit(1).execute()
+    return bool(existing.data and len(existing.data) > 0)
+
+
+async def _process_chart_artist(
+    ytmusic, artist: dict, all_artist_ids: set, results: dict,
+    background_tasks, use_background: bool = True
+) -> bool:
+    """Process a single artist from chart data. Returns True if saved."""
+    browse_id = artist.get("browseId")
+    artist_name = artist.get("title", "Unknown")
+
+    if not browse_id:
+        return False
+
+    results["artists_found"] += 1
+
+    if browse_id in all_artist_ids:
+        results["artists_skipped"] += 1
+        return False
+    all_artist_ids.add(browse_id)
+
+    if _is_artist_in_db(browse_id):
+        results["artists_skipped"] += 1
+        return False
+
+    try:
+        artist_info = ytmusic.get_artist(browse_id)
+        if not artist_info:
+            return False
+
+        if use_background and background_tasks:
+            background_tasks.add_task(save_full_artist_data_background, browse_id, artist_info, "US")
+        else:
+            save_full_artist_data_background(browse_id, artist_info, "US")
+
+        results["artists_saved"] += 1
+        await asyncio.sleep(0.3 if not use_background else 0.5)
+        return True
+    except Exception as e:
+        results["errors"].append(f"{artist_name}: {str(e)}")
+        return False
+
+
+async def _process_country_charts(
+    country: str, artist_limit: int, all_artist_ids: set,
+    results: dict, background_tasks, use_background: bool = True
+) -> None:
+    """Process chart data for a single country."""
+    ytmusic = get_ytmusic(country)
+    charts = ytmusic.get_charts(country=country)
+
+    if not charts or "artists" not in charts:
+        return
+
+    artists = charts.get("artists", [])[:artist_limit]
+    results["countries_processed"] = results.get("countries_processed", 0) + 1
+
+    for artist in artists:
+        await _process_chart_artist(
+            ytmusic, artist, all_artist_ids, results, background_tasks, use_background
+        )
+
+
 @app.post("/api/cron/collect-chart-artists")
 async def collect_chart_artists(request: Request, background_tasks: BackgroundTasks):
     """
@@ -3816,11 +3850,6 @@ async def collect_chart_artists(request: Request, background_tasks: BackgroundTa
 
     60개국 × 약 20명(Top Artists) = 약 1,200명
     중복 제거 후 약 500~800명의 유니크 아티스트
-
-    호출 방법:
-    - POST /api/cron/collect-chart-artists
-    - body: {"countries": ["KR", "US"]} (선택, 기본값은 모든 국가)
-    - body: {"countries": ["KR"], "limit": 10} (국가당 수집할 아티스트 수)
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
@@ -3832,95 +3861,26 @@ async def collect_chart_artists(request: Request, background_tasks: BackgroundTa
         except (json.JSONDecodeError, ValueError):
             pass
 
-        # 수집할 국가 목록 (기본: 전체)
         countries = body.get("countries", CHART_COUNTRIES)
-        # 국가당 수집할 아티스트 수 (기본: 50명)
         artist_limit = body.get("limit", 50)
-        # 국가 간 딜레이 (초)
         delay_seconds = body.get("delay", 2)
 
-        results = {
-            "countries_processed": 0,
-            "artists_found": 0,
-            "artists_saved": 0,
-            "artists_skipped": 0,
-            "errors": []
-        }
-
-        all_artist_ids = set()  # 중복 체크용
+        results = {"countries_processed": 0, "artists_found": 0,
+                   "artists_saved": 0, "artists_skipped": 0, "errors": []}
+        all_artist_ids = set()
 
         for country in countries:
             try:
                 logger.info(f"[CHART] Processing country: {country}")
-
-                # 1. 차트 데이터 가져오기
-                ytmusic = get_ytmusic(country)
-                charts = ytmusic.get_charts(country=country)
-
-                if not charts or "artists" not in charts:
-                    logger.warning(f"No artists in {country} charts")
-                    continue
-
-                artists = charts.get("artists", [])[:artist_limit]
-                results["countries_processed"] += 1
-
-                # 2. 각 아티스트 처리
-                for artist in artists:
-                    browse_id = artist.get("browseId")
-                    artist_name = artist.get("title", "Unknown")
-
-                    if not browse_id:
-                        continue
-
-                    results["artists_found"] += 1
-
-                    # 중복 체크
-                    if browse_id in all_artist_ids:
-                        results["artists_skipped"] += 1
-                        continue
-                    all_artist_ids.add(browse_id)
-
-                    # DB에 이미 존재하는지 체크
-                    existing = supabase_client.table("music_artists").select(
-                        "browse_id"
-                    ).eq("browse_id", browse_id).limit(1).execute()
-
-                    if existing.data and len(existing.data) > 0:
-                        results["artists_skipped"] += 1
-                        logger.info(f"[SKIP] Already exists: {artist_name}")
-                        continue
-
-                    # 3. 아티스트 상세 정보 가져오기 & 저장
-                    try:
-                        artist_info = ytmusic.get_artist(browse_id)
-                        if artist_info:
-                            # 백그라운드로 저장 (앨범, 트랙 포함)
-                            background_tasks.add_task(
-                                save_full_artist_data_background,
-                                browse_id,
-                                artist_info,
-                                country
-                            )
-                            results["artists_saved"] += 1
-                            logger.info(f"[SAVE] {artist_name} ({country})")
-
-                            # Rate limiting: 아티스트마다 0.5초 대기
-                            await asyncio.sleep(0.5)
-                    except Exception as e:
-                        logger.error(f"Error fetching artist {artist_name}: {e}")
-                        results["errors"].append(f"{artist_name}: {str(e)}")
-
-                # 국가 간 딜레이
+                await _process_country_charts(
+                    country, artist_limit, all_artist_ids, results, background_tasks, True
+                )
                 await asyncio.sleep(delay_seconds)
-
             except Exception as e:
                 logger.error(f"Error processing country {country}: {e}")
                 results["errors"].append(f"{country}: {str(e)}")
 
-        return {
-            "status": "success",
-            "results": results
-        }
+        return {"status": "success", "results": results}
 
     except Exception as e:
         logger.error(f"Chart collection error: {e}")
@@ -3931,14 +3891,7 @@ async def collect_chart_artists(request: Request, background_tasks: BackgroundTa
 async def collect_chart_artists_batch(request: Request, background_tasks: BackgroundTasks):
     """
     국가를 배치로 나눠서 수집 (Rate Limiting 방지)
-
-    Vercel Cron에서 6시간마다 호출:
-    - batch=0: 0~14번 국가 (15개국)
-    - batch=1: 15~29번 국가
-    - batch=2: 30~44번 국가
-    - batch=3: 45~59번 국가
-
-    4일 = 1 사이클 (60개국 전체)
+    Vercel Cron에서 6시간마다 호출, 4일 = 1 사이클
     """
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
@@ -3950,10 +3903,8 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
         except (json.JSONDecodeError, ValueError):
             pass
 
-        # 배치 번호 (0~3)
         batch = body.get("batch", 0)
         batch_size = 15
-
         start_idx = batch * batch_size
         end_idx = min(start_idx + batch_size, len(CHART_COUNTRIES))
 
@@ -3961,72 +3912,23 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
             return {"status": "no_more_batches", "batch": batch}
 
         countries_to_process = CHART_COUNTRIES[start_idx:end_idx]
-
         logger.info(f"[BATCH {batch}] Processing countries: {countries_to_process}")
 
-        # 내부적으로 collect_chart_artists 로직 실행
-        results = {
-            "batch": batch,
-            "countries": countries_to_process,
-            "artists_found": 0,
-            "artists_saved": 0,
-            "artists_skipped": 0,
-            "errors": []
-        }
-
+        results = {"batch": batch, "countries": countries_to_process,
+                   "artists_found": 0, "artists_saved": 0, "artists_skipped": 0, "errors": []}
         all_artist_ids = set()
 
         for country in countries_to_process:
             try:
-                ytmusic = get_ytmusic(country)
-                charts = ytmusic.get_charts(country=country)
-
-                if not charts or "artists" not in charts:
-                    continue
-
-                artists = charts.get("artists", [])[:30]  # 국가당 30명
-
-                for artist in artists:
-                    browse_id = artist.get("browseId")
-                    artist_name = artist.get("title", "Unknown")
-
-                    if not browse_id or browse_id in all_artist_ids:
-                        continue
-
-                    all_artist_ids.add(browse_id)
-                    results["artists_found"] += 1
-
-                    # DB 체크
-                    existing = supabase_client.table("music_artists").select(
-                        "browse_id"
-                    ).eq("browse_id", browse_id).limit(1).execute()
-
-                    if existing.data and len(existing.data) > 0:
-                        results["artists_skipped"] += 1
-                        continue
-
-                    try:
-                        artist_info = ytmusic.get_artist(browse_id)
-                        if artist_info:
-                            # 동기 저장 (Cloud Run에서 백그라운드 작업이 중단되는 문제 해결)
-                            save_full_artist_data_background(browse_id, artist_info, country)
-                            results["artists_saved"] += 1
-                            logger.info(f"[BATCH {batch}] Saved to DB: {artist_name}")
-                            await asyncio.sleep(0.3)
-                    except Exception as e:
-                        logger.error(f"[BATCH {batch}] Save error: {artist_name} - {e}")
-                        results["errors"].append(f"{artist_name}: {str(e)}")
-
-                await asyncio.sleep(2)  # 국가 간 딜레이
-
+                await _process_country_charts(
+                    country, 30, all_artist_ids, results, background_tasks, False
+                )
+                await asyncio.sleep(2)
             except Exception as e:
                 results["errors"].append(f"{country}: {str(e)}")
 
-        return {
-            "status": "success",
-            "results": results,
-            "next_batch": batch + 1 if end_idx < len(CHART_COUNTRIES) else 0
-        }
+        next_batch = batch + 1 if end_idx < len(CHART_COUNTRIES) else 0
+        return {"status": "success", "results": results, "next_batch": next_batch}
 
     except Exception as e:
         logger.error(f"Batch collection error: {e}")
@@ -4037,131 +3939,113 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
 # 기존 아티스트 데이터 업데이트 Cron Job
 # =============================================================================
 
+LANG_TO_COUNTRY = {
+    "ko": "KR", "ja": "JP", "zh": "TW", "es": "ES",
+    "pt": "BR", "de": "DE", "fr": "FR", "it": "IT",
+    "ru": "RU", "th": "TH", "vi": "VN", "id": "ID",
+    "hi": "IN", "ar": "SA", "tr": "TR", "en": "US"
+}
+
+
+def _fetch_hot_tier_artists(supabase, seven_days_ago: str, batch_size: int) -> list:
+    """Fetch HOT tier artists (viewed in 7 days, not synced in 7 days)."""
+    result = supabase.table("music_artists").select(
+        "browse_id, name, primary_language, last_synced_at, last_viewed_at"
+    ).gte("last_viewed_at", seven_days_ago).lt(
+        "last_synced_at", seven_days_ago
+    ).order("last_viewed_at", desc=True).limit(batch_size).execute()
+
+    artists = []
+    for artist in (result.data or []):
+        artist["tier"] = "HOT"
+        artists.append(artist)
+    return artists
+
+
+def _fetch_active_tier_artists(supabase, seven_days_ago: str, thirty_days_ago: str,
+                                existing_ids: list, remaining: int) -> list:
+    """Fetch ACTIVE tier artists to fill remaining batch slots."""
+    result = supabase.table("music_artists").select(
+        "browse_id, name, primary_language, last_synced_at, last_viewed_at"
+    ).gte("last_viewed_at", thirty_days_ago).lt(
+        "last_viewed_at", seven_days_ago
+    ).lt("last_synced_at", thirty_days_ago).order(
+        "last_viewed_at", desc=True
+    ).limit(remaining).execute()
+
+    artists = []
+    existing_set = set(existing_ids)
+    for artist in (result.data or []):
+        if artist["browse_id"] not in existing_set:
+            artist["tier"] = "ACTIVE"
+            artists.append(artist)
+    return artists
+
+
+async def _update_single_artist(artist: dict, results: dict) -> None:
+    """Update a single artist and track results."""
+    browse_id = artist["browse_id"]
+    artist_name = artist["name"]
+    tier = artist.get("tier", "UNKNOWN")
+    country_code = LANG_TO_COUNTRY.get(artist.get("primary_language", ""), "US")
+
+    try:
+        ytmusic = get_ytmusic(country_code)
+        artist_info = ytmusic.get_artist(browse_id)
+
+        if artist_info:
+            save_full_artist_data_background(browse_id, artist_info, country_code)
+            if tier == "HOT":
+                results["hot_updated"] += 1
+            else:
+                results["active_updated"] += 1
+            await asyncio.sleep(0.3)
+        else:
+            results["artists_skipped"] += 1
+    except Exception as e:
+        results["errors"].append(f"{artist_name}: {str(e)}")
+
+    await asyncio.sleep(0.5)
+
+
 @app.post("/api/cron/update-existing-artists")
 async def update_existing_artists(request: Request):
-    """
-    스마트 우선순위 기반 아티스트 업데이트
-
-    우선순위 티어:
-    - HOT: last_viewed_at 7일 이내 + last_synced_at 7일 초과 → 즉시 업데이트
-    - ACTIVE: last_viewed_at 30일 이내 + last_synced_at 30일 초과 → 다음 우선
-    - DORMANT: 그 외 → On-Demand에서만 처리 (여기서 스킵)
-
-    배치 크기: 200명 (기존 20명에서 10배 증가)
-    """
+    """스마트 우선순위 기반 아티스트 업데이트"""
     try:
         body = await request.json()
     except (json.JSONDecodeError, ValueError):
         body = {}
 
-    secret = body.get("secret", "")
-    if secret != os.getenv("CRON_SECRET", "dev-secret"):
+    if body.get("secret", "") != os.getenv("CRON_SECRET", "dev-secret"):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_AVAILABLE)
 
-    results = {
-        "hot_updated": 0,
-        "active_updated": 0,
-        "artists_skipped": 0,
-        "errors": []
-    }
+    results = {"hot_updated": 0, "active_updated": 0, "artists_skipped": 0, "errors": []}
 
     try:
-        # 배치 크기 (1회당 업데이트할 아티스트 수) - 10배 증가
         batch_size = body.get("limit", 200)
         now = datetime.now(timezone.utc)
-
-        # 시간 기준
         seven_days_ago = (now - timedelta(days=7)).isoformat()
         thirty_days_ago = (now - timedelta(days=30)).isoformat()
 
-        artists_to_update = []
+        artists_to_update = _fetch_hot_tier_artists(supabase_client, seven_days_ago, batch_size)
 
-        # 1단계: HOT 티어 - 최근 7일 내 조회됨 + 7일 이상 미동기화
-        hot_artists = supabase_client.table("music_artists").select(
-            "browse_id, name, primary_language, last_synced_at, last_viewed_at"
-        ).gte("last_viewed_at", seven_days_ago).lt(
-            "last_synced_at", seven_days_ago
-        ).order("last_viewed_at", desc=True).limit(batch_size).execute()
-
-        if hot_artists.data:
-            for artist in hot_artists.data:
-                artist["tier"] = "HOT"
-                artists_to_update.append(artist)
-
-        logger.info(f"[UPDATE] HOT tier: {len(hot_artists.data or [])} artists")
-
-        # 2단계: ACTIVE 티어 - 배치 여유분 채우기
         if len(artists_to_update) < batch_size:
-            remaining = batch_size - len(artists_to_update)
             existing_ids = [a["browse_id"] for a in artists_to_update]
-
-            active_artists = supabase_client.table("music_artists").select(
-                "browse_id, name, primary_language, last_synced_at, last_viewed_at"
-            ).gte("last_viewed_at", thirty_days_ago).lt(
-                "last_viewed_at", seven_days_ago
-            ).lt("last_synced_at", thirty_days_ago).order(
-                "last_viewed_at", desc=True
-            ).limit(remaining).execute()
-
-            if active_artists.data:
-                for artist in active_artists.data:
-                    if artist["browse_id"] not in existing_ids:
-                        artist["tier"] = "ACTIVE"
-                        artists_to_update.append(artist)
-
-            logger.info(f"[UPDATE] ACTIVE tier: {len(active_artists.data or [])} artists")
-
-        # 3단계: DORMANT는 스킵 (On-Demand에서 처리)
-        logger.info(f"[UPDATE] Total to update: {len(artists_to_update)} artists (DORMANT skipped)")
+            active_artists = _fetch_active_tier_artists(
+                supabase_client, seven_days_ago, thirty_days_ago,
+                existing_ids, batch_size - len(artists_to_update)
+            )
+            artists_to_update.extend(active_artists)
 
         for artist in artists_to_update:
-            browse_id = artist["browse_id"]
-            artist_name = artist["name"]
-            tier = artist.get("tier", "UNKNOWN")
-            country = artist.get("primary_language", "US")
-
-            # 언어 코드를 국가 코드로 매핑
-            lang_to_country = {
-                "ko": "KR", "ja": "JP", "zh": "TW", "es": "ES",
-                "pt": "BR", "de": "DE", "fr": "FR", "it": "IT",
-                "ru": "RU", "th": "TH", "vi": "VN", "id": "ID",
-                "hi": "IN", "ar": "SA", "tr": "TR", "en": "US"
-            }
-            country_code = lang_to_country.get(country, "US")
-
-            try:
-                ytmusic = get_ytmusic(country_code)
-                artist_info = ytmusic.get_artist(browse_id)
-
-                if artist_info:
-                    # 동기 저장 (데이터 업데이트)
-                    save_full_artist_data_background(browse_id, artist_info, country_code)
-
-                    # 티어별 카운트
-                    if tier == "HOT":
-                        results["hot_updated"] += 1
-                    else:
-                        results["active_updated"] += 1
-
-                    logger.info(f"[UPDATE-{tier}] Updated: {artist_name}")
-                    await asyncio.sleep(0.3)  # Rate limiting 개선 (0.5 → 0.3)
-                else:
-                    results["artists_skipped"] += 1
-                    logger.warning(f"[UPDATE] No data for: {artist_name}")
-
-            except Exception as e:
-                results["errors"].append(f"{artist_name}: {str(e)}")
-                logger.error(f"[UPDATE] Error updating {artist_name}: {e}")
-
-            await asyncio.sleep(0.5)  # Rate limiting (1초 → 0.5초로 단축)
+            await _update_single_artist(artist, results)
 
         total_updated = results["hot_updated"] + results["active_updated"]
         return {
-            "status": "success",
-            "results": results,
+            "status": "success", "results": results,
             "message": f"Updated {total_updated} artists (HOT: {results['hot_updated']}, ACTIVE: {results['active_updated']})"
         }
 

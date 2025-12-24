@@ -32,6 +32,35 @@ const LANGUAGE_NAMES: Record<string, string> = {
   sw: 'Kiswahili',
 };
 
+// Helper: Get button style class
+function getButtonStyleClass(translated: boolean, error: boolean, loading: boolean): string {
+  const baseClass = 'inline-flex items-center gap-1 text-xs transition-all';
+  let stateClass = 'text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300';
+
+  if (translated) {
+    stateClass = 'text-green-600 dark:text-green-400';
+  } else if (error) {
+    stateClass = 'text-red-500 dark:text-red-400';
+  }
+
+  return `${baseClass} ${stateClass} ${loading ? 'opacity-70' : ''}`;
+}
+
+// Helper: Get button label key
+function getButtonLabelKey(loading: boolean, translated: boolean, error: boolean): string {
+  if (loading) return 'translate.translating';
+  if (translated) return 'translate.translated';
+  if (error) return 'translate.error';
+  return 'translate.button';
+}
+
+// Helper: Render button icon
+function renderButtonIcon(loading: boolean, translated: boolean, size: number) {
+  if (loading) return <Loader2 size={size} className="animate-spin" />;
+  if (translated) return <Check size={size} />;
+  return <Languages size={size} />;
+}
+
 export default function TranslateButton({
   postId,
   text,
@@ -98,41 +127,22 @@ export default function TranslateButton({
     return null;
   }
 
+  const showSourceIndicator = sourceLanguage && !translated && !loading;
+
   return (
     <button
       onClick={handleTranslate}
       disabled={loading || translated}
-      className={`inline-flex items-center gap-1 text-xs transition-all ${
-        translated
-          ? 'text-green-600 dark:text-green-400'
-          : error
-            ? 'text-red-500 dark:text-red-400'
-            : 'text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300'
-      } ${loading ? 'opacity-70' : ''}`}
+      className={getButtonStyleClass(translated, error, loading)}
       aria-label={t('translate.button')}
     >
-      {loading ? (
-        <Loader2 size={size} className="animate-spin" />
-      ) : translated ? (
-        <Check size={size} />
-      ) : (
-        <Languages size={size} />
-      )}
+      {renderButtonIcon(loading, translated, size)}
 
       {showLabel && (
-        <span className="font-medium">
-          {loading
-            ? t('translate.translating')
-            : translated
-              ? t('translate.translated')
-              : error
-                ? t('translate.error')
-                : t('translate.button')}
-        </span>
+        <span className="font-medium">{t(getButtonLabelKey(loading, translated, error))}</span>
       )}
 
-      {/* Show source language indicator */}
-      {sourceLanguage && !translated && !loading && (
+      {showSourceIndicator && (
         <span className="text-gray-400 dark:text-gray-500 text-[10px] ml-1">
           ({LANGUAGE_NAMES[sourceLanguage] || sourceLanguage.toUpperCase()})
         </span>

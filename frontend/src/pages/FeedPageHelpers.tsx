@@ -57,6 +57,46 @@ export interface SuggestedUser {
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
+// Helper: Extract songs from API sections
+function extractSongsFromSections(sections: any[]): any[] {
+  const songs: any[] = [];
+  for (const section of sections) {
+    for (const item of section.contents || []) {
+      if (!item.videoId) continue;
+      songs.push({
+        videoId: item.videoId,
+        title: item.title,
+        artists: item.artists,
+        thumbnails: item.thumbnails,
+      });
+    }
+  }
+  return songs;
+}
+
+// Helper: Select random songs with time-based seed
+function selectRandomSongs(allSongs: any[], count: number): RecommendationTrack[] {
+  if (allSongs.length === 0) return [];
+
+  const now = new Date();
+  const seed = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
+  const maxOffset = Math.max(0, allSongs.length - count);
+  const offset = seed % (maxOffset + 1);
+  const selected = allSongs.slice(offset, offset + count);
+
+  const finalSelection =
+    selected.length < count
+      ? [...selected, ...allSongs.slice(0, count - selected.length)]
+      : selected;
+
+  return finalSelection.map((item) => ({
+    videoId: item.videoId,
+    title: item.title,
+    artists: item.artists,
+    thumbnail: item.thumbnails?.[0]?.url,
+  }));
+}
+
 // Helper Function: getHighResThumbnail
 export const getHighResThumbnail = (videoId?: string, coverUrl?: string): string => {
   if (videoId) {
@@ -72,6 +112,40 @@ export const getHighResThumbnail = (videoId?: string, coverUrl?: string): string
   return 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1280&h=720&fit=crop';
 };
 
+// Helper: Fetch home recommendations from API
+async function fetchHomeData(countryCode: string): Promise<RecommendationTrack[]> {
+  const response = await fetch(`${API_BASE_URL}/api/home?country=${countryCode}`);
+  if (!response.ok) return [];
+
+  const data = await response.json();
+  const allSongs = extractSongsFromSections(data.sections || []);
+  return selectRandomSongs(allSongs, 5);
+}
+
+// Helper: Fetch fallback recommendations via search
+async function fetchSearchRecommendations(searchQuery: string): Promise<RecommendationTrack[]> {
+  const url = `${API_BASE_URL}/api/search?q=${encodeURIComponent(searchQuery)}&filter=songs&limit=5`;
+  const response = await fetch(url);
+  if (!response.ok) return [];
+
+  const data = await response.json();
+  return data.results || data || [];
+}
+
+// Helper: Check and prefetch home data
+async function prefetchHomeData(countryCode: string): Promise<void> {
+  const { homeData, homeDataLoadedAt, setHomeData } = useContentStore.getState();
+  const now = Date.now();
+  const isCacheValid = homeData && homeDataLoadedAt && now - homeDataLoadedAt < 5 * 60 * 1000;
+  if (isCacheValid) return;
+
+  const response = await fetch(`${API_BASE_URL}/api/home?country=${countryCode}&limit=6`);
+  if (response.ok) {
+    const data = await response.json();
+    setHomeData(data);
+  }
+}
+
 // Hook: useHomeRecommendations (For ForYouSection)
 export function useHomeRecommendations() {
   const context = useContextRecommendation();
@@ -81,97 +155,33 @@ export function useHomeRecommendations() {
   const [countryName, setCountryName] = useState<string>('');
 
   useEffect(() => {
-    async function fetchHomeRecommendations() {
-      if (!country.code) return;
+    if (!country.code) return;
 
+    const loadRecommendations = async () => {
+      setLoadingRecs(true);
       try {
-        setLoadingRecs(true);
-        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}`);
-
-        if (response.ok) {
-          const data = await response.json();
-          const sections = data.sections || [];
-          const allSongs: any[] = [];
-
-          for (const section of sections) {
-            const contents = section.contents || [];
-            for (const item of contents) {
-              if (item.videoId) {
-                allSongs.push({
-                  videoId: item.videoId,
-                  title: item.title,
-                  artists: item.artists,
-                  thumbnails: item.thumbnails,
-                });
-              }
-            }
-          }
-
-          if (allSongs.length > 0) {
-            const now = new Date();
-            const seed = now.getHours() * 4 + Math.floor(now.getMinutes() / 15);
-            const maxOffset = Math.max(0, allSongs.length - 5);
-            const offset = seed % (maxOffset + 1);
-            const selected = allSongs.slice(offset, offset + 5);
-            const finalSelection =
-              selected.length < 5
-                ? [...selected, ...allSongs.slice(0, 5 - selected.length)]
-                : selected;
-
-            setRecommendations(
-              finalSelection.map((item) => ({
-                videoId: item.videoId,
-                title: item.title,
-                artists: item.artists,
-                thumbnail: item.thumbnails?.[0]?.url,
-              }))
-            );
-          }
+        const selected = await fetchHomeData(country.code);
+        if (selected.length > 0) {
+          setRecommendations(selected);
           setCountryName(country.name);
         }
       } catch {
-        if (context.recommendation?.searchQuery) {
-          try {
-            const fallbackResponse = await fetch(
-              `${API_BASE_URL}/api/search?q=${encodeURIComponent(
-                context.recommendation.searchQuery
-              )}&filter=songs&limit=5`
-            );
-            if (fallbackResponse.ok) {
-              const fallbackData = await fallbackResponse.json();
-              setRecommendations(fallbackData.results || fallbackData || []);
-            }
-          } catch {
-            // ignore
-          }
+        const searchQuery = context.recommendation?.searchQuery;
+        if (searchQuery) {
+          const fallback = await fetchSearchRecommendations(searchQuery);
+          setRecommendations(fallback);
         }
       } finally {
         setLoadingRecs(false);
       }
-    }
-
-    fetchHomeRecommendations();
-  }, [country.code, country.name, context.recommendation?.searchQuery]);
-
-  // Prefetch Profile Data (Home Data) for instant loading
-  useEffect(() => {
-    const prefetchData = async () => {
-      const { homeData, homeDataLoadedAt, setHomeData } = useContentStore.getState();
-      const now = Date.now();
-      if (homeData && homeDataLoadedAt && now - homeDataLoadedAt < 5 * 60 * 1000) return;
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}&limit=6`);
-        if (response.ok) {
-          const data = await response.json();
-          setHomeData(data);
-        }
-      } catch (err) {
-        // Silent fail
-      }
     };
 
-    const timer = setTimeout(prefetchData, 2000);
+    loadRecommendations();
+  }, [country.code, country.name, context.recommendation?.searchQuery]);
+
+  useEffect(() => {
+    if (!country.code) return;
+    const timer = setTimeout(() => prefetchHomeData(country.code), 2000);
     return () => clearTimeout(timer);
   }, [country.code]);
 
