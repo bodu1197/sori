@@ -3681,13 +3681,30 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
 # =============================================================================
 
 # 지원 국가 목록 (YouTube Music Charts)
+# YouTube Music 지원 국가 전체 목록 (100+ countries)
 CHART_COUNTRIES = [
-    "US", "KR", "JP", "GB", "DE", "FR", "BR", "MX", "IN", "ID",
-    "TH", "VN", "PH", "TW", "AU", "CA", "ES", "IT", "NL", "PL",
-    "RU", "TR", "EG", "SA", "AE", "ZA", "NG", "AR", "CL", "CO",
-    "PE", "SE", "NO", "DK", "FI", "BE", "AT", "CH", "PT", "IE",
-    "NZ", "SG", "MY", "HK", "IL", "GR", "CZ", "HU", "RO", "UA",
-    "ZW", "KE", "TZ", "UG", "EC", "BO", "PY", "UY", "CR", "PA"
+    # Global
+    "ZZ",
+    # Americas (북미/중남미)
+    "US", "CA", "MX", "BR", "AR", "CL", "CO", "PE", "VE", "EC",
+    "BO", "PY", "UY", "CR", "PA", "GT", "HN", "SV", "NI", "DO",
+    "PR", "JM", "TT", "BB", "CU",
+    # Europe (유럽)
+    "GB", "DE", "FR", "ES", "IT", "NL", "PL", "RU", "TR", "SE",
+    "NO", "DK", "FI", "BE", "AT", "CH", "PT", "IE", "GR", "CZ",
+    "HU", "RO", "UA", "BG", "HR", "SK", "SI", "LT", "LV", "EE",
+    "MT", "CY", "LU", "IS", "RS", "BA", "ME", "MK", "AL", "BY",
+    # Middle East (중동)
+    "SA", "AE", "EG", "IL", "JO", "LB", "KW", "QA", "BH", "OM",
+    "IQ", "IR",
+    # Africa (아프리카)
+    "ZA", "NG", "KE", "TZ", "UG", "ZW", "GH", "MA", "TN", "DZ",
+    "CI", "SN", "CM", "ET", "AO", "MZ",
+    # Asia (아시아)
+    "KR", "JP", "IN", "ID", "TH", "VN", "PH", "TW", "SG", "MY",
+    "HK", "BD", "PK", "LK", "NP", "MM", "KH", "LA", "MN", "CN",
+    # Oceania (오세아니아)
+    "AU", "NZ", "FJ", "PG"
 ]
 
 
