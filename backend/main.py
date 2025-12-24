@@ -4126,6 +4126,72 @@ async def update_existing_artists(request: Request):
 # 가상회원 자동 생성 Cron Job (30분마다)
 # =============================================================================
 
+
+def _get_candidate_artists_for_virtual_member(batch_size: int = 50) -> list:
+    """Get candidate artists from music_artists that don't have a profile yet."""
+    # 1. music_artists에서 모든 browse_id 가져오기
+    all_artists_res = supabase_client.table("music_artists").select(
+        "browse_id, name, thumbnail_url, subscribers, subscribers_count"
+    ).not_.is_("browse_id", "null").order(
+        "subscribers_count", desc=True
+    ).limit(500).execute()
+
+    if not all_artists_res.data:
+        return []
+
+    # 2. profiles에서 이미 가상회원인 artist_browse_id 목록 가져오기
+    existing_profiles_res = supabase_client.table("profiles").select(
+        "artist_browse_id"
+    ).eq("member_type", "artist").not_.is_("artist_browse_id", "null").execute()
+
+    existing_browse_ids = set()
+    if existing_profiles_res.data:
+        existing_browse_ids = {p["artist_browse_id"] for p in existing_profiles_res.data}
+
+    # 3. 아직 가상회원이 아닌 아티스트 필터링
+    artists_to_create = []
+    for artist in all_artists_res.data:
+        if artist["browse_id"] not in existing_browse_ids:
+            artists_to_create.append(artist)
+            if len(artists_to_create) >= batch_size:
+                break
+    
+    return artists_to_create
+
+
+async def _create_virtual_profiles_batch(artists_to_create: list) -> dict:
+    """Create virtual profiles for the given list of artists."""
+    results = {
+        "created": 0,
+        "skipped": 0,
+        "errors": [],
+        "created_artists": []
+    }
+    
+    for artist in artists_to_create:
+        browse_id = artist["browse_id"]
+        artist_name = artist["name"]
+        thumbnail_url = artist.get("thumbnail_url", "")
+
+        try:
+            # create_virtual_member_sync calls DB, should be run in thread if blocking
+            result = await run_in_thread(create_virtual_member_sync, browse_id, artist_name, thumbnail_url)
+            if result:
+                results["created"] += 1
+                results["created_artists"].append(artist_name)
+                logger.info(f"[VIRTUAL MEMBER] Created: {artist_name}")
+            else:
+                results["skipped"] += 1
+        except Exception as e:
+            results["errors"].append(f"{artist_name}: {str(e)}")
+            logger.warning(f"[VIRTUAL MEMBER] Error creating {artist_name}: {e}")
+
+        # Rate limiting: 0.5초 간격
+        await asyncio.sleep(0.5)
+        
+    return results
+
+
 @app.post("/api/cron/create-virtual-members")
 async def create_virtual_members_cron(request: Request):
     """
@@ -4148,69 +4214,16 @@ async def create_virtual_members_cron(request: Request):
     if not supabase_client:
         raise HTTPException(status_code=500, detail=ERROR_DB_NOT_AVAILABLE)
 
-    results = {
-        "created": 0,
-        "skipped": 0,
-        "errors": [],
-        "created_artists": []
-    }
-
     try:
         batch_size = body.get("limit", 50)
 
-        # 1. music_artists에서 모든 browse_id 가져오기
-        all_artists = supabase_client.table("music_artists").select(
-            "browse_id, name, thumbnail_url, subscribers, subscribers_count"
-        ).not_.is_("browse_id", "null").order(
-            "subscribers_count", desc=True  # 구독자 많은 순 (숫자 정렬)
-        ).limit(500).execute()
+        # 1. Get candidates
+        artists_to_create = _get_candidate_artists_for_virtual_member(batch_size)
+        
+        logger.info(f"[VIRTUAL MEMBER] Found {len(artists_to_create)} artists to create")
 
-        if not all_artists.data:
-            return {
-                "status": "no_artists",
-                "message": "No artists in music_artists table",
-                "results": results
-            }
-
-        # 2. profiles에서 이미 가상회원인 artist_browse_id 목록 가져오기
-        existing_profiles = supabase_client.table("profiles").select(
-            "artist_browse_id"
-        ).eq("member_type", "artist").not_.is_("artist_browse_id", "null").execute()
-
-        existing_browse_ids = set()
-        if existing_profiles.data:
-            existing_browse_ids = {p["artist_browse_id"] for p in existing_profiles.data}
-
-        # 3. 아직 가상회원이 아닌 아티스트 필터링
-        artists_to_create = []
-        for artist in all_artists.data:
-            if artist["browse_id"] not in existing_browse_ids:
-                artists_to_create.append(artist)
-                if len(artists_to_create) >= batch_size:
-                    break
-
-        logger.info(f"[VIRTUAL MEMBER] Found {len(artists_to_create)} artists to create (out of {len(all_artists.data)} total)")
-
-        # 4. 가상회원 생성
-        for artist in artists_to_create:
-            browse_id = artist["browse_id"]
-            artist_name = artist["name"]
-            thumbnail_url = artist.get("thumbnail_url", "")
-
-            try:
-                result = create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
-                if result:
-                    results["created"] += 1
-                    results["created_artists"].append(artist_name)
-                    logger.info(f"[VIRTUAL MEMBER] Created: {artist_name}")
-                else:
-                    results["skipped"] += 1
-            except Exception as e:
-                results["errors"].append(f"{artist_name}: {str(e)}")
-                logger.warning(f"[VIRTUAL MEMBER] Error creating {artist_name}: {e}")
-
-            # Rate limiting: 0.5초 간격
-            await asyncio.sleep(0.5)
+        # 2. Create profiles
+        results = await _create_virtual_profiles_batch(artists_to_create)
 
         logger.info(f"[VIRTUAL MEMBER] Completed: {results['created']} created, {results['skipped']} skipped")
 
