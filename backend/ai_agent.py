@@ -31,17 +31,15 @@ GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 
 if genai and GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    # Use Gemini 2.0 Flash for speed (latest model)
-    # Model names: gemini-2.0-flash-exp, gemini-1.5-flash-latest
+    # Use Gemini 2.5 Flash (latest model)
     try:
-        # Try Gemini 2.0 Flash first (latest and fastest)
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        logger.info("Gemini 2.0 Flash model initialized")
+        model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
+        logger.info("Gemini 2.5 Flash model initialized")
     except Exception as e:
         try:
-            # Fallback to Gemini 1.5 Flash
-            model = genai.GenerativeModel('gemini-1.5-flash-latest')
-            logger.info("Gemini 1.5 Flash model initialized (fallback)")
+            # Fallback to Gemini 2.0 Flash
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            logger.info("Gemini 2.0 Flash model initialized (fallback)")
         except Exception as e2:
             logger.error(f"Failed to initialize Gemini model: {e2}")
             model = None
