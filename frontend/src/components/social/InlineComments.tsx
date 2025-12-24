@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Send,
   Image as ImageIcon,
+  Video,
   X,
   Heart,
   MessageCircle,
@@ -31,6 +32,7 @@ interface Comment {
   parent_id?: string;
   content: string;
   image_url?: string;
+  video_url?: string;
   created_at: string;
   like_count?: number;
   profiles?: Profile;
@@ -147,6 +149,10 @@ function CommentCard({
                 className="mt-2 rounded-lg max-h-60 object-cover"
               />
             )}
+            {/* Video if attached */}
+            {comment.video_url && (
+              <video src={comment.video_url} controls className="mt-2 rounded-lg max-h-60 w-full" />
+            )}
           </div>
           {/* Menu */}
           {isOwner && (
@@ -253,12 +259,16 @@ export default function InlineComments({
   const [submitting, setSubmitting] = useState(false);
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
-  const VISIBLE_COMMENTS = 5;
+  const VISIBLE_COMMENTS = 3;
 
   // Fetch comments
   useEffect(() => {
@@ -277,9 +287,10 @@ export default function InlineComments({
             parent_id,
             content,
             image_url,
+            video_url,
             created_at,
             like_count,
-            profiles:post_comments_user_id_profiles_fkey (
+            profiles:user_id (
               id,
               username,
               avatar_url,
@@ -329,6 +340,8 @@ export default function InlineComments({
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setVideoFile(null);
+      setVideoPreview(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -337,19 +350,41 @@ export default function InlineComments({
     }
   };
 
-  const removeImage = () => {
+  // Handle video selection
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Max 50MB for video
+      if (file.size > 50 * 1024 * 1024) {
+        alert(t('comments.videoTooLarge', 'Video must be under 50MB'));
+        return;
+      }
+      setVideoFile(file);
+      setImageFile(null);
+      setImagePreview(null);
+      const url = URL.createObjectURL(file);
+      setVideoPreview(url);
+    }
+  };
+
+  const removeMedia = () => {
     setImageFile(null);
     setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    setVideoFile(null);
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
     }
+    setVideoPreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+    if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
   // Handle reply
   const handleReply = (parentId: string, username: string) => {
     setReplyTo({ id: parentId, username });
     setNewComment(`@${username} `);
-    inputRef.current?.focus();
+    setIsExpanded(true);
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const cancelReply = () => {
@@ -357,28 +392,59 @@ export default function InlineComments({
     setNewComment('');
   };
 
+  // Open expanded input
+  const openCommentInput = () => {
+    setIsExpanded(true);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  // Close expanded input
+  const closeCommentInput = () => {
+    if (!newComment.trim() && !imageFile && !videoFile) {
+      setIsExpanded(false);
+      setReplyTo(null);
+    }
+  };
+
   // Submit comment
   const handleSubmit = async () => {
-    if (!user?.id || (!newComment.trim() && !imageFile) || submitting) return;
+    if (!user?.id || (!newComment.trim() && !imageFile && !videoFile) || submitting) return;
 
     setSubmitting(true);
     try {
       let imageUrl = null;
+      let videoUrl = null;
 
       // Upload image if selected
       if (imageFile) {
-        const fileName = `comment_${Date.now()}_${imageFile.name}`;
+        const fileName = `comments/${postId}/${Date.now()}_${imageFile.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('post-images')
+          .from('comment-media')
           .upload(fileName, imageFile);
 
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage
-          .from('post-images')
+          .from('comment-media')
           .getPublicUrl(uploadData.path);
 
         imageUrl = urlData.publicUrl;
+      }
+
+      // Upload video if selected
+      if (videoFile) {
+        const fileName = `comments/${postId}/${Date.now()}_${videoFile.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('comment-media')
+          .upload(fileName, videoFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('comment-media')
+          .getPublicUrl(uploadData.path);
+
+        videoUrl = urlData.publicUrl;
       }
 
       const commentData = {
@@ -386,6 +452,7 @@ export default function InlineComments({
         post_id: postId,
         content: newComment.trim(),
         image_url: imageUrl,
+        video_url: videoUrl,
         parent_id: replyTo?.id || null,
       };
 
@@ -400,9 +467,10 @@ export default function InlineComments({
           parent_id,
           content,
           image_url,
+          video_url,
           created_at,
           like_count,
-          profiles:post_comments_user_id_profiles_fkey (
+          profiles:user_id (
             id,
             username,
             avatar_url,
@@ -434,7 +502,8 @@ export default function InlineComments({
 
       setNewComment('');
       setReplyTo(null);
-      removeImage();
+      removeMedia();
+      setIsExpanded(false);
     } catch (error) {
       console.error('Error posting comment:', error);
     } finally {
@@ -464,91 +533,8 @@ export default function InlineComments({
   const hiddenCount = comments.length - VISIBLE_COMMENTS;
 
   return (
-    <div className="px-3 pb-3">
-      {/* Comment Input */}
-      {user ? (
-        <div className="flex gap-3 py-3 border-t border-gray-100 dark:border-gray-800">
-          <img
-            src={user.user_metadata?.avatar_url || DEFAULT_AVATAR}
-            alt="You"
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-          />
-          <div className="flex-1">
-            {/* Reply indicator */}
-            {replyTo && (
-              <div className="flex items-center justify-between mb-2 text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 rounded px-2 py-1">
-                <span>
-                  {t('comments.replyingTo', 'Replying to')}{' '}
-                  <span className="font-semibold">@{replyTo.username}</span>
-                </span>
-                <button onClick={cancelReply} className="text-blue-500 ml-2">
-                  {t('common.cancel', 'Cancel')}
-                </button>
-              </div>
-            )}
-
-            {/* Image preview */}
-            {imagePreview && (
-              <div className="relative mb-2 inline-block">
-                <img src={imagePreview} alt="Preview" className="max-h-32 rounded-lg" />
-                <button
-                  onClick={removeImage}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-end gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl px-3 py-2">
-              <textarea
-                ref={inputRef}
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                placeholder={t('comments.addComment', 'Add a comment...')}
-                rows={1}
-                className="flex-1 bg-transparent text-sm text-black dark:text-white placeholder-gray-400 outline-none resize-none max-h-20"
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <ImageIcon size={20} />
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={(!newComment.trim() && !imageFile) || submitting}
-                className={`text-blue-500 ${
-                  (!newComment.trim() && !imageFile) || submitting
-                    ? 'opacity-50'
-                    : 'hover:text-blue-600'
-                }`}
-              >
-                {submitting ? (
-                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Send size={20} />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Comments List */}
+    <div className="px-3 pb-3 border-t border-gray-100 dark:border-gray-800">
+      {/* Comments List - 항상 표시 */}
       {loading ? (
         <div className="flex justify-center py-4">
           <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
@@ -578,7 +564,7 @@ export default function InlineComments({
               ) : (
                 <>
                   <ChevronDown size={16} />
-                  {t('comments.showMore', 'Show')} {hiddenCount}{' '}
+                  {t('comments.showMore', 'View')} {hiddenCount}{' '}
                   {t('comments.moreComments', 'more comments')}
                 </>
               )}
@@ -586,10 +572,151 @@ export default function InlineComments({
           )}
         </div>
       ) : (
-        <p className="text-center text-sm text-gray-500 py-4">
-          {t('comments.noComments', 'No comments yet. Be the first!')}
+        <p className="text-center text-sm text-gray-400 py-3">
+          {t('comments.noComments', 'No comments yet')}
         </p>
       )}
+
+      {/* Comment Input - 축소/확장 */}
+      {user ? (
+        <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+          {!isExpanded ? (
+            /* 축소된 상태 - 클릭하면 확장 */
+            <button
+              onClick={openCommentInput}
+              className="w-full flex items-center gap-3 py-2 px-3 bg-gray-50 dark:bg-gray-900 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            >
+              <img
+                src={user.user_metadata?.avatar_url || DEFAULT_AVATAR}
+                alt="You"
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <span className="text-sm text-gray-400">
+                {t('comments.addComment', 'Add a comment...')}
+              </span>
+            </button>
+          ) : (
+            /* 확장된 상태 - 전체 입력 UI */
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <img
+                    src={user.user_metadata?.avatar_url || DEFAULT_AVATAR}
+                    alt="You"
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                  <span className="font-semibold text-sm text-black dark:text-white">
+                    {user.user_metadata?.username || user.email?.split('@')[0]}
+                  </span>
+                </div>
+                <button
+                  onClick={closeCommentInput}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Reply indicator */}
+              {replyTo && (
+                <div className="flex items-center justify-between mb-2 text-xs text-gray-500 bg-blue-50 dark:bg-blue-900/30 rounded px-2 py-1">
+                  <span>
+                    {t('comments.replyingTo', 'Replying to')}{' '}
+                    <span className="font-semibold text-blue-500">@{replyTo.username}</span>
+                  </span>
+                  <button onClick={cancelReply} className="text-blue-500 ml-2">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Textarea - 확장된 크기 */}
+              <textarea
+                ref={inputRef}
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder={t('comments.writeComment', 'Write your comment...')}
+                rows={4}
+                className="w-full bg-white dark:bg-gray-800 text-sm text-black dark:text-white placeholder-gray-400 outline-none resize-none rounded-lg p-3 border border-gray-200 dark:border-gray-700 focus:border-blue-500"
+              />
+
+              {/* Media preview */}
+              {(imagePreview || videoPreview) && (
+                <div className="relative mt-2 inline-block">
+                  {imagePreview && (
+                    <img src={imagePreview} alt="Preview" className="max-h-40 rounded-lg" />
+                  )}
+                  {videoPreview && (
+                    <video src={videoPreview} controls className="max-h-40 rounded-lg" />
+                  )}
+                  <button
+                    onClick={removeMedia}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Action bar */}
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2">
+                  {/* Image upload */}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition"
+                    title={t('comments.attachImage', 'Attach image')}
+                  >
+                    <ImageIcon size={20} />
+                  </button>
+
+                  {/* Video upload */}
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => videoInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition"
+                    title={t('comments.attachVideo', 'Attach video')}
+                  >
+                    <Video size={20} />
+                  </button>
+                </div>
+
+                {/* Submit button */}
+                <button
+                  onClick={handleSubmit}
+                  disabled={(!newComment.trim() && !imageFile && !videoFile) || submitting}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                    (!newComment.trim() && !imageFile && !videoFile) || submitting
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  {submitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send size={16} />
+                  )}
+                  {t('comments.post', 'Post')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
