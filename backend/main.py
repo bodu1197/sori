@@ -3286,11 +3286,36 @@ async def chat_artist_endpoint(request: Request):
         persona = body.get("persona")
         history = body.get("history", []) # List of {role: user/model, content: str}
         message = body.get("message")
+        browse_id = body.get("browseId")
         
         if not persona or not message:
             raise HTTPException(status_code=400, detail="Missing persona or message")
             
-        reply = await run_in_thread(chat_with_artist, persona, history, message)
+        # Context gathering (Factual Data)
+        artist_context = None
+        if browse_id:
+            try:
+                # Fetch full artist data from DB (songs, albums)
+                full_data = await run_in_thread(db_get_full_artist_data, browse_id)
+                if full_data:
+                    artist_context = {
+                        "top_songs": full_data.get("topSongs", []),
+                        "albums": full_data.get("albums", []),
+                    }
+                    
+                    # Optional: Add latest release as "news" if available
+                    # (This is a simple way to add some current event context)
+                    albums = full_data.get("albums", [])
+                    if albums and len(albums) > 0:
+                        latest_album = albums[0]
+                        artist_context["news"] = [{
+                            "title": f"New Release: {latest_album.get('title')}",
+                            "snippet": f"Check out my latest release '{latest_album.get('title')}' from {latest_album.get('year')}!"
+                        }]
+            except Exception as context_error:
+                logger.warning(f"Failed to fetch artist context for chat: {context_error}")
+
+        reply = await run_in_thread(chat_with_artist, persona, history, message, artist_context)
         return {"reply": reply}
     except Exception as e:
         logger.error(f"Chat error: {e}")
@@ -4142,9 +4167,9 @@ async def create_virtual_members_cron(request: Request):
 
         # 1. music_artists에서 모든 browse_id 가져오기
         all_artists = supabase_client.table("music_artists").select(
-            "browse_id, name, thumbnail_url, subscribers"
+            "browse_id, name, thumbnail_url, subscribers, subscribers_count"
         ).not_.is_("browse_id", "null").order(
-            "subscribers", desc=True  # 팔로워 많은 순
+            "subscribers_count", desc=True  # 구독자 많은 순 (숫자 정렬)
         ).limit(500).execute()
 
         if not all_artists.data:

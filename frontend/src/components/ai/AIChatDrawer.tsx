@@ -9,6 +9,7 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [persona, setPersona] = useState<any>(null);
+  const [browseId, setBrowseId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Provision AI (or fetch existing persona)
@@ -27,6 +28,7 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
         if (res.ok) {
           const data = await res.json();
           setPersona(data.persona);
+          setBrowseId(data.browseId);
           // Initial greeting from persona
           setMessages([
             {
@@ -71,6 +73,8 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           persona,
+          browseId,
+          artistName,
           history: newHistory,
           message: userMsg,
         }),

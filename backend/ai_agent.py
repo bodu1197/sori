@@ -468,10 +468,11 @@ def generate_artist_persona(artist_name: str, description: str, songs: list) -> 
         logger.error(f"Error generating persona: {e}")
         return None
 
-def chat_with_artist(persona: dict, history: list, message: str) -> str:
+def chat_with_artist(persona: dict, history: list, message: str, artist_context: dict = None) -> str:
     """
     Chat with the artist persona.
     history: list of {"role": "user"|"model", "content": "text"}
+    artist_context: optional dict with factual data (top_songs, albums, news)
     """
     if not genai:
         return "AI service unavailable."
@@ -487,9 +488,37 @@ def chat_with_artist(persona: dict, history: list, message: str) -> str:
             context = "\n".join([f"{'Fan' if h.get('role') == 'user' else 'You'}: {h.get('content', '')}" for h in recent])
             context = f"\nRecent conversation:\n{context}\n"
 
+        # Build Factual Data Context
+        factual_details = ""
+        if artist_context:
+            songs = artist_context.get("top_songs", [])
+            albums = artist_context.get("albums", [])
+            news = artist_context.get("news", [])
+            
+            song_list = ", ".join([s.get("title", "") for s in songs[:15]])
+            album_list = ", ".join([a.get("title", "") for a in albums[:10]])
+            
+            factual_details = f"""
+[REAL FACTUAL DATA - USE THIS FOR ANSWERS]
+My Top Songs: {song_list}
+My Albums: {album_list}
+"""
+            if news:
+                news_items = [f"- {n.get('title')}: {n.get('snippet')}" for n in news[:3]]
+                factual_details += "\nRecent News:\n" + "\n".join(news_items) + "\n"
+
         # Simple one-shot prompt with context
         prompt = f"""
 {system_prompt}
+
+[INSTRUCTION]
+1. If asked about my songs, albums, or news, use the [REAL FACTUAL DATA] below.
+2. Do NOT be vague (e.g., avoid "I have so many songs"). Mention specific song titles.
+3. If asked about concerts/tours:
+   - If you have news about it in [REAL FACTUAL DATA], share it.
+   - If not, say "Please check my official page for tour dates!" (Do NOT make up fake dates).
+
+{factual_details}
 
 Your tone: {tone}
 {context}
