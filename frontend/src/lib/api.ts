@@ -146,6 +146,28 @@ export async function getCachedTranslation(
 // Video Info API
 // =============================================================================
 
+/**
+ * Sanitize artist name by removing " - Topic" suffix
+ * Uses string methods instead of regex for better security
+ */
+function sanitizeArtistName(name: string | undefined): string {
+  if (!name) return '';
+
+  // Check for " - Topic" suffix and remove it
+  const topicSuffix = ' - Topic';
+  const dashTopicSuffix = '- Topic';
+
+  let sanitized = name.trim();
+
+  if (sanitized.endsWith(topicSuffix)) {
+    sanitized = sanitized.slice(0, -topicSuffix.length);
+  } else if (sanitized.endsWith(dashTopicSuffix)) {
+    sanitized = sanitized.slice(0, -dashTopicSuffix.length);
+  }
+
+  return sanitized.trim();
+}
+
 export async function getVideoInfo(videoId: string): Promise<VideoInfo | null> {
   try {
     const response = await fetch(
@@ -158,7 +180,7 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo | null> {
     return {
       videoId,
       title: data.title || 'Unknown',
-      artist: data.author_name?.replace(/\s*-\s*Topic$/, '').trim() || 'Unknown Artist',
+      artist: sanitizeArtistName(data.author_name) || 'Unknown Artist',
       thumbnail: data.thumbnail_url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
     };
   } catch {

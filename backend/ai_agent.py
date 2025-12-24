@@ -21,6 +21,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Default tone constants to avoid duplication
+DEFAULT_TONE = "friendly, warm"
+DEFAULT_TONE_CASUAL = "friendly, casual, warm"
+
 # Configure Gemini
 # API Key must be set via environment variable (never hardcode!)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -237,7 +241,7 @@ def generate_contextual_post(
         return None
 
     lang_name = LANG_NAMES.get(language, 'English')
-    tone = persona.get("tone", "friendly, warm") if persona else "friendly, warm"
+    tone = persona.get("tone", DEFAULT_TONE) if persona else DEFAULT_TONE
     fandom = persona.get("fandom_name", "fans") if persona else "fans"
 
     suggested_topic = context.get("suggested_topic", "fan_thanks")
@@ -474,7 +478,7 @@ def chat_with_artist(persona: dict, history: list, message: str, artist_context:
 
     try:
         system_prompt = persona.get("system_prompt", "You are a friendly music artist chatting with a fan.")
-        tone = persona.get("tone", "friendly, warm")
+        tone = persona.get("tone", DEFAULT_TONE)
 
         # Build context from recent history (last 5 messages)
         context = ""
@@ -529,7 +533,7 @@ Respond naturally as this artist (1-2 sentences, be warm and engaging). Include 
         return ""
 
 
-def generate_artist_post(artist_name: str, persona: dict, recent_activities: list = None) -> dict | None:
+def generate_artist_post(artist_name: str, persona: dict) -> dict | None:
     """
     Generate a social media post for an artist using AI.
     Returns: {"caption": "...", "type": "update|music|thoughts|fan", "hashtags": [...]}
@@ -550,7 +554,7 @@ def generate_artist_post(artist_name: str, persona: dict, recent_activities: lis
     ]
     chosen_type = random.choice(post_types)
 
-    tone = persona.get("tone", "friendly, casual, warm") if persona else "friendly, casual, warm"
+    tone = persona.get("tone", DEFAULT_TONE_CASUAL) if persona else DEFAULT_TONE_CASUAL
     fandom_name = persona.get("fandom_name", "fans") if persona else "fans"
 
     prompt = f"""
@@ -630,7 +634,7 @@ def generate_artist_dm(artist_name: str, persona: dict, context: str = "new foll
     if not genai:
         return None
 
-    tone = persona.get("tone", "friendly, warm") if persona else "friendly, warm"
+    tone = persona.get("tone", DEFAULT_TONE) if persona else DEFAULT_TONE
     greeting = persona.get("greeting", f"Hey! Thanks for the support!") if persona else "Hey! Thanks for the support!"
 
     prompt = f"""
@@ -748,7 +752,7 @@ def generate_artist_post_factbased(
         return None
 
     lang_name = LANG_NAMES.get(language, 'English')
-    tone = persona.get("tone", "friendly, warm") if persona else "friendly, warm"
+    tone = persona.get("tone", DEFAULT_TONE) if persona else DEFAULT_TONE
     fandom = persona.get("fandom_name", "fans") if persona else "fans"
 
     post_type = real_data.get("post_type", "music_promotion")

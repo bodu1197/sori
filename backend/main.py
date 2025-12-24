@@ -3368,34 +3368,35 @@ async def create_virtual_member(request: Request):
 
         # 3. Create auth user via Supabase Admin API
         import uuid
-        import requests
+        import httpx
 
         virtual_email = f"{browse_id}@sori.virtual"
         random_password = str(uuid.uuid4())
 
-        # Supabase Admin API call
+        # Supabase Admin API call (using async httpx)
         supabase_url = os.getenv("SUPABASE_URL")
         service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-        create_user_response = requests.post(
-            f"{supabase_url}/auth/v1/admin/users",
-            headers={
-                "apikey": service_key,
-                "Authorization": f"Bearer {service_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "email": virtual_email,
-                "password": random_password,
-                "email_confirm": True,
-                "user_metadata": {
-                    "full_name": artist_name,
-                    "avatar_url": thumbnail_url,
-                    "member_type": "artist",
-                    "artist_browse_id": browse_id
+        async with httpx.AsyncClient() as client:
+            create_user_response = await client.post(
+                f"{supabase_url}/auth/v1/admin/users",
+                headers={
+                    "apikey": service_key,
+                    "Authorization": f"Bearer {service_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "email": virtual_email,
+                    "password": random_password,
+                    "email_confirm": True,
+                    "user_metadata": {
+                        "full_name": artist_name,
+                        "avatar_url": thumbnail_url,
+                        "member_type": "artist",
+                        "artist_browse_id": browse_id
+                    }
                 }
-            }
-        )
+            )
 
         if create_user_response.status_code not in [200, 201]:
             error_detail = create_user_response.json()
