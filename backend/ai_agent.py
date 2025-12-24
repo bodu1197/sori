@@ -32,10 +32,23 @@ GOOGLE_LOCATION = os.getenv("GOOGLE_LOCATION") or "us-central1"
 if genai and GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
     # Use Gemini 1.5 Flash for speed + Google Search Grounding
-    tools_config = [
-        {"google_search": {}} # Enable Google Search Grounding
-    ]
-    model = genai.GenerativeModel('gemini-1.5-flash', tools=tools_config)
+    # Try to enable Google Search with compatible SDK version
+    try:
+        # New SDK format: use Tool with google_search
+        if hasattr(types, 'Tool') and hasattr(types.Tool, 'from_google_search_retrieval'):
+            google_search_tool = types.Tool.from_google_search_retrieval(
+                google_search_retrieval=types.GoogleSearchRetrieval()
+            )
+            model = genai.GenerativeModel('gemini-1.5-flash', tools=[google_search_tool])
+            logger.info("Gemini model with Google Search Grounding enabled")
+        else:
+            # Fallback: Try simpler format for older versions
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            logger.info("Gemini model initialized without Google Search (SDK version incompatible)")
+    except Exception as e:
+        # If tool config fails, use model without tools
+        logger.warning(f"Google Search tool setup failed, using basic model: {e}")
+        model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     model = None
 
