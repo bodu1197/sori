@@ -882,6 +882,9 @@ def generate_post_image(post_type: str, caption: str, artist_name: str = None) -
         logger.warning("Imagen model not available")
         return None
 
+    # Mark unused parameters (kept for API compatibility)
+    del caption, artist_name  # Currently unused, may be used for personalization later
+
     try:
         # Get base prompt from post type
         base_prompt = POST_TYPE_IMAGE_PROMPTS.get(

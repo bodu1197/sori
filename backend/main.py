@@ -441,7 +441,7 @@ def db_check_artist_needs_sync(browse_id: str, days: int = 7) -> bool:
             return True
 
         last_synced = result.data.get("last_synced_at")
-        last_time = datetime.fromisoformat(last_synced.replace("Z", "+00:00"))
+        last_time = datetime.fromisoformat(last_synced.replace("Z", TIMEZONE_SUFFIX))
         return datetime.now(timezone.utc) - last_time > timedelta(days=days)
     except Exception:
         return True
@@ -751,6 +751,104 @@ def get_best_thumbnail(thumbnails: list, size: int = 544) -> str:
     return upscale_thumbnail_url(url, size)
 
 
+def _process_album_list(ytmusic, album_list: list, existing_album_ids: set,
+                        existing_video_ids: set, artist_browse_id: str) -> tuple[int, int]:
+    """Process album list and save new albums/tracks. Returns (new_albums, new_tracks)."""
+    new_albums = 0
+    new_tracks = 0
+
+    for album in album_list:
+        album_browse_id = album.get("browseId")
+        if not album_browse_id or album_browse_id in existing_album_ids:
+            continue
+
+        try:
+            album_detail = ytmusic.get_album(album_browse_id)
+            if not album_detail:
+                continue
+
+            album_data = {
+                "browseId": album_browse_id,
+                "title": album_detail.get("title") or "",
+                "type": album_detail.get("type") or "Album",
+                "year": album_detail.get("year") or "",
+                "thumbnails": album_detail.get("thumbnails") or []
+            }
+
+            db_save_album(album_data, artist_browse_id)
+            new_albums += 1
+
+            for idx, track in enumerate(album_detail.get("tracks") or []):
+                video_id = track.get("videoId")
+                if not video_id or video_id in existing_video_ids:
+                    continue
+
+                track_data = {
+                    "videoId": video_id,
+                    "title": track.get("title") or "",
+                    "duration": track.get("duration") or "",
+                    "thumbnails": track.get("thumbnails") or [],
+                    "isExplicit": track.get("isExplicit", False)
+                }
+                db_save_track(track_data, album_browse_id, artist_browse_id, idx + 1)
+                new_tracks += 1
+
+        except Exception as e:
+            logger.warning(f"Background album fetch error: {e}")
+
+    return new_albums, new_tracks
+
+
+def _get_section_list(ytmusic, section: dict) -> list:
+    """Get album/single list from section with proper API call."""
+    if not section or not isinstance(section, dict):
+        return []
+
+    params = section.get("params")
+    browse_id = section.get("browseId")
+
+    if params and browse_id:
+        try:
+            return ytmusic.get_artist_albums(browse_id, params) or []
+        except Exception:
+            return section.get("results") or []
+    return section.get("results") or []
+
+
+def _extract_top_songs(songs_section: dict) -> list:
+    """Extract top songs from artist info."""
+    if not songs_section or not isinstance(songs_section, dict):
+        return []
+
+    top_songs = []
+    for song in songs_section.get("results", []):
+        if isinstance(song, dict) and song.get("videoId"):
+            top_songs.append({
+                "videoId": song.get("videoId"),
+                "title": song.get("title") or "",
+                "duration": song.get("duration") or "",
+                "thumbnails": song.get("thumbnails") or []
+            })
+    return top_songs
+
+
+def _extract_related_artists(related_section: dict) -> list:
+    """Extract related artists from artist info."""
+    if not related_section or not isinstance(related_section, dict):
+        return []
+
+    related_artists = []
+    for rel in related_section.get("results", [])[:15]:
+        if isinstance(rel, dict):
+            related_artists.append({
+                "browseId": rel.get("browseId") or "",
+                "name": rel.get("title") or rel.get("name") or "",
+                "subscribers": rel.get("subscribers") or "",
+                "thumbnails": rel.get("thumbnails") or []
+            })
+    return related_artists
+
+
 def background_update_artist(artist_browse_id: str, country: str):
     """
     백그라운드에서 아티스트 데이터 업데이트 (7일 경과 시 호출)
@@ -762,11 +860,9 @@ def background_update_artist(artist_browse_id: str, country: str):
 
         logger.info(f"Background update started: {artist_browse_id}")
 
-        # 기존 앨범/트랙 ID 조회
         existing_album_ids = db_get_existing_album_ids(artist_browse_id)
         existing_video_ids = db_get_existing_video_ids(artist_browse_id)
 
-        # ytmusicapi로 최신 데이터 가져오기
         lang = COUNTRY_LANGUAGE_MAP.get(country.upper(), 'en')
         ytmusic = YTMusic(language=lang, location=country.upper())
 
@@ -775,148 +871,26 @@ def background_update_artist(artist_browse_id: str, country: str):
             logger.warning(f"Background update: Artist not found {artist_browse_id}")
             return
 
-        new_albums_count = 0
-        new_tracks_count = 0
+        # Process albums
+        album_list = _get_section_list(ytmusic, artist_info.get("albums"))
+        albums_count, tracks_from_albums = _process_album_list(
+            ytmusic, album_list, existing_album_ids, existing_video_ids, artist_browse_id
+        )
 
-        # 앨범 확인
-        albums_section = artist_info.get("albums")
-        if albums_section and isinstance(albums_section, dict):
-            params = albums_section.get("params")
-            browse_id = albums_section.get("browseId")
-            album_list = []
+        # Process singles
+        singles_list = _get_section_list(ytmusic, artist_info.get("singles"))
+        singles_count, tracks_from_singles = _process_album_list(
+            ytmusic, singles_list, existing_album_ids, existing_video_ids, artist_browse_id
+        )
 
-            if params and browse_id:
-                try:
-                    album_list = ytmusic.get_artist_albums(browse_id, params) or []
-                except Exception:
-                    album_list = albums_section.get("results") or []
-            else:
-                album_list = albums_section.get("results") or []
+        new_albums_count = albums_count + singles_count
+        new_tracks_count = tracks_from_albums + tracks_from_singles
 
-            for album in album_list:
-                album_browse_id = album.get("browseId")
-                if not album_browse_id or album_browse_id in existing_album_ids:
-                    continue
+        # Extract metadata
+        top_songs = _extract_top_songs(artist_info.get("songs"))
+        related_artists = _extract_related_artists(artist_info.get("related"))
 
-                # 새 앨범 발견!
-                try:
-                    album_detail = ytmusic.get_album(album_browse_id)
-                    if not album_detail:
-                        continue
-
-                    album_data = {
-                        "browseId": album_browse_id,
-                        "title": album_detail.get("title") or "",
-                        "type": album_detail.get("type") or "Album",
-                        "year": album_detail.get("year") or "",
-                        "thumbnails": album_detail.get("thumbnails") or []
-                    }
-
-                    db_save_album(album_data, artist_browse_id)
-                    new_albums_count += 1
-
-                    # 트랙 저장
-                    for idx, track in enumerate(album_detail.get("tracks") or []):
-                        video_id = track.get("videoId")
-                        if not video_id or video_id in existing_video_ids:
-                            continue
-
-                        track_data = {
-                            "videoId": video_id,
-                            "title": track.get("title") or "",
-                            "duration": track.get("duration") or "",
-                            "thumbnails": track.get("thumbnails") or [],
-                            "isExplicit": track.get("isExplicit", False)
-                        }
-
-                        db_save_track(track_data, album_browse_id, artist_browse_id, idx + 1)
-                        new_tracks_count += 1
-
-                except Exception as e:
-                    logger.warning(f"Background album fetch error: {e}")
-
-        # 싱글 확인
-        singles_section = artist_info.get("singles")
-        if singles_section and isinstance(singles_section, dict):
-            params = singles_section.get("params")
-            browse_id = singles_section.get("browseId")
-            singles_list = []
-
-            if params and browse_id:
-                try:
-                    singles_list = ytmusic.get_artist_albums(browse_id, params) or []
-                except Exception:
-                    singles_list = singles_section.get("results") or []
-            else:
-                singles_list = singles_section.get("results") or []
-
-            for single in singles_list:
-                single_browse_id = single.get("browseId")
-                if not single_browse_id or single_browse_id in existing_album_ids:
-                    continue
-
-                try:
-                    single_detail = ytmusic.get_album(single_browse_id)
-                    if not single_detail:
-                        continue
-
-                    single_data = {
-                        "browseId": single_browse_id,
-                        "title": single_detail.get("title") or "",
-                        "type": "Single",
-                        "year": single_detail.get("year") or "",
-                        "thumbnails": single_detail.get("thumbnails") or []
-                    }
-
-                    db_save_album(single_data, artist_browse_id)
-                    new_albums_count += 1
-
-                    for idx, track in enumerate(single_detail.get("tracks") or []):
-                        video_id = track.get("videoId")
-                        if not video_id or video_id in existing_video_ids:
-                            continue
-
-                        track_data = {
-                            "videoId": video_id,
-                            "title": track.get("title") or "",
-                            "duration": track.get("duration") or "",
-                            "thumbnails": track.get("thumbnails") or [],
-                            "isExplicit": track.get("isExplicit", False)
-                        }
-
-                        db_save_track(track_data, single_browse_id, artist_browse_id, idx + 1)
-                        new_tracks_count += 1
-
-                except Exception as e:
-                    logger.warning(f"Background single fetch error: {e}")
-
-        # 인기곡 업데이트
-        top_songs = []
-        songs_section = artist_info.get("songs")
-        if songs_section and isinstance(songs_section, dict):
-            for song in songs_section.get("results", []):
-                if isinstance(song, dict) and song.get("videoId"):
-                    top_songs.append({
-                        "videoId": song.get("videoId"),
-                        "title": song.get("title") or "",
-                        "duration": song.get("duration") or "",
-                        "thumbnails": song.get("thumbnails") or []
-                    })
-
-        # 유사 아티스트 업데이트
-        related_artists = []
-        related_section = artist_info.get("related")
-        if related_section and isinstance(related_section, dict):
-            for rel in related_section.get("results", [])[:15]:
-                if isinstance(rel, dict):
-                    related_artists.append({
-                        "browseId": rel.get("browseId") or "",
-                        "name": rel.get("title") or rel.get("name") or "",
-                        "subscribers": rel.get("subscribers") or "",
-                        "thumbnails": rel.get("thumbnails") or []
-                    })
-
-        # last_synced_at 업데이트
+        # Update last_synced_at
         if supabase_client:
             try:
                 supabase_client.table("music_artists").update({
@@ -980,7 +954,7 @@ def db_artist_needs_update(browse_id: str, hours: int = 6) -> bool:
         if not last_updated:
             return True
 
-        last_time = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+        last_time = datetime.fromisoformat(last_updated.replace("Z", TIMEZONE_SUFFIX))
         return datetime.now(timezone.utc) - last_time > timedelta(hours=hours)
     except Exception as e:
         logger.warning(f"DB artist needs update check error: {e}")
@@ -2122,7 +2096,7 @@ async def get_artist(artist_id: str, country: str = "US", force_refresh: bool = 
 
             if artist_record.data and artist_record.data[0].get("last_synced_at"):
                 last_synced = datetime.fromisoformat(
-                    artist_record.data[0]["last_synced_at"].replace("Z", "+00:00")
+                    artist_record.data[0]["last_synced_at"].replace("Z", TIMEZONE_SUFFIX)
                 )
                 if datetime.now(timezone.utc) - last_synced > timedelta(days=7):
                     should_refresh = True
