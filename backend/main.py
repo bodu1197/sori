@@ -3519,6 +3519,78 @@ async def list_virtual_members():
 # AI Activity Engine - Automated Artist Activities
 # =============================================================================
 
+
+def _get_real_media_content(supabase, browse_id: str, artist_name: str, avatar_url: str) -> tuple:
+    """Get real media content (cover, video_id, song_title) for artist post."""
+    cover_url = upscale_thumbnail_url(avatar_url, size=544)
+    video_id = None
+    song_title = None
+
+    if browse_id:
+        # Get latest album with thumbnail
+        albums = supabase.table("music_albums").select(
+            "title, thumbnail_url, year"
+        ).eq("artist_browse_id", browse_id).order(
+            "year", desc=True
+        ).limit(3).execute()
+
+        # Get popular tracks WITH video_id for YouTube embed
+        tracks = supabase.table("music_tracks").select(
+            "title, thumbnail_url, video_id"
+        ).eq("artist_browse_id", browse_id).limit(10).execute()
+
+        # Select a random track for video embed
+        if tracks.data and len(tracks.data) > 0:
+            tracks_with_video = [t for t in tracks.data if t.get("video_id")]
+            if tracks_with_video:
+                selected_track = random.choice(tracks_with_video)
+                video_id = selected_track.get("video_id")
+                song_title = selected_track.get("title")
+                if selected_track.get("thumbnail_url"):
+                    cover_url = upscale_thumbnail_url(selected_track["thumbnail_url"], size=544)
+                logger.info(f"Selected track for {artist_name}: {song_title} (video_id: {video_id})")
+
+        # Use album art if no track selected yet
+        if not video_id and albums.data and len(albums.data) > 0:
+            album = random.choice(albums.data)
+            if album.get("thumbnail_url"):
+                cover_url = upscale_thumbnail_url(album["thumbnail_url"], size=544)
+                logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
+    
+    return cover_url, video_id, song_title
+
+
+def _create_greeting_story(supabase, artist_id, persona, artist_language, cover_url, artist_name):
+    """Create a greeting story instead of a post."""
+    try:
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        fandom_name = persona.get("fandom_name", "fans") if persona else "fans"
+
+        # Greeting messages by language
+        greetings = {
+            "ko": f"💕 사랑해요 {fandom_name}!",
+            "ja": f"💕 愛してる {fandom_name}!",
+            "zh": f"💕 爱你们 {fandom_name}!",
+            "es": f"💕 ¡Os quiero {fandom_name}!",
+        }
+        greeting_text = greetings.get(artist_language, f"💕 Love you {fandom_name}!")
+
+        story_data = {
+            "user_id": artist_id,
+            "content_type": "greeting",
+            "text_content": greeting_text,
+            "cover_url": cover_url,
+            "background_color": "#1a1a2e",
+            "expires_at": expires_at,
+            "is_active": True
+        }
+        supabase.table("stories").insert(story_data).execute()
+        return True
+    except Exception as story_err:
+        logger.error(f"Story creation error for {artist_name}: {story_err}")
+        return False
+
+
 @app.post("/api/cron/artist-activity")
 async def run_artist_activity(request: Request, background_tasks: BackgroundTasks):
     """
@@ -3597,88 +3669,27 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                         artist_language = music_artist.data[0].get("primary_language") or "en"
 
                 # ========== STEP 3: GET IMAGE & VIDEO FROM REAL DATA ==========
-                # Default to avatar (upscaled to high resolution)
-                cover_url = upscale_thumbnail_url(artist.get("avatar_url"), size=544)
-                video_id = None  # YouTube video ID for iframe embed
-                song_title = None  # Track title for recommendation posts
-
-                if browse_id:
-                    # Get latest album with thumbnail
-                    albums = supabase_client.table("music_albums").select(
-                        "title, thumbnail_url, year"
-                    ).eq("artist_browse_id", browse_id).order(
-                        "year", desc=True
-                    ).limit(3).execute()
-
-                    # Get popular tracks WITH video_id for YouTube embed
-                    tracks = supabase_client.table("music_tracks").select(
-                        "title, thumbnail_url, video_id"
-                    ).eq("artist_browse_id", browse_id).limit(10).execute()
-
-                    # Select a random track for video embed
-                    if tracks.data and len(tracks.data) > 0:
-                        tracks_with_video = [t for t in tracks.data if t.get("video_id")]
-                        if tracks_with_video:
-                            selected_track = random.choice(tracks_with_video)
-                            video_id = selected_track.get("video_id")
-                            song_title = selected_track.get("title")
-                            if selected_track.get("thumbnail_url"):
-                                cover_url = upscale_thumbnail_url(selected_track["thumbnail_url"], size=544)
-                            logger.info(f"Selected track for {artist_name}: {song_title} (video_id: {video_id})")
-
-                    # Use album art if no track selected yet
-                    if not video_id and albums.data and len(albums.data) > 0:
-                        album = random.choice(albums.data)
-                        if album.get("thumbnail_url"):
-                            cover_url = upscale_thumbnail_url(album["thumbnail_url"], size=544)
-                            logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
+                cover_url, video_id, song_title = _get_real_media_content(
+                     supabase_client, browse_id, artist_name, artist.get("avatar_url")
+                )
 
                 # ========== STEP 4: GENERATE CONTEXTUAL POST ==========
-                # AI가 아티스트 상황에 맞는 포스트 생성
-                # Add selected track info to context for AI
                 if song_title and video_id:
                     context["selected_track"] = {
                         "title": song_title,
                         "video_id": video_id
                     }
-                    # If no specific news, suggest music recommendation post
                     if context.get("suggested_topic") == "fan_thanks":
                         context["suggested_topic"] = "music_recommendation"
                         context["post_context"] = f"Recommend your song '{song_title}' to fans. Share why you love this track."
 
                 # ========== QUALITY CONTROL: fan_thanks → Story only ==========
-                # 인사글은 스토리로만, 포스팅에는 절대 인사글 금지
                 suggested_topic = context.get("suggested_topic", "fan_thanks")
                 if suggested_topic == "fan_thanks" and not video_id:
-                    # Create a STORY instead of a post for greetings
-                    try:
-                        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
-                        fandom_name = persona.get("fandom_name", "fans") if persona else "fans"
-
-                        # Greeting messages by language
-                        greetings = {
-                            "ko": f"💕 사랑해요 {fandom_name}!",
-                            "ja": f"💕 愛してる {fandom_name}!",
-                            "zh": f"💕 爱你们 {fandom_name}!",
-                            "es": f"💕 ¡Os quiero {fandom_name}!",
-                        }
-                        greeting_text = greetings.get(artist_language, f"💕 Love you {fandom_name}!")
-
-                        story_data = {
-                            "user_id": artist["id"],
-                            "content_type": "greeting",
-                            "text_content": greeting_text,
-                            "cover_url": cover_url,
-                            "background_color": "#1a1a2e",
-                            "expires_at": expires_at,
-                            "is_active": True
-                        }
-                        supabase_client.table("stories").insert(story_data).execute()
-                        results["stories_created"] += 1
-                        logger.info(f"[STORY] {artist_name}: Greeting → Story (not post)")
-                    except Exception as story_err:
-                        logger.error(f"Story creation error: {story_err}")
-                    continue  # Skip post, move to next artist
+                     _create_greeting_story(supabase_client, artist["id"], persona, artist_language, cover_url, artist_name)
+                     results["stories_created"] += 1
+                     logger.info(f"[STORY] {artist_name}: Greeting → Story (not post)")
+                     continue
 
                 post_data = await run_in_thread(
                     generate_contextual_post,
@@ -3698,9 +3709,10 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
                         "user_id": artist["id"],
                         "caption": caption,
                         "language": artist_language,
-                        "cover_url": cover_url,
+                        "image_url": cover_url,
                         "video_id": video_id,  # YouTube video ID for iframe embed
-                        "title": song_title or post_type,  # Use song title if available
+                        "type": post_type,  # Use song title if available
+                        "likes_count": 0,
                         "artist": artist_name,
                         "is_public": True,
                         "like_count": 0,
@@ -4867,6 +4879,46 @@ async def get_cached_translation(post_id: str, target_language: str = "en"):
 
 
 
+
+def _identify_new_releases(current_albums, current_singles, stored_result):
+    """Identify new releases by comparing with stored IDs."""
+    known_album_ids = set()
+    known_single_ids = set()
+
+    if stored_result and stored_result.data:
+        known_album_ids = set(stored_result.data[0].get("known_album_ids", []) or [])
+        known_single_ids = set(stored_result.data[0].get("known_single_ids", []) or [])
+
+    current_album_ids = {a["id"] for a in current_albums}
+    current_single_ids = {s["id"] for s in current_singles}
+
+    new_album_ids = current_album_ids - known_album_ids
+    new_single_ids = current_single_ids - known_single_ids
+
+    new_albums = [a for a in current_albums if a["id"] in new_album_ids]
+    new_singles = [s for s in current_singles if s["id"] in new_single_ids]
+    
+    return new_albums, new_singles, list(current_album_ids), list(current_single_ids)
+
+
+def _update_artist_releases_db(supabase, artist_browse_id, all_album_ids, all_single_ids, new_albums, new_singles):
+    """Update artist releases in database."""
+    update_data = {
+        "artist_browse_id": artist_browse_id,
+        "known_album_ids": all_album_ids,
+        "known_single_ids": all_single_ids,
+        "last_checked_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    if new_albums or new_singles:
+        update_data["last_new_release_at"] = datetime.now(timezone.utc).isoformat()
+
+    supabase.table("artist_releases").upsert(
+        update_data,
+        on_conflict="artist_browse_id"
+    ).execute()
+
+
 @app.post("/api/artist/check-new-releases")
 async def check_artist_new_releases(request: Request):
     """
@@ -4916,38 +4968,15 @@ async def check_artist_new_releases(request: Request):
             "known_album_ids, known_single_ids"
         ).eq("artist_browse_id", artist_browse_id).limit(1).execute()
 
-        known_album_ids = set()
-        known_single_ids = set()
-
-        if stored_result.data:
-            known_album_ids = set(stored_result.data[0].get("known_album_ids", []) or [])
-            known_single_ids = set(stored_result.data[0].get("known_single_ids", []) or [])
-
-        # Find new releases
-        current_album_ids = {a["id"] for a in current_albums}
-        current_single_ids = {s["id"] for s in current_singles}
-
-        new_album_ids = current_album_ids - known_album_ids
-        new_single_ids = current_single_ids - known_single_ids
-
-        new_albums = [a for a in current_albums if a["id"] in new_album_ids]
-        new_singles = [s for s in current_singles if s["id"] in new_single_ids]
+        # Identify new releases
+        new_albums, new_singles, all_album_ids, all_single_ids = _identify_new_releases(
+            current_albums, current_singles, stored_result
+        )
 
         # Update stored data
-        update_data = {
-            "artist_browse_id": artist_browse_id,
-            "known_album_ids": list(current_album_ids),
-            "known_single_ids": list(current_single_ids),
-            "last_checked_at": datetime.now(timezone.utc).isoformat()
-        }
-
-        if new_albums or new_singles:
-            update_data["last_new_release_at"] = datetime.now(timezone.utc).isoformat()
-
-        supabase_client.table("artist_releases").upsert(
-            update_data,
-            on_conflict="artist_browse_id"
-        ).execute()
+        _update_artist_releases_db(
+            supabase_client, artist_browse_id, all_album_ids, all_single_ids, new_albums, new_singles
+        )
 
         return {
             "artist_name": artist_info.get("name", "Unknown"),
