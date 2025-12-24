@@ -3774,7 +3774,7 @@ async def collect_chart_artists(request: Request, background_tasks: BackgroundTa
         body = {}
         try:
             body = await request.json()
-        except:
+        except (json.JSONDecodeError, ValueError):
             pass
 
         # 수집할 국가 목록 (기본: 전체)
@@ -3892,7 +3892,7 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
         body = {}
         try:
             body = await request.json()
-        except:
+        except (json.JSONDecodeError, ValueError):
             pass
 
         # 배치 번호 (0~3)
@@ -3996,7 +3996,7 @@ async def update_existing_artists(request: Request):
     """
     try:
         body = await request.json()
-    except:
+    except (json.JSONDecodeError, ValueError):
         body = {}
 
     secret = body.get("secret", "")
@@ -4131,7 +4131,7 @@ async def create_virtual_members_cron(request: Request):
     """
     try:
         body = await request.json()
-    except:
+    except (json.JSONDecodeError, ValueError):
         body = {}
 
     secret = body.get("secret", "")
@@ -4232,7 +4232,7 @@ async def expand_related_artists(request: Request):
     """
     try:
         body = await request.json()
-    except:
+    except (json.JSONDecodeError, ValueError):
         body = {}
 
     secret = body.get("secret", "")
