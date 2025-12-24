@@ -218,6 +218,83 @@ Return ONLY the JSON, no other text."""
         }
 
 
+def _build_topic_instruction(context: dict) -> tuple[str, str]:
+    """
+    Build topic-specific instruction for post generation.
+    Returns (topic_instruction, post_type)
+    """
+    suggested_topic = context.get("suggested_topic", "fan_thanks")
+    post_context = context.get("post_context", "General appreciation for fans")
+    new_release = context.get("new_release")
+    tour_info = context.get("tour_info")
+    recent_activity = context.get("recent_activity", "")
+    recent_news = context.get("recent_news", [])
+    news_summary = context.get("news_summary", "")
+
+    if suggested_topic == "news" and (recent_news or news_summary):
+        news_text = recent_news[0].get("snippet", news_summary) if recent_news else news_summary
+        news_title = recent_news[0].get("title", "") if recent_news else ""
+        return (f"""Share this REAL news with your fans:
+News: {news_title} - {news_text}
+
+Write a post that:
+- References this specific news naturally
+- Expresses your genuine reaction/excitement
+- Thanks fans for their support
+- Sounds authentic to your voice
+
+IMPORTANT: Use the ACTUAL news content, don't make things up.""", "news")
+
+    if suggested_topic == "new_release" and new_release:
+        return (f"""Talk about your recent release "{new_release.get('title', '')}" ({new_release.get('type', 'music')}).
+Thank fans for their support and encourage them to listen.""", "music")
+
+    if suggested_topic == "tour" and tour_info:
+        return (f"""Share excitement about your tour/concert: {tour_info}.
+Thank fans who came or encourage them to come.""", "tour")
+
+    if suggested_topic == "hiatus_message":
+        return (f"""You are currently on hiatus. {recent_activity}
+Send a warm message to fans saying you miss them and will return soon.""", "hiatus")
+
+    if suggested_topic == "comeback":
+        return ("""Hint at or announce your upcoming comeback.
+Build excitement among fans.""", "comeback")
+
+    if suggested_topic == "studio_work":
+        return ("""Share that you're working on new music in the studio.
+Build anticipation without revealing too much.""", "music")
+
+    if suggested_topic == "music_recommendation":
+        selected_track = context.get("selected_track", {})
+        track_title = selected_track.get("title", "")
+        return (f"""Recommend your song "{track_title}" to your fans!
+
+Write a post that:
+- Shares why this song is special to you
+- Encourages fans to listen
+- Shows genuine love for this track
+- Mentions a memory or story about the song (can be creative but authentic)
+
+Keep it personal and heartfelt. The video will be embedded with the post.""", "music")
+
+    # Default: fan_thanks
+    return (f"""Express genuine gratitude to your fans.
+Context: {post_context}""", "fan")
+
+
+def _clean_markdown_json(text: str) -> str:
+    """Remove markdown code blocks from JSON response."""
+    if text.startswith("```"):
+        lines = text.split('\n')
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines[-1].startswith("```"):
+            lines = lines[:-1]
+        return "\n".join(lines)
+    return text
+
+
 def generate_contextual_post(
     artist_name: str,
     persona: dict,
@@ -244,81 +321,7 @@ def generate_contextual_post(
     tone = persona.get("tone", DEFAULT_TONE) if persona else DEFAULT_TONE
     fandom = persona.get("fandom_name", "fans") if persona else "fans"
 
-    suggested_topic = context.get("suggested_topic", "fan_thanks")
-    post_context = context.get("post_context", "General appreciation for fans")
-    new_release = context.get("new_release")
-    tour_info = context.get("tour_info")
-    recent_activity = context.get("recent_activity", "")
-    recent_news = context.get("recent_news", [])
-    news_summary = context.get("news_summary", "")
-
-    # Build specific instructions based on context
-    # PRIORITY: Use real-time news if available
-    if suggested_topic == "news" and (recent_news or news_summary):
-        # Build news context from recent news
-        if recent_news:
-            news_text = recent_news[0].get("snippet", news_summary) if recent_news else news_summary
-            news_title = recent_news[0].get("title", "") if recent_news else ""
-        else:
-            news_text = news_summary
-            news_title = ""
-
-        topic_instruction = f"""Share this REAL news with your fans:
-News: {news_title} - {news_text}
-
-Write a post that:
-- References this specific news naturally
-- Expresses your genuine reaction/excitement
-- Thanks fans for their support
-- Sounds authentic to your voice
-
-IMPORTANT: Use the ACTUAL news content, don't make things up."""
-        post_type = "news"
-
-    elif suggested_topic == "new_release" and new_release:
-        topic_instruction = f"""Talk about your recent release "{new_release.get('title', '')}" ({new_release.get('type', 'music')}).
-Thank fans for their support and encourage them to listen."""
-        post_type = "music"
-
-    elif suggested_topic == "tour" and tour_info:
-        topic_instruction = f"""Share excitement about your tour/concert: {tour_info}.
-Thank fans who came or encourage them to come."""
-        post_type = "tour"
-
-    elif suggested_topic == "hiatus_message":
-        topic_instruction = f"""You are currently on hiatus. {recent_activity}
-Send a warm message to fans saying you miss them and will return soon."""
-        post_type = "hiatus"
-
-    elif suggested_topic == "comeback":
-        topic_instruction = f"""Hint at or announce your upcoming comeback.
-Build excitement among fans."""
-        post_type = "comeback"
-
-    elif suggested_topic == "studio_work":
-        topic_instruction = """Share that you're working on new music in the studio.
-Build anticipation without revealing too much."""
-        post_type = "music"
-
-    elif suggested_topic == "music_recommendation":
-        # Get the selected track info from context
-        selected_track = context.get("selected_track", {})
-        track_title = selected_track.get("title", "")
-        topic_instruction = f"""Recommend your song "{track_title}" to your fans!
-
-Write a post that:
-- Shares why this song is special to you
-- Encourages fans to listen
-- Shows genuine love for this track
-- Mentions a memory or story about the song (can be creative but authentic)
-
-Keep it personal and heartfelt. The video will be embedded with the post."""
-        post_type = "music"
-
-    else:  # fan_thanks
-        topic_instruction = f"""Express genuine gratitude to your fans.
-Context: {post_context}"""
-        post_type = "fan"
+    topic_instruction, post_type = _build_topic_instruction(context)
 
     prompt = f"""You are {artist_name}, a music artist posting on social media.
 
@@ -345,17 +348,10 @@ Return ONLY valid JSON."""
 
     try:
         response = model.generate_content(prompt)
-        text = response.text.strip()
-
-        if text.startswith("```"):
-            lines = text.split('\n')
-            if lines[0].startswith("```"): lines = lines[1:]
-            if lines[-1].startswith("```"): lines = lines[:-1]
-            text = "\n".join(lines)
-
+        text = _clean_markdown_json(response.text.strip())
         result = json.loads(text)
         result["language"] = language
-        result["context_used"] = suggested_topic
+        result["context_used"] = context.get("suggested_topic", "fan_thanks")
         return result
 
     except Exception as e:

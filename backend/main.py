@@ -26,6 +26,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# Constants - Avoid duplicate string literals (SonarCloud fix)
+# =============================================================================
+CONTENT_TYPE_JSON = "application/json"
+ERROR_DB_NOT_CONFIGURED = "Database not configured"
+ERROR_DB_NOT_AVAILABLE = "DB not available"
+ERROR_ARTIST_NOT_FOUND = "Artist not found"
+THUMBNAIL_MAXRES = "maxresdefault.jpg"
+TIMEZONE_SUFFIX = "+00:00"
+
+# =============================================================================
 # Supabase 클라이언트 (영구 저장소)
 # =============================================================================
 supabase_client = None
@@ -249,7 +259,7 @@ def create_virtual_member_sync(browse_id: str, artist_name: str, thumbnail_url: 
             headers={
                 "apikey": service_key,
                 "Authorization": f"Bearer {service_key}",
-                "Content-Type": "application/json"
+                "Content-Type": CONTENT_TYPE_JSON
             },
             json={
                 "email": virtual_email,
@@ -1724,7 +1734,7 @@ async def get_artist_songs_playlist(artist_id: str, country: str = "US"):
         artist = ytmusic.get_artist(artist_id)
 
         if not artist:
-            raise HTTPException(status_code=404, detail="Artist not found")
+            raise HTTPException(status_code=404, detail=ERROR_ARTIST_NOT_FOUND)
 
         artist_name = artist.get("name") or ""
         songs_section = artist.get("songs")
@@ -2164,7 +2174,7 @@ async def get_artist_all_albums(artist_id: str, country: str = "US"):
         artist = ytmusic.get_artist(artist_id)
 
         if not artist:
-            raise HTTPException(status_code=404, detail="Artist not found")
+            raise HTTPException(status_code=404, detail=ERROR_ARTIST_NOT_FOUND)
 
         all_albums = []
 
@@ -2455,7 +2465,7 @@ async def run_custom_sql(secret: str = None, access_token: str = None, sql: str 
             f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
             headers={
                 "Authorization": f"Bearer {mgmt_token}",
-                "Content-Type": "application/json"
+                "Content-Type": CONTENT_TYPE_JSON
             },
             json={"query": sql}
         )
@@ -2531,7 +2541,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER""",
                 f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
                 headers={
                     "Authorization": f"Bearer {mgmt_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": CONTENT_TYPE_JSON
                 },
                 json={"query": sql}
             )
@@ -2604,7 +2614,7 @@ $$"""
                     f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
                     headers={
                         "Authorization": f"Bearer {mgmt_token}",
-                        "Content-Type": "application/json"
+                        "Content-Type": CONTENT_TYPE_JSON
                     },
                     json={"query": sql}
                 )
@@ -2964,7 +2974,7 @@ async def run_migrations(secret: str = None, access_token: str = None):
                     f"https://api.supabase.com/v1/projects/{project_ref}/database/query",
                     headers={
                         "Authorization": f"Bearer {mgmt_token}",
-                        "Content-Type": "application/json"
+                        "Content-Type": CONTENT_TYPE_JSON
                     },
                     json={"query": sql}
                 )
@@ -3223,7 +3233,7 @@ async def provision_artist_agent(request: Request):
         # 1. Search Artist
         search_results = await run_in_thread(ytmusic.search, artist_name, filter="artists", limit=1)
         if not search_results:
-            raise HTTPException(status_code=404, detail="Artist not found")
+            raise HTTPException(status_code=404, detail=ERROR_ARTIST_NOT_FOUND)
             
         artist_info = search_results[0]
         browse_id = artist_info.get("browseId")
@@ -3343,7 +3353,7 @@ async def create_virtual_member(request: Request):
     This creates a real auth.users entry and profiles entry.
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = await request.json()
@@ -3383,7 +3393,7 @@ async def create_virtual_member(request: Request):
                 headers={
                     "apikey": service_key,
                     "Authorization": f"Bearer {service_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": CONTENT_TYPE_JSON
                 },
                 json={
                     "email": virtual_email,
@@ -3467,7 +3477,7 @@ async def migrate_all_artists(request: Request, background_tasks: BackgroundTask
     Runs in background to avoid timeout.
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         # Get all artists that don't have a profile yet
@@ -3517,7 +3527,7 @@ async def list_virtual_members():
     List all virtual members (artists with profiles).
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         result = supabase_client.table("profiles").select(
@@ -3551,7 +3561,7 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
     Artists post in their native language.
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         # Configuration - 콜드 스타트: 50명/회, 하루 600 포스팅
@@ -3794,7 +3804,7 @@ async def collect_chart_artists(request: Request, background_tasks: BackgroundTa
     - body: {"countries": ["KR"], "limit": 10} (국가당 수집할 아티스트 수)
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = {}
@@ -3912,7 +3922,7 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
     4일 = 1 사이클 (60개국 전체)
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = {}
@@ -4389,7 +4399,7 @@ async def delete_virtual_member_posts():
     가상회원(아티스트)들이 작성한 모든 포스트 삭제
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         # 1. 가상회원 ID 목록 조회
@@ -4434,7 +4444,7 @@ async def migrate_artist_languages(request: Request):
     3. primary_language 필드 업데이트
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         # 모든 아티스트 조회
@@ -4495,7 +4505,7 @@ async def auto_reply_to_virtual_member(request: Request):
     4. Response is inserted into the conversation
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = await request.json()
@@ -4592,7 +4602,7 @@ async def auto_reply_to_artist_post(request: Request):
     4. Reply is inserted as a comment
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = await request.json()
@@ -4662,7 +4672,7 @@ async def test_artist_activity():
     For debugging/demo purposes. Supports multilingual posts.
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         # Get a random virtual member
@@ -4745,7 +4755,7 @@ async def translate_post_content(request: Request):
     - cached: Whether the result was from cache
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = await request.json()
@@ -4825,7 +4835,7 @@ async def get_cached_translation(post_id: str, target_language: str = "en"):
     Returns null if not cached.
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         result = supabase_client.table("post_translations").select(
@@ -4861,7 +4871,7 @@ async def check_artist_new_releases(request: Request):
     - has_new_releases: Boolean indicating if any new releases found
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     try:
         body = await request.json()
@@ -4876,7 +4886,7 @@ async def check_artist_new_releases(request: Request):
         # Get current releases from YouTube Music
         artist_info = await run_in_thread(ytmusic.get_artist, artist_browse_id)
         if not artist_info:
-            raise HTTPException(status_code=404, detail="Artist not found")
+            raise HTTPException(status_code=404, detail=ERROR_ARTIST_NOT_FOUND)
 
         current_albums = []
         current_singles = []
@@ -4996,7 +5006,7 @@ async def check_all_artist_releases(request: Request, background_tasks: Backgrou
     Runs in background and creates posts for new releases.
     """
     if not supabase_client:
-        raise HTTPException(status_code=500, detail="Database not configured")
+        raise HTTPException(status_code=500, detail=ERROR_DB_NOT_CONFIGURED)
 
     # Verify admin access
     body = await request.json() if request.headers.get("content-type") == "application/json" else {}
