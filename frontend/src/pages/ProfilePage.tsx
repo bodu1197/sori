@@ -1,53 +1,29 @@
-import { useEffect, useState, SyntheticEvent, MouseEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Grid,
-  Heart,
-  Lock,
-  Play,
-  LogOut,
-  Music,
-  Shuffle,
-  Trash2,
-  Disc,
-  Settings,
-  UserPlus,
-  Plus,
-} from 'lucide-react';
+import { Grid, Heart, Lock, LogOut, Music, Disc, Settings, UserPlus, Plus } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
-import useContentStore from '../stores/useContentStore';
-import useCountry from '../hooks/useCountry';
-import { supabase } from '../lib/supabase';
 import FollowersModal from '../components/social/FollowersModal';
 import FollowButton from '../components/social/FollowButton';
 import { DEFAULT_AVATAR } from '../components/common';
 import {
-  useArtistMusic,
   useHomeData,
   useProfilePlayback,
   useConversation,
-  useProfileLikedSongs,
-  getBestThumbnail,
+  useProfileData,
   PostsGrid,
   DiscoverTab,
   PrivateTab,
   ArtistMusicTab,
-  type Profile,
+  LikedMusicTab,
+  UserSavedMusicTab,
   type Post,
   type Playlist,
   type LikedTrack,
   type HomeSection,
   type HomeContentItem,
-  type HomeData,
-  type ArtistSong,
-  type ArtistAlbum,
-  type ArtistVideo,
-  type SimilarArtist,
 } from './ProfilePageHelpers';
-
-const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
 interface StatItemProps {
   readonly count: number;
@@ -63,105 +39,6 @@ function StatItem({ count, label }: StatItemProps) {
   );
 }
 
-interface TrackItemProps {
-  readonly track: LikedTrack;
-  readonly index: number;
-  readonly onPlay: (track: LikedTrack, index: number) => void;
-  readonly onDelete?: (track: LikedTrack) => void;
-  readonly isPlaying: boolean;
-  readonly isCurrentTrack: boolean;
-}
-
-// Track Item Component for Your Music list
-function TrackItem({ track, index, onPlay, onDelete, isPlaying, isCurrentTrack }: TrackItemProps) {
-  const { t } = useTranslation();
-  const [showDelete, setShowDelete] = useState(false);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onPlay(track, index)}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
-      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors w-full text-left ${
-        isCurrentTrack ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-900'
-      }`}
-    >
-      {/* Thumbnail with play indicator */}
-      <div className="relative w-12 h-12 flex-shrink-0">
-        <img
-          src={track.thumbnail || track.cover_url}
-          alt={track.title}
-          className="w-full h-full rounded object-cover"
-          onError={(e: SyntheticEvent<HTMLImageElement>) => {
-            e.currentTarget.src =
-              'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
-          }}
-        />
-        {isCurrentTrack && isPlaying && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
-            <div className="flex gap-0.5">
-              <div
-                className="w-0.5 h-3 bg-white animate-bounce"
-                style={{ animationDelay: '0ms' }}
-              ></div>
-              <div
-                className="w-0.5 h-3 bg-white animate-bounce"
-                style={{ animationDelay: '150ms' }}
-              ></div>
-              <div
-                className="w-0.5 h-3 bg-white animate-bounce"
-                style={{ animationDelay: '300ms' }}
-              ></div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Track Info */}
-      <div className="flex-1 min-w-0">
-        <div
-          className={`font-medium text-sm truncate ${isCurrentTrack ? 'text-black dark:text-white' : ''}`}
-        >
-          {track.title}
-        </div>
-        <div className="text-xs text-gray-500 truncate">
-          {track.artist || t('common.unknownArtist', 'Unknown Artist')}
-        </div>
-      </div>
-
-      {/* Delete Button (on hover) */}
-      {showDelete && onDelete && (
-        <button
-          onClick={(e: MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            onDelete(track);
-          }}
-          className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-          title={t('profile.removeFromLiked', 'Remove from liked')}
-        >
-          <Trash2 size={16} />
-        </button>
-      )}
-
-      {/* Play Button */}
-      <button
-        onClick={(e: MouseEvent<HTMLButtonElement>) => {
-          e.stopPropagation();
-          onPlay(track, index);
-        }}
-        className="p-2 text-gray-500 hover:text-black dark:hover:text-white"
-      >
-        {isCurrentTrack && isPlaying ? (
-          <Music size={18} className="text-black dark:text-white" />
-        ) : (
-          <Play size={18} fill="currentColor" />
-        )}
-      </button>
-    </button>
-  );
-}
-
 // Types are imported from ProfilePageHelpers
 
 export default function ProfilePage() {
@@ -169,9 +46,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { userId: paramUserId } = useParams<{ userId: string }>();
   const { user, signOut } = useAuthStore();
-  const { setTrack, startPlayback, currentTrack, isPlaying, openTrackPanel, setTrackPanelLoading } =
-    usePlayerStore();
-  const country = useCountry();
+  const { setTrack, startPlayback, currentTrack, isPlaying } = usePlayerStore();
 
   // Determine if viewing own profile or another user's
   const isOwnProfile = !paramUserId || paramUserId === user?.id;
@@ -181,29 +56,45 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'discover' | 'private' | 'music'>(
     isOwnProfile ? 'discover' : 'music'
   );
-  const [userSavedSongs, setUserSavedSongs] = useState<LikedTrack[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [likedSongs, setLikedSongs] = useState<LikedTrack[]>([]);
-  const [homeData, setHomeData] = useState<HomeData | null>(null);
-  const [homeLoading, setHomeLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [startingConversation, setStartingConversation] = useState(false);
-
-  // Artist music state (for virtual members) - 검색 결과와 동일
-  const [artistSongs, setArtistSongs] = useState<ArtistSong[]>([]);
-  const [artistAlbums, setArtistAlbums] = useState<ArtistAlbum[]>([]);
-  const [artistVideos, setArtistVideos] = useState<ArtistVideo[]>([]);
-  const [similarArtists, setSimilarArtists] = useState<SimilarArtist[]>([]);
-  const [artistMusicLoading, setArtistMusicLoading] = useState(false);
-  const [isVirtualMember, setIsVirtualMember] = useState(false);
   const [showAllSongs, setShowAllSongs] = useState(false);
   const [showAllAlbums, setShowAllAlbums] = useState(false);
 
   // Follow modal states
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
+
+  // Use extracted hooks for data fetching
+  const {
+    profile,
+    setProfile,
+    posts,
+    playlists,
+    setPlaylists,
+    likedSongs,
+    userSavedSongs,
+    loading,
+    artistSongs,
+    artistAlbums,
+    artistVideos,
+    similarArtists,
+    artistMusicLoading,
+    isVirtualMember,
+    deleteSong,
+    setLikedSongs,
+  } = useProfileData(targetUserId, isOwnProfile);
+
+  // Use extracted playback hook
+  const {
+    playHomeItem,
+    playPost,
+    playLikedTrack,
+    shufflePlay,
+    fetchAndShowPlaylist,
+    fetchAndShowAlbum,
+  } = useProfilePlayback();
+
+  const { homeData, homeLoading } = useHomeData(activeTab);
+  const { startConversation, startingConversation } = useConversation(targetUserId, isOwnProfile);
 
   // Dynamic recommendations passed from FeedPage
   const location = useLocation();
@@ -220,481 +111,48 @@ export default function ProfilePage() {
         title: location.state.contextTitle,
         message: location.state.contextMessage,
       });
-      // Switch to liked tab to show them
       if (isOwnProfile) {
         setActiveTab('liked');
       }
-      // Clear state so it doesn't persist on refresh if desired, or keep it.
-      // window.history.replaceState({}, document.title); // Optional: clear state
     }
   }, [location.state, isOwnProfile]);
 
-  useEffect(() => {
-    async function fetchProfileData() {
-      if (!targetUserId) return;
-
-      try {
-        setLoading(true);
-
-        // 1. Fetch Profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', targetUserId)
-          .single();
-
-        if (profileError) throw profileError;
-        const profileInfo = profileData as Profile;
-        setProfile(profileInfo);
-
-        // Check if virtual member (artist)
-        const isArtist = profileInfo.member_type === 'artist' && !!profileInfo.artist_browse_id;
-        setIsVirtualMember(isArtist);
-
-        // Fetch artist music for virtual members - 검색 페이지와 100% 동일한 데이터
-        if (isArtist && profileInfo.full_name) {
-          setArtistMusicLoading(true);
-          try {
-            const searchResponse = await fetch(
-              `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(profileInfo.full_name)}`
-            );
-            if (searchResponse.ok) {
-              const searchData = await searchResponse.json();
-
-              // 검색 결과 전체 저장 (SearchPage와 동일)
-              setArtistSongs(searchData.songs || []);
-              setArtistAlbums(searchData.albums || []);
-              setArtistVideos(searchData.videos || []);
-              // similarArtists API 응답을 SimilarArtist 형식으로 변환
-              const mappedSimilarArtists = (searchData.similarArtists || []).map(
-                (a: { browseId: string; name: string; thumbnail?: string }) => ({
-                  browseId: a.browseId,
-                  artist: a.name,
-                  thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
-                })
-              );
-              setSimilarArtists(mappedSimilarArtists);
-            }
-          } catch (searchErr) {
-            console.error('Error fetching artist music:', searchErr);
-          } finally {
-            setArtistMusicLoading(false);
-          }
-        }
-
-        // 2. Fetch User's Posts (public feed posts)
-        let postsQuery = supabase
-          .from('posts')
-          .select('*')
-          .eq('user_id', targetUserId)
-          .order('created_at', { ascending: false });
-
-        // Security: Only show public posts if viewing someone else's profile
-        if (!isOwnProfile) {
-          postsQuery = postsQuery.eq('is_public', true);
-        }
-
-        const { data: postsData, error: postsError } = await postsQuery;
-
-        if (!postsError) {
-          setPosts((postsData as Post[]) || []);
-        }
-
-        // 3. Fetch User's Playlists (for other uses)
-        const { data: playlistData, error: playlistError } = await supabase
-          .from('playlists')
-          .select('*')
-          .eq('user_id', targetUserId)
-          .order('created_at', { ascending: false });
-
-        if (playlistError) throw playlistError;
-        setPlaylists((playlistData as Playlist[]) || []);
-
-        // 4. Fetch Liked Songs (using playlists with video_id as liked songs for now)
-        // Only show for own profile
-        if (isOwnProfile) {
-          const likedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
-            .filter((p) => p.video_id)
-            .map((p) => ({
-              videoId: p.video_id as string,
-              title: p.title || t('common.unknown', 'Unknown'),
-              artist: (profileData as Profile)?.username || t('profile.you', 'You'),
-              thumbnail: p.cover_url,
-              cover: p.cover_url,
-              playlistId: p.id,
-            }));
-          setLikedSongs(likedData);
-        } else {
-          // 5. Fetch other user's music from playlists table (same as own profile)
-          const savedData: LikedTrack[] = ((playlistData as Playlist[]) || [])
-            .filter((p) => p.video_id)
-            .map((p) => ({
-              videoId: p.video_id as string,
-              title: p.title || t('common.unknown', 'Unknown'),
-              artist:
-                (profileData as Profile)?.username || t('common.unknownArtist', 'Unknown Artist'),
-              thumbnail: p.cover_url,
-              cover: p.cover_url,
-              cover_url: p.cover_url,
-              playlistId: p.id,
-            }));
-          setUserSavedSongs(savedData);
-        }
-      } catch {
-        // Error fetching profile
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProfileData();
-  }, [targetUserId, isOwnProfile]);
-
-  // Fetch home data when discover tab is active
-  useEffect(() => {
-    async function fetchHomeData() {
-      if (activeTab !== 'discover' || homeData) return;
-
-      const {
-        homeData: cachedData,
-        homeDataLoadedAt,
-        setHomeData: setCachedData,
-      } = useContentStore.getState();
-      const now = Date.now();
-
-      // Use cached data if available and fresh (< 5m)
-      if (cachedData && homeDataLoadedAt && now - homeDataLoadedAt < 5 * 60 * 1000) {
-        setHomeData(cachedData);
-        // console.log('✅ Using Prefetched Profile Data');
-        return;
-      }
-
-      setHomeLoading(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/home?country=${country.code}&limit=6`);
-        if (response.ok) {
-          const data = await response.json();
-          setHomeData(data);
-          // Cache it for future visits
-          setCachedData(data);
-        }
-      } catch {
-        // Error fetching home data
-      } finally {
-        setHomeLoading(false);
-      }
-    }
-
-    fetchHomeData();
-  }, [activeTab, country.code, homeData]);
-
-  // Helper to get best thumbnail
-  const getBestThumbnail = (
-    thumbnails?: Array<{ url: string; width?: number; height?: number }>
-  ) => {
-    if (!thumbnails || thumbnails.length === 0) return null;
-    return thumbnails[thumbnails.length - 1]?.url || thumbnails[0]?.url;
-  };
-
-  // Fetch playlist data and show panel
-  const fetchAndShowPlaylist = async (playlistId: string) => {
-    setTrackPanelLoading(true);
-    openTrackPanel({
-      title: t('common.loading'),
-      tracks: [],
-      trackCount: 0,
-    });
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/playlist/${playlistId}?country=${country.code}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const playlist = data.playlist;
-        openTrackPanel({
-          title: playlist.title || t('profile.playlist'),
-          description: playlist.description,
-          author: playlist.author,
-          thumbnails: playlist.thumbnails,
-          tracks: playlist.tracks || [],
-          trackCount: playlist.trackCount || playlist.tracks?.length || 0,
-        });
-      }
-    } catch {
-      // Error fetching playlist
-    } finally {
-      setTrackPanelLoading(false);
-    }
-  };
-
-  // Fetch album data and show panel
-  const fetchAndShowAlbum = async (browseId: string) => {
-    setTrackPanelLoading(true);
-    openTrackPanel({
-      title: t('common.loading'),
-      tracks: [],
-      trackCount: 0,
-    });
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/album/${browseId}?country=${country.code}`);
-      if (response.ok) {
-        const data = await response.json();
-        const album = data.album;
-        openTrackPanel({
-          title: album.title || t('profile.album', 'Album'),
-          description: album.description,
-          author: { name: album.artists?.map((a: { name: string }) => a.name).join(', ') || '' },
-          thumbnails: album.thumbnails,
-          tracks: album.tracks || [],
-          trackCount: album.trackCount || album.tracks?.length || 0,
-        });
-      }
-    } catch {
-      // Error fetching album
-    } finally {
-      setTrackPanelLoading(false);
-    }
-  };
-
-  // Play a home content item (song, playlist, or album) - opens popup with section tracks
-  const handlePlayHomeItem = (item: HomeContentItem, section: HomeSection, itemIndex: number) => {
-    // If it's a direct video, open popup with ALL video tracks from the section
-    if (item.videoId) {
-      // Get all video tracks from this section
-      const sectionVideoTracks = section.contents.filter((c) => c.videoId);
-      const panelTracks: PlaylistTrackData[] = sectionVideoTracks.map((c) => ({
-        videoId: c.videoId as string,
-        title: c.title,
-        artists:
-          c.artists ||
-          (c.subtitle ? [{ name: c.subtitle }] : [{ name: t('common.unknown', 'Unknown') }]),
-        thumbnails: c.thumbnails,
-      }));
-
-      openTrackPanel({
-        title: section.title,
-        author: { name: `${sectionVideoTracks.length} ${t('profile.tracks')}` },
-        tracks: panelTracks,
-        trackCount: sectionVideoTracks.length,
-      });
-
-      // Find the correct index in filtered video tracks
-      const videoTrackIndex = sectionVideoTracks.findIndex((c) => c.videoId === item.videoId);
-      const tracks = sectionVideoTracks.map((c) => ({
-        videoId: c.videoId as string,
-        title: c.title,
-        artist:
-          c.artists?.map((a) => a.name).join(', ') || c.subtitle || t('common.unknown', 'Unknown'),
-        thumbnail: getBestThumbnail(c.thumbnails) || undefined,
-      }));
-      startPlayback(tracks, videoTrackIndex >= 0 ? videoTrackIndex : 0);
-      return;
-    }
-
-    // If it's a playlist, fetch and show
-    if (item.playlistId) {
-      fetchAndShowPlaylist(item.playlistId);
-      return;
-    }
-
-    // If it's an album/browse item, fetch and show
-    if (item.browseId) {
-      fetchAndShowAlbum(item.browseId);
-      return;
-    }
-  };
-
-  // Play a single post - opens popup
-  const handlePlayPost = (post: Post) => {
-    if (!post.video_id) return;
-
-    const panelTrack: PlaylistTrackData = {
-      videoId: post.video_id,
-      title: post.title || t('common.unknown', 'Unknown'),
-      artists: post.artist
-        ? [{ name: post.artist }]
-        : [{ name: t('common.unknownArtist', 'Unknown Artist') }],
-      thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
-    };
-    openTrackPanel({
-      title: post.title || t('profile.track', 'Track'),
-      author: { name: post.artist || profile?.username || t('profile.you', 'You') },
-      thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
-      tracks: [panelTrack],
-      trackCount: 1,
-    });
-
-    const track = {
-      videoId: post.video_id,
-      title: post.title || t('common.unknown', 'Unknown'),
-      artist: post.artist || t('common.unknownArtist', 'Unknown Artist'),
-      thumbnail: post.cover_url,
-      cover: post.cover_url,
-    };
-
-    setTrack(track);
-  };
-
-  // Play a single playlist - opens popup
+  // Wrapper handlers using extracted hooks
+  const handlePlayTrack = (track: LikedTrack, index: number) =>
+    playLikedTrack(track, index, likedSongs);
+  const handleShufflePlay = () => shufflePlay(likedSongs);
+  const handlePlayPost = (post: Post) => playPost(post, profile);
+  const handlePlayHomeItem = (item: HomeContentItem, section: HomeSection) =>
+    playHomeItem(item, section);
   const handlePlayPlaylist = (playlist: Playlist) => {
     if (!playlist.video_id) return;
-
-    const panelTrack: PlaylistTrackData = {
-      videoId: playlist.video_id,
-      title: playlist.title || t('profile.playlist'),
-      artists: [{ name: profile?.username || t('profile.you', 'You') }],
-      thumbnails: playlist.cover_url ? [{ url: playlist.cover_url }] : undefined,
-    };
-    openTrackPanel({
-      title: playlist.title || t('profile.playlist'),
-      author: { name: profile?.username || t('profile.you', 'You') },
-      thumbnails: playlist.cover_url ? [{ url: playlist.cover_url }] : undefined,
-      tracks: [panelTrack],
-      trackCount: 1,
-    });
-
-    const track = {
+    setTrack({
       videoId: playlist.video_id,
       title: playlist.title || t('profile.playlist'),
       artist: profile?.username || t('profile.you', 'You'),
       thumbnail: playlist.cover_url,
       cover: playlist.cover_url,
-    };
-
-    setTrack(track);
-  };
-
-  // Play a track from liked songs - opens popup
-  const handlePlayTrack = (track: LikedTrack, index: number) => {
-    if (likedSongs.length > 0) {
-      // Open popup with liked songs list
-      const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
-        videoId: s.videoId,
-        title: s.title,
-        artists: [{ name: s.artist || t('common.unknownArtist', 'Unknown Artist') }],
-        thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
-      }));
-      openTrackPanel({
-        title: t('profile.yourMusic'),
-        author: { name: `${likedSongs.length} ${t('profile.songs')}` },
-        tracks: panelTracks,
-        trackCount: likedSongs.length,
-      });
-
-      // Start playback
-      const tracks = likedSongs.map((s) => ({
-        videoId: s.videoId,
-        title: s.title,
-        artist: s.artist,
-        thumbnail: s.thumbnail,
-        cover: s.cover,
-      }));
-      startPlayback(tracks, index);
-    } else {
-      setTrack(track);
-    }
-  };
-
-  // Shuffle play all liked songs - opens popup
-  const handleShufflePlay = () => {
-    if (likedSongs.length === 0) return;
-
-    // Open popup with liked songs list
-    const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
-      videoId: s.videoId,
-      title: s.title,
-      artists: [{ name: s.artist || t('common.unknownArtist', 'Unknown Artist') }],
-      thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
-    }));
-    openTrackPanel({
-      title: t('profile.yourMusic'),
-      author: { name: `${likedSongs.length} ${t('profile.songs')}` },
-      tracks: panelTracks,
-      trackCount: likedSongs.length,
     });
-
-    // Start shuffled playback
-    const tracks = likedSongs.map((s) => ({
-      videoId: s.videoId,
-      title: s.title,
-      artist: s.artist,
-      thumbnail: s.thumbnail,
-      cover: s.cover,
-    }));
-    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-    startPlayback(shuffled, 0);
   };
-
-  // Delete a liked song
-  const handleDeleteSong = async (track: LikedTrack) => {
-    if (!track.playlistId) return;
-
-    try {
-      const { error } = await supabase.from('playlists').delete().eq('id', track.playlistId);
-
-      if (error) throw error;
-
-      setLikedSongs((prev) => prev.filter((s) => s.playlistId !== track.playlistId));
-      setPlaylists((prev) => prev.filter((p) => p.id !== track.playlistId));
-    } catch {
-      // Error deleting song
-    }
+  const handleDeleteSong = (track: LikedTrack) => {
+    deleteSong(track);
+    setPlaylists((prev) => prev.filter((p) => p.id !== track.playlistId));
   };
-
-  // Start or find existing conversation with this user
-  const handleStartConversation = async () => {
-    if (!user?.id || !targetUserId || isOwnProfile || startingConversation) return;
-
-    setStartingConversation(true);
-    try {
-      // Check if conversation already exists between these users
-      const { data: existingParticipations } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id);
-
-      if (existingParticipations && existingParticipations.length > 0) {
-        const conversationIds = existingParticipations.map((p) => p.conversation_id);
-
-        const { data: otherParticipations } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', targetUserId)
-          .in('conversation_id', conversationIds);
-
-        if (otherParticipations && otherParticipations.length > 0) {
-          // Existing conversation found
-          navigate(`/messages/${otherParticipations[0].conversation_id}`);
-          return;
-        }
-      }
-
-      // Create new conversation
-      const { data: newConversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({})
-        .select('id')
-        .single();
-
-      if (convError) throw convError;
-
-      // Add both participants
-      const { error: participantsError } = await supabase.from('conversation_participants').insert([
-        { conversation_id: newConversation.id, user_id: user.id },
-        { conversation_id: newConversation.id, user_id: targetUserId },
-      ]);
-
-      if (participantsError) throw participantsError;
-
-      // Navigate to the new conversation
-      navigate(`/messages/${newConversation.id}`);
-    } catch (error) {
-      console.error('Error starting conversation:', error);
-    } finally {
-      setStartingConversation(false);
-    }
+  const handlePlayRecommendedTrack = (tracks: PlaylistTrackData[], index: number) => {
+    const formattedTracks = tracks.map((r) => {
+      const thumb = r.videoId
+        ? `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg`
+        : r.thumbnails?.[0]?.url || '';
+      return {
+        videoId: r.videoId,
+        title: r.title,
+        artist:
+          typeof r.artists?.[0] === 'string' ? r.artists[0] : r.artists?.[0]?.name || 'Unknown',
+        thumbnail: thumb,
+        cover: thumb,
+      };
+    });
+    startPlayback(formattedTracks, index);
   };
 
   if (loading) {
@@ -796,7 +254,7 @@ export default function ProfilePage() {
               />
               {/* Message button */}
               <button
-                onClick={handleStartConversation}
+                onClick={startConversation}
                 disabled={startingConversation}
                 className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center disabled:opacity-50"
               >
@@ -900,140 +358,19 @@ export default function ProfilePage() {
 
       {/* Content Area */}
       {activeTab === 'liked' ? (
-        // Your Music (Liked Songs) Tab
-        <div className="p-4">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-bold text-lg">{t('profile.yourMusic')}</h3>
-              <p className="text-xs text-gray-500">
-                {likedSongs.length} {t('profile.songs')}
-              </p>
-            </div>
-            {likedSongs.length > 0 && (
-              <button
-                onClick={handleShufflePlay}
-                className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
-              >
-                <Shuffle size={16} />
-                {t('profile.shuffle')}
-              </button>
-            )}
-          </div>
-
-          {/* Track List */}
-          <div className="space-y-1">
-            {/* Dynamic Recommendations Section */}
-            {recommendedTracks.length > 0 && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <div>
-                    <h4 className="font-bold text-base text-gray-900 dark:text-white flex items-center gap-2">
-                      ✨ {recommendationContext?.title || t('feed.recommended')}
-                    </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      {recommendationContext?.message}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setRecommendedTracks([])}
-                    className="text-xs font-medium text-gray-400 hover:text-black dark:hover:text-white px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                  >
-                    {t('common.clear')}
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  {recommendedTracks.map((track, index) => {
-                    // Ensure thumbnail is valid
-                    const safeThumbnail = track.videoId
-                      ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
-                      : track.thumbnails?.[0]?.url || (track as any).thumbnail || '';
-
-                    return (
-                      <TrackItem
-                        key={`rec-${track.videoId}`}
-                        track={{
-                          videoId: track.videoId,
-                          title: track.title,
-                          artist:
-                            typeof track.artists?.[0] === 'string'
-                              ? track.artists[0]
-                              : track.artists?.[0]?.name || (track as any).artist || 'Unknown',
-                          thumbnail: safeThumbnail,
-                          cover_url: safeThumbnail,
-                          playlistId: 'temp-rec', // logical id
-                        }}
-                        index={index}
-                        onPlay={(trackItem, idx) => {
-                          // 1. Prepare tracks with safe thumbnails
-                          const tracks = recommendedTracks.map((r) => {
-                            const thumb = r.videoId
-                              ? `https://i.ytimg.com/vi/${r.videoId}/hqdefault.jpg`
-                              : r.thumbnails?.[0]?.url || (r as any).thumbnail || '';
-                            return {
-                              videoId: r.videoId,
-                              title: r.title,
-                              artist:
-                                typeof r.artists?.[0] === 'string'
-                                  ? r.artists[0]
-                                  : r.artists?.[0]?.name || (r as any).artist || 'Unknown',
-                              thumbnail: thumb,
-                              cover: thumb,
-                              artists: r.artists || [{ name: (r as any).artist || 'Unknown' }],
-                            };
-                          });
-
-                          // 2. OPEN TRACK PANEL (Popup) - Important for UX & Policy
-                          // Transform to PlaylistTrackData specifically for the panel
-                          const panelTracks = tracks.map((tr) => ({
-                            ...tr,
-                            thumbnails: [{ url: tr.thumbnail || '' }],
-                          }));
-
-                          openTrackPanel({
-                            title: recommendationContext?.title || t('feed.recommended'),
-                            author: { name: recommendationContext?.message || 'Sori AI' },
-                            tracks: panelTracks,
-                            trackCount: panelTracks.length,
-                          });
-
-                          // 3. Start Playback
-                          startPlayback(tracks, idx);
-                        }}
-                        isPlaying={isPlaying}
-                        isCurrentTrack={currentTrack?.videoId === track.videoId}
-                        // No delete button for recommendation items, maybe add 'save' button later
-                      />
-                    );
-                  })}
-                </div>
-                <div className="my-6 border-t border-gray-100 dark:border-gray-800" />
-              </div>
-            )}
-
-            {/* Main Liked Songs */}
-            {likedSongs.length > 0 ? (
-              likedSongs.map((track, index) => (
-                <TrackItem
-                  key={track.playlistId || index}
-                  track={track}
-                  index={index}
-                  onPlay={handlePlayTrack}
-                  onDelete={handleDeleteSong}
-                  isPlaying={isPlaying}
-                  isCurrentTrack={currentTrack?.videoId === track.videoId}
-                />
-              ))
-            ) : (
-              <div className="py-10 text-center text-gray-500">
-                <Heart size={48} className="mx-auto mb-2 opacity-50" />
-                <p>{t('profile.noLikedSongs')}</p>
-                <p className="text-sm mt-1">{t('profile.likedSongsHint')}</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <LikedMusicTab
+          likedSongs={likedSongs}
+          recommendedTracks={recommendedTracks}
+          recommendationContext={recommendationContext}
+          currentTrackVideoId={currentTrack?.videoId}
+          isPlaying={isPlaying}
+          onPlayTrack={handlePlayTrack}
+          onDeleteSong={handleDeleteSong}
+          onShufflePlay={handleShufflePlay}
+          onPlayRecommendedTrack={handlePlayRecommendedTrack}
+          onClearRecommendations={() => setRecommendedTracks([])}
+          t={t}
+        />
       ) : activeTab === 'posts' ? (
         // Posts Grid Tab
         <PostsGrid
@@ -1101,64 +438,33 @@ export default function ProfilePage() {
               t={t}
             />
           ) : (
-            // Regular User: Show saved music
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-bold text-lg">{t('profile.savedMusic', 'Saved Music')}</h3>
-                  <p className="text-xs text-gray-500">
-                    {userSavedSongs.length} {t('profile.songs')}
-                  </p>
-                </div>
-                {userSavedSongs.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const tracks = userSavedSongs.map((s) => ({
-                        videoId: s.videoId,
-                        title: s.title,
-                        artist: s.artist,
-                        thumbnail: s.thumbnail,
-                        cover: s.cover,
-                      }));
-                      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-                      startPlayback(shuffled, 0);
-                    }}
-                    className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
-                  >
-                    <Shuffle size={16} />
-                    {t('profile.shuffle')}
-                  </button>
-                )}
-              </div>
-              <div className="space-y-1">
-                {userSavedSongs.length > 0 ? (
-                  userSavedSongs.map((track, index) => (
-                    <TrackItem
-                      key={track.playlistId || index}
-                      track={track}
-                      index={index}
-                      onPlay={(trackItem, idx) => {
-                        const tracks = userSavedSongs.map((s) => ({
-                          videoId: s.videoId,
-                          title: s.title,
-                          artist: s.artist,
-                          thumbnail: s.thumbnail,
-                          cover: s.cover,
-                        }));
-                        startPlayback(tracks, idx);
-                      }}
-                      isPlaying={isPlaying}
-                      isCurrentTrack={currentTrack?.videoId === track.videoId}
-                    />
-                  ))
-                ) : (
-                  <div className="py-10 text-center text-gray-500">
-                    <Music size={48} className="mx-auto mb-2 opacity-50" />
-                    <p>{t('profile.noSavedMusic', 'No saved music yet')}</p>
-                  </div>
-                )}
-              </div>
-            </>
+            <UserSavedMusicTab
+              userSavedSongs={userSavedSongs}
+              currentTrackVideoId={currentTrack?.videoId}
+              isPlaying={isPlaying}
+              onPlayTrack={(track, idx, songs) => {
+                const tracks = songs.map((s) => ({
+                  videoId: s.videoId,
+                  title: s.title,
+                  artist: s.artist,
+                  thumbnail: s.thumbnail,
+                  cover: s.cover,
+                }));
+                startPlayback(tracks, idx);
+              }}
+              onShufflePlay={(songs) => {
+                const tracks = songs.map((s) => ({
+                  videoId: s.videoId,
+                  title: s.title,
+                  artist: s.artist,
+                  thumbnail: s.thumbnail,
+                  cover: s.cover,
+                }));
+                const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                startPlayback(shuffled, 0);
+              }}
+              t={t}
+            />
           )}
         </div>
       ) : (

@@ -680,8 +680,10 @@ export function useProfileData(targetUserId: string | undefined, isOwnProfile: b
 
   return {
     profile,
+    setProfile,
     posts,
     playlists,
+    setPlaylists,
     likedSongs,
     userSavedSongs,
     loading,
@@ -1105,5 +1107,340 @@ export function ArtistMusicTab({
         </div>
       )}
     </div>
+  );
+}
+
+// Liked Music Tab Component (for own profile)
+interface LikedMusicTabProps {
+  likedSongs: LikedTrack[];
+  recommendedTracks: PlaylistTrackData[];
+  recommendationContext: { title: string; message: string } | null;
+  currentTrackVideoId?: string;
+  isPlaying: boolean;
+  onPlayTrack: (track: LikedTrack, index: number) => void;
+  onDeleteSong: (track: LikedTrack) => void;
+  onShufflePlay: () => void;
+  onPlayRecommendedTrack: (tracks: PlaylistTrackData[], index: number) => void;
+  onClearRecommendations: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any;
+}
+
+export function LikedMusicTab({
+  likedSongs,
+  recommendedTracks,
+  recommendationContext,
+  currentTrackVideoId,
+  isPlaying,
+  onPlayTrack,
+  onDeleteSong,
+  onShufflePlay,
+  onPlayRecommendedTrack,
+  onClearRecommendations,
+  t,
+}: LikedMusicTabProps) {
+  return (
+    <div className="p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-lg">{t('profile.yourMusic')}</h3>
+          <p className="text-xs text-gray-500">
+            {likedSongs.length} {t('profile.songs')}
+          </p>
+        </div>
+        {likedSongs.length > 0 && (
+          <button
+            onClick={onShufflePlay}
+            className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
+          >
+            <Shuffle size={16} />
+            {t('profile.shuffle')}
+          </button>
+        )}
+      </div>
+
+      {/* Track List */}
+      <div className="space-y-1">
+        {/* Dynamic Recommendations Section */}
+        {recommendedTracks.length > 0 && (
+          <RecommendationsSection
+            recommendedTracks={recommendedTracks}
+            recommendationContext={recommendationContext}
+            currentTrackVideoId={currentTrackVideoId}
+            isPlaying={isPlaying}
+            onPlayTrack={onPlayRecommendedTrack}
+            onClear={onClearRecommendations}
+            t={t}
+          />
+        )}
+
+        {/* Main Liked Songs */}
+        {likedSongs.length > 0 ? (
+          likedSongs.map((track, index) => (
+            <LikedTrackItem
+              key={track.playlistId || index}
+              track={track}
+              index={index}
+              onPlay={onPlayTrack}
+              onDelete={onDeleteSong}
+              isPlaying={isPlaying}
+              isCurrentTrack={currentTrackVideoId === track.videoId}
+              t={t}
+            />
+          ))
+        ) : (
+          <div className="py-10 text-center text-gray-500">
+            <Heart size={48} className="mx-auto mb-2 opacity-50" />
+            <p>{t('profile.noLikedSongs')}</p>
+            <p className="text-sm mt-1">{t('profile.likedSongsHint')}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Recommendations Section Sub-component
+interface RecommendationsSectionProps {
+  recommendedTracks: PlaylistTrackData[];
+  recommendationContext: { title: string; message: string } | null;
+  currentTrackVideoId?: string;
+  isPlaying: boolean;
+  onPlayTrack: (tracks: PlaylistTrackData[], index: number) => void;
+  onClear: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any;
+}
+
+function RecommendationsSection({
+  recommendedTracks,
+  recommendationContext,
+  currentTrackVideoId,
+  isPlaying,
+  onPlayTrack,
+  onClear,
+  t,
+}: RecommendationsSectionProps) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div>
+          <h4 className="font-bold text-base text-gray-900 dark:text-white flex items-center gap-2">
+            ✨ {recommendationContext?.title || t('feed.recommended')}
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {recommendationContext?.message}
+          </p>
+        </div>
+        <button
+          onClick={onClear}
+          className="text-xs font-medium text-gray-400 hover:text-black dark:hover:text-white px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+        >
+          {t('common.clear')}
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        {recommendedTracks.map((track, index) => {
+          const safeThumbnail = track.videoId
+            ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
+            : track.thumbnails?.[0]?.url || (track as any).thumbnail || '';
+
+          return (
+            <LikedTrackItem
+              key={`rec-${track.videoId}`}
+              track={{
+                videoId: track.videoId,
+                title: track.title,
+                artist:
+                  typeof track.artists?.[0] === 'string'
+                    ? track.artists[0]
+                    : track.artists?.[0]?.name || (track as any).artist || 'Unknown',
+                thumbnail: safeThumbnail,
+                cover_url: safeThumbnail,
+                playlistId: 'temp-rec',
+              }}
+              index={index}
+              onPlay={() => onPlayTrack(recommendedTracks, index)}
+              isPlaying={isPlaying}
+              isCurrentTrack={currentTrackVideoId === track.videoId}
+              t={t}
+            />
+          );
+        })}
+      </div>
+      <div className="my-6 border-t border-gray-100 dark:border-gray-800" />
+    </div>
+  );
+}
+
+// Liked Track Item Component
+interface LikedTrackItemProps {
+  track: LikedTrack;
+  index: number;
+  onPlay: (track: LikedTrack, index: number) => void;
+  onDelete?: (track: LikedTrack) => void;
+  isPlaying: boolean;
+  isCurrentTrack: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any;
+}
+
+function LikedTrackItem({
+  track,
+  index,
+  onPlay,
+  onDelete,
+  isPlaying,
+  isCurrentTrack,
+  t,
+}: LikedTrackItemProps) {
+  const [showDelete, setShowDelete] = React.useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onPlay(track, index)}
+      onMouseEnter={() => setShowDelete(true)}
+      onMouseLeave={() => setShowDelete(false)}
+      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors w-full text-left ${
+        isCurrentTrack ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-900'
+      }`}
+    >
+      {/* Thumbnail */}
+      <div className="relative w-12 h-12 flex-shrink-0">
+        <img
+          src={track.thumbnail || track.cover_url}
+          alt={track.title}
+          className="w-full h-full rounded object-cover"
+          onError={(e: SyntheticEvent<HTMLImageElement>) => {
+            e.currentTarget.src =
+              'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
+          }}
+        />
+        {isCurrentTrack && isPlaying && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded">
+            <div className="flex gap-0.5">
+              <div
+                className="w-0.5 h-3 bg-white animate-bounce"
+                style={{ animationDelay: '0ms' }}
+              />
+              <div
+                className="w-0.5 h-3 bg-white animate-bounce"
+                style={{ animationDelay: '150ms' }}
+              />
+              <div
+                className="w-0.5 h-3 bg-white animate-bounce"
+                style={{ animationDelay: '300ms' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Track Info */}
+      <div className="flex-1 min-w-0">
+        <div
+          className={`font-medium text-sm truncate ${isCurrentTrack ? 'text-black dark:text-white' : ''}`}
+        >
+          {track.title}
+        </div>
+        <div className="text-xs text-gray-500 truncate">
+          {track.artist || t('common.unknownArtist', 'Unknown Artist')}
+        </div>
+      </div>
+
+      {/* Delete Button */}
+      {showDelete && onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(track);
+          }}
+          className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+          title={t('profile.removeFromLiked', 'Remove from liked')}
+        >
+          <Heart size={16} />
+        </button>
+      )}
+
+      {/* Play Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onPlay(track, index);
+        }}
+        className="p-2 text-gray-500 hover:text-black dark:hover:text-white"
+      >
+        {isCurrentTrack && isPlaying ? (
+          <Music size={18} className="text-black dark:text-white" />
+        ) : (
+          <Play size={18} fill="currentColor" />
+        )}
+      </button>
+    </button>
+  );
+}
+
+// User Saved Music Tab Component (for other users' profile)
+interface UserSavedMusicTabProps {
+  userSavedSongs: LikedTrack[];
+  currentTrackVideoId?: string;
+  isPlaying: boolean;
+  onPlayTrack: (track: LikedTrack, index: number, songs: LikedTrack[]) => void;
+  onShufflePlay: (songs: LikedTrack[]) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any;
+}
+
+export function UserSavedMusicTab({
+  userSavedSongs,
+  currentTrackVideoId,
+  isPlaying,
+  onPlayTrack,
+  onShufflePlay,
+  t,
+}: UserSavedMusicTabProps) {
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-lg">{t('profile.savedMusic', 'Saved Music')}</h3>
+          <p className="text-xs text-gray-500">
+            {userSavedSongs.length} {t('profile.songs')}
+          </p>
+        </div>
+        {userSavedSongs.length > 0 && (
+          <button
+            onClick={() => onShufflePlay(userSavedSongs)}
+            className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
+          >
+            <Shuffle size={16} />
+            {t('profile.shuffle')}
+          </button>
+        )}
+      </div>
+      <div className="space-y-1">
+        {userSavedSongs.length > 0 ? (
+          userSavedSongs.map((track, index) => (
+            <LikedTrackItem
+              key={track.playlistId || index}
+              track={track}
+              index={index}
+              onPlay={(trackItem, idx) => onPlayTrack(trackItem, idx, userSavedSongs)}
+              isPlaying={isPlaying}
+              isCurrentTrack={currentTrackVideoId === track.videoId}
+              t={t}
+            />
+          ))
+        ) : (
+          <div className="py-10 text-center text-gray-500">
+            <Music size={48} className="mx-auto mb-2 opacity-50" />
+            <p>{t('profile.noSavedMusic', 'No saved music yet')}</p>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
