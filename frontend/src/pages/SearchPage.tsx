@@ -756,6 +756,9 @@ export default function SearchPage() {
   const handleSearchSimilarArtist = async (artistName: string) => {
     if (artistName.trim().length < 2) return;
 
+    // 스크롤을 맨 위로 이동
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     setSearchQuery(artistName);
     setSearchLoading(true);
     setAllSongsTracks([]);
@@ -1598,9 +1601,9 @@ export default function SearchPage() {
                             type="button"
                             key={artist.browseId || `related-${i}`}
                             onClick={() => handleSearchSimilarArtist(artistName)}
-                            className="flex flex-col items-center cursor-pointer group bg-transparent border-0 p-0"
+                            className="flex flex-col items-center cursor-pointer group bg-transparent border-0 p-0 hover:scale-105 active:scale-95 transition-transform"
                           >
-                            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 group-hover:ring-2 ring-black dark:ring-white transition">
+                            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 ring-2 ring-transparent group-hover:ring-black dark:group-hover:ring-white transition-all shadow-md group-hover:shadow-lg">
                               <img
                                 src={getBestThumbnail(artist.thumbnails)}
                                 alt={artistName}
@@ -1610,7 +1613,7 @@ export default function SearchPage() {
                                 }}
                               />
                             </div>
-                            <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1">
+                            <span className="text-xs text-center text-black dark:text-white font-medium truncate w-full px-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {artistName}
                             </span>
                             {artist.subscribers && (
