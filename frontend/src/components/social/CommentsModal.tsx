@@ -29,6 +29,40 @@ interface CommentsModalProps {
   readonly onCommentCountChange?: (count: number) => void;
 }
 
+interface CommentsListProps {
+  loading: boolean;
+  comments: Comment[];
+  onReply: (parentId: string, username: string) => void;
+  onDelete: (commentId: string) => void;
+}
+
+function CommentsList({ loading, comments, onReply, onDelete }: CommentsListProps) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (comments.length === 0) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-lg font-semibold text-black dark:text-white">No comments yet</p>
+        <p className="text-sm text-gray-500 mt-1">Start the conversation.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+      {comments.map((comment) => (
+        <CommentItem key={comment.id} comment={comment} onReply={onReply} onDelete={onDelete} />
+      ))}
+    </div>
+  );
+}
+
 export default function CommentsModal({
   postId,
   isOpen,
@@ -220,27 +254,12 @@ export default function CommentsModal({
 
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto px-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-lg font-semibold text-black dark:text-white">No comments yet</p>
-              <p className="text-sm text-gray-500 mt-1">Start the conversation.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
-              {comments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  onReply={handleReply}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          )}
+          <CommentsList
+            loading={loading}
+            comments={comments}
+            onReply={handleReply}
+            onDelete={handleDelete}
+          />
         </div>
 
         {/* Reply indicator */}
