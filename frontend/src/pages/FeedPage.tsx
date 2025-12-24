@@ -18,6 +18,7 @@ import {
   PostOptionsMenu,
   TranslateButton,
   usePostTranslation,
+  FollowButton,
 } from '../components/social';
 import { StoriesBar } from '../components/stories';
 import { DEFAULT_AVATAR } from '../components/common';
@@ -658,6 +659,155 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
   );
 }
 
+/**
+ * Suggested Virtual Members Section
+ * Shows random artist profiles with Follow buttons
+ */
+interface SuggestedUser {
+  id: string;
+  username: string;
+  full_name?: string;
+  avatar_url?: string;
+  followers_count?: number;
+}
+
+function SuggestedUsersSection() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function fetchSuggestedUsers() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Get users I'm already following
+        const { data: followingData } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id);
+
+        const followingIds = new Set(followingData?.map((f) => f.following_id) || []);
+        followingIds.add(user.id); // Exclude self
+
+        // Fetch random virtual members (artists)
+        const { data: artistData } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, followers_count')
+          .eq('member_type', 'artist')
+          .limit(50);
+
+        // Filter out followed users and shuffle
+        const filtered = (artistData || [])
+          .filter((u) => !followingIds.has(u.id))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 10);
+
+        setSuggestedUsers(filtered);
+      } catch (err) {
+        console.error('Error fetching suggested users:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSuggestedUsers();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="px-4 mb-3">
+          <div className="h-5 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        </div>
+        <div className="flex gap-3 px-4 overflow-hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 w-36 bg-gray-100 dark:bg-gray-800 rounded-xl p-3 animate-pulse"
+            >
+              <div className="w-16 h-16 mx-auto rounded-full bg-gray-200 dark:bg-gray-700 mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-1" />
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mx-auto mb-3" />
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (suggestedUsers.length === 0) return null;
+
+  return (
+    <div className="py-4 border-b border-gray-100 dark:border-gray-800">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 mb-3">
+        <h3 className="font-bold text-base text-black dark:text-white">
+          {t('feed.suggestedForYou', '회원님을 위한 추천')}
+        </h3>
+        <button
+          onClick={() => navigate('/search')}
+          className="text-sm font-semibold text-blue-500 hover:text-blue-600"
+        >
+          {t('common.seeAll', '모두 보기')}
+        </button>
+      </div>
+
+      {/* Horizontal Scroll Cards */}
+      <div ref={scrollContainerRef} className="flex gap-3 px-4 overflow-x-auto scrollbar-hide pb-1">
+        {suggestedUsers.map((profile) => (
+          <div
+            key={profile.id}
+            className="flex-shrink-0 w-40 bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-100 dark:border-gray-800"
+          >
+            {/* Avatar */}
+            <button
+              onClick={() => navigate(`/profile/${profile.id}`)}
+              className="block mx-auto mb-3"
+            >
+              <img
+                src={profile.avatar_url || DEFAULT_AVATAR}
+                alt={profile.full_name || profile.username}
+                className="w-20 h-20 rounded-full object-cover border-2 border-white dark:border-gray-800 shadow-md"
+              />
+            </button>
+
+            {/* Name */}
+            <button
+              onClick={() => navigate(`/profile/${profile.id}`)}
+              className="block text-center w-full"
+            >
+              <p className="font-semibold text-sm text-black dark:text-white truncate">
+                {profile.full_name || profile.username}
+              </p>
+              <p className="text-xs text-gray-500 truncate">@{profile.username}</p>
+            </button>
+
+            {/* Followers count */}
+            {profile.followers_count !== undefined && profile.followers_count > 0 && (
+              <p className="text-xs text-gray-400 text-center mt-1">
+                {profile.followers_count.toLocaleString()} {t('common.followers', 'followers')}
+              </p>
+            )}
+
+            {/* Follow Button */}
+            <div className="mt-3">
+              <FollowButton userId={profile.id} size="sm" className="w-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function FeedPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
@@ -812,13 +962,16 @@ export default function FeedPage() {
       {/* Posts */}
       <div className="space-y-2 mt-2">
         {filteredPosts.length > 0 &&
-          filteredPosts.map((post) => (
-            <FeedPostComponent
-              key={post.id}
-              post={post}
-              onLikeChange={handleLikeChange}
-              onCommentCountChange={handleCommentCountChange}
-            />
+          filteredPosts.map((post, index) => (
+            <React.Fragment key={post.id}>
+              <FeedPostComponent
+                post={post}
+                onLikeChange={handleLikeChange}
+                onCommentCountChange={handleCommentCountChange}
+              />
+              {/* Insert Suggested Users Section after 5th post */}
+              {index === 4 && <SuggestedUsersSection />}
+            </React.Fragment>
           ))}
         {filteredPosts.length === 0 && filter === 'following' && (
           <div className="py-20 text-center text-gray-500 dark:text-gray-400">
