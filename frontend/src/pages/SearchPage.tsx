@@ -31,6 +31,7 @@ import {
   type SearchSong,
   type AlbumTrack,
   type Thumbnail,
+  type UserProfile,
   getBestThumbnail,
   songsToPlaylist,
   albumTracksToPlaylist,
@@ -48,6 +49,237 @@ type SearchTab = 'music' | 'users';
 
 const PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
+
+// Users Tab Content Component
+interface UsersTabContentProps {
+  userSearchLoading: boolean;
+  hasUserResults: boolean;
+  userResults: UserProfile[];
+  suggestedLoading: boolean;
+  suggestedUsers: UserProfile[];
+  newUsers: UserProfile[];
+  onNavigate: (id: string) => void;
+  t: (key: string) => string;
+}
+
+function UsersTabContent({
+  userSearchLoading,
+  hasUserResults,
+  userResults,
+  suggestedLoading,
+  suggestedUsers,
+  newUsers,
+  onNavigate,
+  t,
+}: UsersTabContentProps) {
+  if (userSearchLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={32} className="animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (hasUserResults) {
+    return (
+      <div className="space-y-2">
+        {userResults.map((profile) => (
+          <UserProfileItem
+            key={profile.id}
+            profile={profile}
+            onNavigate={(id) => onNavigate(id)}
+            followButton={<FollowButton userId={profile.id} size="sm" />}
+            defaultAvatar={DEFAULT_AVATAR}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (suggestedLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={32} className="animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (suggestedUsers.length > 0 || newUsers.length > 0) {
+    return (
+      <div className="space-y-6">
+        <UserListSection
+          title={t('search.suggestedForYou')}
+          users={suggestedUsers}
+          onNavigate={(id) => onNavigate(id)}
+          renderFollowButton={(id) => <FollowButton userId={id} size="sm" />}
+          defaultAvatar={DEFAULT_AVATAR}
+        />
+        <UserListSection
+          title={t('search.newToSori')}
+          users={newUsers}
+          onNavigate={(id) => onNavigate(id)}
+          renderFollowButton={(id) => <FollowButton userId={id} size="sm" />}
+          defaultAvatar={DEFAULT_AVATAR}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center py-16 text-gray-500">
+      <Users size={48} className="mx-auto mb-4 opacity-50" />
+      <p>{t('search.searchForUsers')}</p>
+    </div>
+  );
+}
+
+// Artist Card Component
+interface ArtistCardProps {
+  artist: {
+    browseId?: string;
+    artist: string;
+    subscribers?: string;
+    thumbnails?: Thumbnail[];
+  };
+  isFollowed: boolean;
+  followingArtist: boolean;
+  onToggleFollow: () => void;
+  onPlayAll: () => void;
+  onShuffle: () => void;
+  t: (key: string) => string;
+}
+
+function ArtistCard({
+  artist,
+  isFollowed,
+  followingArtist,
+  onToggleFollow,
+  onPlayAll,
+  onShuffle,
+  t,
+}: ArtistCardProps) {
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-4 p-4">
+        <img
+          src={getBestThumbnail(artist.thumbnails)}
+          alt={artist.artist}
+          className="w-20 h-20 rounded-full object-cover bg-gray-200"
+        />
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl font-bold text-black dark:text-white truncate">{artist.artist}</h2>
+          <p className="text-sm text-gray-500">{artist.subscribers || 'Artist'}</p>
+        </div>
+        <button
+          onClick={onToggleFollow}
+          disabled={followingArtist}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+            isFollowed
+              ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              : 'bg-blue-500 text-white'
+          }`}
+        >
+          {isFollowed ? (
+            <>
+              <UserCheck size={16} /> Following
+            </>
+          ) : (
+            <>
+              <UserPlus size={16} /> Follow
+            </>
+          )}
+        </button>
+      </div>
+      <div className="flex gap-2 px-4 pb-4">
+        <button
+          onClick={onPlayAll}
+          className="flex-1 flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 transition"
+        >
+          <Play size={16} fill="currentColor" /> {t('player.playAll')}
+        </button>
+        <button
+          onClick={onShuffle}
+          className="flex-1 flex items-center justify-center gap-2 border border-black dark:border-white py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+        >
+          <Shuffle size={16} /> {t('player.shufflePlay')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// All Songs Section Component
+interface AllSongsSectionProps {
+  playlistId: string;
+  isExpanded: boolean;
+  isLoading: boolean;
+  tracks: SearchSong[];
+  likedSongs: Set<string>;
+  onToggle: () => void;
+  onPlayTrack: (song: SearchSong, index: number) => void;
+  onToggleLike: (song: SearchSong) => void;
+  t: (key: string) => string;
+}
+
+function AllSongsSection({
+  isExpanded,
+  isLoading,
+  tracks,
+  likedSongs,
+  onToggle,
+  onPlayTrack,
+  onToggleLike,
+  t,
+}: AllSongsSectionProps) {
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center">
+            <ListMusic size={16} className="text-white" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-semibold">{t('search.allSongs')}</div>
+          </div>
+        </div>
+        {isLoading ? (
+          <Loader2 size={18} className="animate-spin" />
+        ) : isExpanded ? (
+          <Users size={18} className="rotate-180" />
+        ) : (
+          <Users size={18} />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          {isLoading ? (
+            <div className="p-4 text-center">
+              <Loader2 className="animate-spin inline" />
+            </div>
+          ) : (
+            tracks.map((song, i) => (
+              <div
+                key={song.videoId || i}
+                className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <SongListItem
+                  song={song}
+                  index={i}
+                  onPlay={() => onPlayTrack(song, i)}
+                  isLiked={likedSongs.has(song.videoId)}
+                  onToggleLike={() => onToggleLike(song)}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SearchPage() {
   const { t } = useTranslation();
@@ -429,51 +661,16 @@ export default function SearchPage() {
 
       <div className="p-4">
         {activeTab === 'users' && (
-          <>
-            {userSearchLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={32} className="animate-spin text-gray-500" />
-              </div>
-            ) : hasUserResults ? (
-              <div className="space-y-2">
-                {userResults.map((profile) => (
-                  <UserProfileItem
-                    key={profile.id}
-                    profile={profile}
-                    onNavigate={(id) => navigate(`/profile/${id}`)}
-                    followButton={<FollowButton userId={profile.id} size="sm" />}
-                    defaultAvatar={DEFAULT_AVATAR}
-                  />
-                ))}
-              </div>
-            ) : suggestedLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={32} className="animate-spin text-gray-500" />
-              </div>
-            ) : suggestedUsers.length > 0 || newUsers.length > 0 ? (
-              <div className="space-y-6">
-                <UserListSection
-                  title={t('search.suggestedForYou')}
-                  users={suggestedUsers}
-                  onNavigate={(id) => navigate(`/profile/${id}`)}
-                  renderFollowButton={(id) => <FollowButton userId={id} size="sm" />}
-                  defaultAvatar={DEFAULT_AVATAR}
-                />
-                <UserListSection
-                  title={t('search.newToSori')}
-                  users={newUsers}
-                  onNavigate={(id) => navigate(`/profile/${id}`)}
-                  renderFollowButton={(id) => <FollowButton userId={id} size="sm" />}
-                  defaultAvatar={DEFAULT_AVATAR}
-                />
-              </div>
-            ) : (
-              <div className="text-center py-16 text-gray-500">
-                <Users size={48} className="mx-auto mb-4 opacity-50" />
-                <p>{t('search.searchForUsers')}</p>
-              </div>
-            )}
-          </>
+          <UsersTabContent
+            userSearchLoading={userSearchLoading}
+            hasUserResults={hasUserResults}
+            userResults={userResults}
+            suggestedLoading={suggestedLoading}
+            suggestedUsers={suggestedUsers}
+            newUsers={newUsers}
+            onNavigate={(id) => navigate(`/profile/${id}`)}
+            t={t}
+          />
         )}
 
         {activeTab === 'music' && (
@@ -486,59 +683,20 @@ export default function SearchPage() {
               <div className="space-y-6">
                 {/* Artist Card */}
                 {searchArtist && (
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden">
-                    <div className="flex items-center gap-4 p-4">
-                      <img
-                        src={getBestThumbnail(searchArtist.thumbnails)}
-                        alt={searchArtist.artist}
-                        className="w-20 h-20 rounded-full object-cover bg-gray-200"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h2 className="text-xl font-bold text-black dark:text-white truncate">
-                          {searchArtist.artist}
-                        </h2>
-                        <p className="text-sm text-gray-500">
-                          {searchArtist.subscribers || 'Artist'}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          searchArtist.browseId &&
-                          toggleArtistFollow(searchArtist.browseId, searchArtist.artist)
-                        }
-                        disabled={followingArtist}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                          searchArtist.browseId && followedArtists.has(searchArtist.browseId)
-                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                            : 'bg-blue-500 text-white'
-                        }`}
-                      >
-                        {searchArtist.browseId && followedArtists.has(searchArtist.browseId) ? (
-                          <>
-                            <UserCheck size={16} /> Following
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus size={16} /> Follow
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="flex gap-2 px-4 pb-4">
-                      <button
-                        onClick={handlePlayAllSongs}
-                        className="flex-1 flex items-center justify-center gap-2 bg-black dark:bg-white text-white dark:text-black py-2.5 rounded-xl text-sm font-semibold hover:opacity-80 transition"
-                      >
-                        <Play size={16} fill="currentColor" /> {t('player.playAll')}
-                      </button>
-                      <button
-                        onClick={handleShuffleSearchSongs}
-                        className="flex-1 flex items-center justify-center gap-2 border border-black dark:border-white py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                      >
-                        <Shuffle size={16} /> {t('player.shufflePlay')}
-                      </button>
-                    </div>
-                  </div>
+                  <ArtistCard
+                    artist={searchArtist}
+                    isFollowed={Boolean(
+                      searchArtist.browseId && followedArtists.has(searchArtist.browseId)
+                    )}
+                    followingArtist={followingArtist}
+                    onToggleFollow={() =>
+                      searchArtist.browseId &&
+                      toggleArtistFollow(searchArtist.browseId, searchArtist.artist)
+                    }
+                    onPlayAll={handlePlayAllSongs}
+                    onShuffle={handleShuffleSearchSongs}
+                    t={t}
+                  />
                 )}
 
                 {/* Top Tracks */}
@@ -571,53 +729,17 @@ export default function SearchPage() {
 
                 {/* All Songs */}
                 {searchArtist?.songsPlaylistId && (
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
-                    <button
-                      onClick={toggleAllSongs}
-                      className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-md flex items-center justify-center">
-                          <ListMusic size={16} className="text-white" />
-                        </div>
-                        <div className="text-left">
-                          <div className="text-sm font-semibold">{t('search.allSongs')}</div>
-                        </div>
-                      </div>
-                      {allSongsLoading ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : allSongsExpanded ? (
-                        <Users size={18} className="rotate-180" />
-                      ) : (
-                        <Users size={18} />
-                      )}{' '}
-                      {/* Icon placeholder fix later */}
-                    </button>
-                    {allSongsExpanded && (
-                      <div className="border-t border-gray-200 dark:border-gray-700">
-                        {allSongsLoading ? (
-                          <div className="p-4 text-center">
-                            <Loader2 className="animate-spin inline" />
-                          </div>
-                        ) : (
-                          allSongsTracks.map((song, i) => (
-                            <div
-                              key={song.videoId || i}
-                              className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-                            >
-                              <SongListItem
-                                song={song}
-                                index={i}
-                                onPlay={() => handlePlayAllSongsTrack(song, i)}
-                                isLiked={likedSongs.has(song.videoId)}
-                                onToggleLike={() => handleToggleLike(song)}
-                              />
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <AllSongsSection
+                    playlistId={searchArtist.songsPlaylistId}
+                    isExpanded={allSongsExpanded}
+                    isLoading={allSongsLoading}
+                    tracks={allSongsTracks}
+                    likedSongs={likedSongs}
+                    onToggle={toggleAllSongs}
+                    onPlayTrack={handlePlayAllSongsTrack}
+                    onToggleLike={handleToggleLike}
+                    t={t}
+                  />
                 )}
 
                 {/* Albums */}

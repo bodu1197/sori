@@ -30,6 +30,10 @@ import {
   useConversation,
   useProfileLikedSongs,
   getBestThumbnail,
+  PostsGrid,
+  DiscoverTab,
+  PrivateTab,
+  ArtistMusicTab,
   type Profile,
   type Post,
   type Playlist,
@@ -1032,386 +1036,70 @@ export default function ProfilePage() {
         </div>
       ) : activeTab === 'posts' ? (
         // Posts Grid Tab
-        <div className="grid grid-cols-3 gap-0.5">
-          {posts.length > 0 ? (
-            posts.map((post) => {
-              const isCurrentlyPlaying = currentTrack?.videoId === post.video_id && isPlaying;
-              return (
-                <button
-                  type="button"
-                  key={post.id}
-                  onClick={() => handlePlayPost(post)}
-                  className="aspect-square relative group bg-gray-100 cursor-pointer"
-                >
-                  <img
-                    src={
-                      post.cover_url ||
-                      (post.video_id
-                        ? `https://i.ytimg.com/vi/${post.video_id}/hqdefault.jpg`
-                        : 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop')
-                    }
-                    alt={post.title}
-                    className="w-full h-full object-cover"
-                    onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                      e.currentTarget.src =
-                        'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop';
-                    }}
-                  />
-                  {/* Overlay */}
-                  <div
-                    className={`absolute inset-0 transition-opacity ${
-                      isCurrentlyPlaying
-                        ? 'bg-black/40 opacity-100'
-                        : 'bg-black/0 group-hover:bg-black/30 opacity-0 group-hover:opacity-100'
-                    }`}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {isCurrentlyPlaying ? (
-                        <div className="flex gap-1">
-                          <div
-                            className="w-1 h-6 bg-white animate-bounce"
-                            style={{ animationDelay: '0ms' }}
-                          ></div>
-                          <div
-                            className="w-1 h-6 bg-white animate-bounce"
-                            style={{ animationDelay: '150ms' }}
-                          ></div>
-                          <div
-                            className="w-1 h-6 bg-white animate-bounce"
-                            style={{ animationDelay: '300ms' }}
-                          ></div>
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Play size={20} className="text-white ml-0.5" fill="white" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {/* Title */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                    <span className="text-white text-xs font-medium line-clamp-1">
-                      {post.title}
-                    </span>
-                  </div>
-                </button>
-              );
-            })
-          ) : (
-            <div className="col-span-3 py-10 text-center text-gray-500 text-sm">
-              {t('profile.noPostsYet')}
-            </div>
-          )}
-        </div>
+        <PostsGrid
+          posts={posts}
+          currentTrackVideoId={currentTrack?.videoId}
+          isPlaying={isPlaying}
+          onPlayPost={handlePlayPost}
+          t={t}
+        />
       ) : activeTab === 'discover' ? (
         // Discover Tab - YouTube Music Home Feed
-        <div className="p-4 space-y-6">
-          {homeLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
-            </div>
-          ) : homeData?.sections && homeData.sections.length > 0 ? (
-            homeData.sections.map((section, sectionIndex) => (
-              <div key={sectionIndex}>
-                {/* Section Title */}
-                <h3 className="font-bold text-lg mb-3">{section.title}</h3>
-
-                {/* Horizontal Scroll Content */}
-                <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
-                  {section.contents.slice(0, 12).map((item, itemIndex) => (
-                    <button
-                      type="button"
-                      key={item.videoId || item.playlistId || itemIndex}
-                      onClick={() => handlePlayHomeItem(item, section, itemIndex)}
-                      className="flex-shrink-0 w-36 cursor-pointer group text-left"
-                    >
-                      {/* Thumbnail */}
-                      <div className="relative">
-                        <img
-                          src={
-                            getBestThumbnail(item.thumbnails) || 'https://via.placeholder.com/144'
-                          }
-                          alt={item.title}
-                          className="w-36 h-36 rounded-lg object-cover shadow-md group-hover:shadow-lg transition-shadow"
-                          onError={(e: SyntheticEvent<HTMLImageElement>) => {
-                            e.currentTarget.src = 'https://via.placeholder.com/144';
-                          }}
-                        />
-                        {/* Play Overlay */}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-lg transition-colors flex items-center justify-center">
-                          <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                            <Play size={24} className="text-black ml-1" fill="black" />
-                          </div>
-                        </div>
-                        {/* Views Badge */}
-                        {item.views && (
-                          <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-                            {item.views}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="mt-2">
-                        <div className="font-medium text-sm line-clamp-2 leading-tight">
-                          {item.title}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate mt-0.5">
-                          {item.artists?.map((a) => a.name).join(', ') ||
-                            item.subtitle ||
-                            item.album?.name ||
-                            ''}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="py-10 text-center text-gray-500">
-              <Disc size={48} className="mx-auto mb-2 opacity-50" />
-              <p>{t('profile.noRecommendations', 'No recommendations available')}</p>
-            </div>
-          )}
-        </div>
+        <DiscoverTab
+          homeData={homeData}
+          homeLoading={homeLoading}
+          onPlayHomeItem={handlePlayHomeItem}
+          t={t}
+        />
       ) : activeTab === 'music' ? (
         // Artist Music Tab (for virtual members) or Saved Music Tab
         <div className="p-4">
           {isVirtualMember ? (
             // Virtual Member: Show artist's music from search
-            <>
-              {artistMusicLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Top Tracks - SearchPage와 동일한 레이아웃 */}
-                  {artistSongs.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-lg">
-                          {t('search.topTracks', 'Top Tracks')} ({artistSongs.length})
-                        </h3>
-                        <button
-                          onClick={() => {
-                            const tracks = artistSongs.map((s) => ({
-                              videoId: s.videoId,
-                              title: s.title,
-                              artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
-                              thumbnail: s.thumbnails?.[0]?.url,
-                            }));
-                            const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-                            startPlayback(shuffled, 0);
-                          }}
-                          className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-semibold hover:opacity-80 transition"
-                        >
-                          <Shuffle size={16} />
-                          {t('profile.shuffle')}
-                        </button>
-                      </div>
-                      <div className="space-y-1">
-                        {(showAllSongs ? artistSongs : artistSongs.slice(0, 5)).map(
-                          (song, index) => (
-                            <button
-                              type="button"
-                              key={song.videoId || index}
-                              onClick={() => {
-                                const tracks = artistSongs.map((s) => ({
-                                  videoId: s.videoId,
-                                  title: s.title,
-                                  artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
-                                  thumbnail: s.thumbnails?.[0]?.url,
-                                }));
-                                startPlayback(tracks, index);
-                              }}
-                              className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
-                            >
-                              <span className="w-6 text-center text-sm text-gray-400">
-                                {index + 1}
-                              </span>
-                              <img
-                                src={song.thumbnails?.[0]?.url || 'https://via.placeholder.com/40'}
-                                alt={song.title}
-                                className="w-10 h-10 rounded object-cover bg-gray-200 dark:bg-gray-700"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium truncate">{song.title}</div>
-                                <div className="text-xs text-gray-500 truncate">
-                                  {song.artists?.[0]?.name}
-                                  {song.album?.name && ` • ${song.album.name}`}
-                                </div>
-                              </div>
-                              <span className="text-xs text-gray-400">{song.duration}</span>
-                            </button>
-                          )
-                        )}
-                      </div>
-                      {/* Show More Button */}
-                      {artistSongs.length > 5 && (
-                        <button
-                          onClick={() => setShowAllSongs(!showAllSongs)}
-                          className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
-                        >
-                          {showAllSongs ? (
-                            <>{t('search.showLess', 'Show Less')}</>
-                          ) : (
-                            <>
-                              {t('search.showMore', 'Show More')} ({artistSongs.length - 5})
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Albums & Singles - SearchPage와 동일한 레이아웃 */}
-                  {artistAlbums.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-lg mb-3">
-                        {t('search.albumsAndSingles', 'Albums & Singles')} ({artistAlbums.length})
-                      </h3>
-                      <div className="space-y-3">
-                        {(showAllAlbums ? artistAlbums : artistAlbums.slice(0, 4)).map(
-                          (album, index) => (
-                            <button
-                              type="button"
-                              key={album.browseId || index}
-                              onClick={() => album.browseId && fetchAndShowAlbum(album.browseId)}
-                              className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition w-full text-left"
-                            >
-                              <img
-                                src={album.thumbnails?.[0]?.url || 'https://via.placeholder.com/80'}
-                                alt={album.title}
-                                className="w-20 h-20 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
-                              />
-                              <div className="flex-1 min-w-0 py-1">
-                                <div className="font-semibold text-sm truncate">{album.title}</div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {album.type || 'Album'} {album.year && `• ${album.year}`}
-                                </div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                  {t('search.clickToViewTracks', 'Click to view tracks')}
-                                </div>
-                              </div>
-                            </button>
-                          )
-                        )}
-                      </div>
-                      {/* Show More Button */}
-                      {artistAlbums.length > 4 && (
-                        <button
-                          onClick={() => setShowAllAlbums(!showAllAlbums)}
-                          className="w-full mt-3 py-2.5 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center justify-center gap-2"
-                        >
-                          {showAllAlbums ? (
-                            <>{t('search.showLess', 'Show Less')}</>
-                          ) : (
-                            <>
-                              {t('search.showMore', 'Show More')} ({artistAlbums.length - 4})
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Videos Section */}
-                  {artistVideos.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-lg mb-3">
-                        {t('search.videos', 'Videos')} ({artistVideos.length})
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {artistVideos.slice(0, 4).map((video, index) => (
-                          <button
-                            type="button"
-                            key={video.videoId || index}
-                            onClick={() => {
-                              const track = {
-                                videoId: video.videoId,
-                                title: video.title,
-                                artist: video.artists?.[0]?.name || profile?.full_name || 'Unknown',
-                                thumbnail: video.thumbnails?.[0]?.url,
-                              };
-                              setTrack(track);
-                            }}
-                            className="flex flex-col rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-left"
-                          >
-                            <div className="relative aspect-video">
-                              <img
-                                src={
-                                  video.thumbnails?.[0]?.url || 'https://via.placeholder.com/160x90'
-                                }
-                                alt={video.title}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition">
-                                <Play size={32} className="text-white" fill="white" />
-                              </div>
-                              {video.views && (
-                                <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-                                  {video.views}
-                                </div>
-                              )}
-                            </div>
-                            <div className="p-2">
-                              <div className="text-sm font-medium truncate">{video.title}</div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {video.artists?.[0]?.name}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Similar Artists - SearchPage와 동일한 레이아웃 */}
-                  {similarArtists.length > 0 && (
-                    <div>
-                      <h3 className="font-bold text-lg mb-3">
-                        {t('search.similarArtists', 'Similar Artists')} ({similarArtists.length})
-                      </h3>
-                      <div className="grid grid-cols-3 gap-3">
-                        {similarArtists.map((artist, index) => (
-                          <button
-                            type="button"
-                            key={artist.browseId || index}
-                            onClick={() => {
-                              // Navigate to similar artist's profile if they exist in DB
-                              navigate(`/search?q=${encodeURIComponent(artist.artist)}`);
-                            }}
-                            className="flex flex-col items-center cursor-pointer group hover:scale-105 active:scale-95 transition-transform"
-                          >
-                            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 mb-2 ring-2 ring-transparent group-hover:ring-black dark:group-hover:ring-white transition-all shadow-md group-hover:shadow-lg">
-                              <img
-                                src={
-                                  artist.thumbnails?.[0]?.url || 'https://via.placeholder.com/80'
-                                }
-                                alt={artist.artist}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <span className="text-xs text-center font-medium truncate w-full px-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {artist.artist}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {artistSongs.length === 0 && artistAlbums.length === 0 && (
-                    <div className="py-10 text-center text-gray-500">
-                      <Music size={48} className="mx-auto mb-2 opacity-50" />
-                      <p>{t('profile.noArtistMusic', 'No music found')}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+            <ArtistMusicTab
+              artistMusicLoading={artistMusicLoading}
+              artistSongs={artistSongs}
+              artistAlbums={artistAlbums}
+              artistVideos={artistVideos}
+              similarArtists={similarArtists}
+              showAllSongs={showAllSongs}
+              showAllAlbums={showAllAlbums}
+              onToggleShowAllSongs={() => setShowAllSongs(!showAllSongs)}
+              onToggleShowAllAlbums={() => setShowAllAlbums(!showAllAlbums)}
+              onPlaySong={(songs, index) => {
+                const tracks = songs.map((s) => ({
+                  videoId: s.videoId,
+                  title: s.title,
+                  artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
+                  thumbnail: s.thumbnails?.[0]?.url,
+                }));
+                startPlayback(tracks, index);
+              }}
+              onShufflePlay={(songs) => {
+                const tracks = songs.map((s) => ({
+                  videoId: s.videoId,
+                  title: s.title,
+                  artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
+                  thumbnail: s.thumbnails?.[0]?.url,
+                }));
+                const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+                startPlayback(shuffled, 0);
+              }}
+              onPlayVideo={(video) => {
+                setTrack({
+                  videoId: video.videoId,
+                  title: video.title,
+                  artist: video.artists?.[0]?.name || profile?.full_name || 'Unknown',
+                  thumbnail: video.thumbnails?.[0]?.url,
+                });
+              }}
+              onShowAlbum={fetchAndShowAlbum}
+              onNavigateToArtist={(artistName) =>
+                navigate(`/search?q=${encodeURIComponent(artistName)}`)
+              }
+              profileName={profile?.full_name}
+              t={t}
+            />
           ) : (
             // Regular User: Show saved music
             <>
@@ -1475,10 +1163,7 @@ export default function ProfilePage() {
         </div>
       ) : (
         // Private Tab
-        <div className="py-20 text-center text-gray-500">
-          <Lock size={48} className="mx-auto mb-2 opacity-50" />
-          <p>{t('profile.private')}</p>
-        </div>
+        <PrivateTab t={t} />
       )}
 
       {/* Followers/Following Modals */}
