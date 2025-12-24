@@ -1328,45 +1328,14 @@ def save_full_artist_data_background(artist_id: str, artist_info: dict, country:
     try:
         ytmusic = get_ytmusic(country)
 
-        # 1. 아티스트 기본 정보 저장
+        # 1. 아티스트 기본 정보 저장 (헬퍼 함수 사용)
         artist_name = artist_info.get("name") or ""
         search_thumbnails = artist_info.get("thumbnails") or []
 
-        # 인기곡 플레이리스트 ID 추출 (핵심!)
-        songs_playlist_id = None
-        songs_browse_id = None
         songs_section = artist_info.get("songs")
-        if songs_section and isinstance(songs_section, dict):
-            songs_browse_id = songs_section.get("browseId")
-            if songs_browse_id and songs_browse_id.startswith("VL"):
-                songs_playlist_id = songs_browse_id[2:]
-            elif songs_browse_id:
-                songs_playlist_id = songs_browse_id
-
-        # 인기곡 추출 & 저장 (검색용 메타데이터)
-        top_songs = []
-        if songs_section and isinstance(songs_section, dict):
-            for song in songs_section.get("results", []):
-                if isinstance(song, dict) and song.get("videoId"):
-                    top_songs.append({
-                        "videoId": song.get("videoId"),
-                        "title": song.get("title") or "",
-                        "duration": song.get("duration") or "",
-                        "thumbnails": song.get("thumbnails") or []
-                    })
-        
-        # 유사 아티스트 추출 & 저장
-        related_artists = []
-        related_section = artist_info.get("related")
-        if related_section and isinstance(related_section, dict):
-            for rel in related_section.get("results", [])[:15]:
-                if isinstance(rel, dict):
-                    related_artists.append({
-                        "browseId": rel.get("browseId") or "",
-                        "name": rel.get("title") or rel.get("name") or "",
-                        "subscribers": rel.get("subscribers") or "",
-                        "thumbnails": rel.get("thumbnails") or []
-                    })
+        songs_playlist_id = _extract_songs_playlist_id(songs_section)
+        top_songs = _extract_top_songs(songs_section)
+        related_artists = _extract_related_artists(artist_info.get("related"))
         
         artist_data = {
             "browseId": artist_id,
@@ -1377,7 +1346,7 @@ def save_full_artist_data_background(artist_id: str, artist_info: dict, country:
             "description": artist_info.get("description") or "",
             "topSongs": top_songs,
             "related": related_artists,
-            "songsPlaylistId": songs_playlist_id  # YouTube IFrame API용 플레이리스트 ID만
+            "songsPlaylistId": songs_playlist_id
         }
 
         db_save_artist_full(artist_data)
@@ -1447,60 +1416,14 @@ def parse_artist_data_lightweight(artist_id: str, artist_info: dict) -> dict:
     artist_name = artist_info.get("name") or ""
     search_thumbnails = artist_info.get("thumbnails") or []
 
-    # 인기곡
-    top_songs = []
+    # 헬퍼 함수 사용으로 중복 코드 제거
     songs_section = artist_info.get("songs")
-    if songs_section and isinstance(songs_section, dict):
-        for song in songs_section.get("results", []):
-            if isinstance(song, dict) and song.get("videoId"):
-                top_songs.append({
-                    "videoId": song.get("videoId"),
-                    "title": song.get("title") or "",
-                    "duration": song.get("duration") or "",
-                    "thumbnails": song.get("thumbnails") or []
-                })
-
-    # 유사 아티스트
-    related_artists = []
-    related_section = artist_info.get("related")
-    if related_section and isinstance(related_section, dict):
-        for rel in related_section.get("results", [])[:15]:
-            if isinstance(rel, dict):
-                related_artists.append({
-                    "browseId": rel.get("browseId") or "",
-                    "name": rel.get("title") or rel.get("name") or "",
-                    "subscribers": rel.get("subscribers") or "",
-                    "thumbnails": rel.get("thumbnails") or []
-                })
-
-    # 앨범 목록 (메인 페이지에 있는 것만 우선 반환)
-    all_albums = []
+    top_songs = _extract_top_songs(songs_section)
+    related_artists = _extract_related_artists(artist_info.get("related"))
     
-    albums_section = artist_info.get("albums")
-    if albums_section and isinstance(albums_section, dict):
-        for album in albums_section.get("results") or []:
-            if isinstance(album, dict) and album.get("browseId"):
-                all_albums.append({
-                    "browseId": album.get("browseId"),
-                    "title": album.get("title") or "",
-                    "type": album.get("type") or "Album",
-                    "year": album.get("year") or "",
-                    "thumbnails": album.get("thumbnails") or [],
-                    "tracks": []
-                })
-
-    singles_section = artist_info.get("singles")
-    if singles_section and isinstance(singles_section, dict):
-        for single in singles_section.get("results") or []:
-             if isinstance(single, dict) and single.get("browseId"):
-                all_albums.append({
-                    "browseId": single.get("browseId"),
-                    "title": single.get("title") or "",
-                    "type": "Single",
-                    "year": single.get("year") or "",
-                    "thumbnails": single.get("thumbnails") or [],
-                    "tracks": []
-                })
+    # 앨범 + 싱글 통합
+    all_albums = _extract_albums_from_section(artist_info.get("albums"), "Album")
+    all_albums.extend(_extract_albums_from_section(artist_info.get("singles"), "Single"))
 
     return {
         "browseId": artist_id,
@@ -1512,7 +1435,7 @@ def parse_artist_data_lightweight(artist_id: str, artist_info: dict) -> dict:
         "topSongs": top_songs,
         "related": related_artists,
         "albums": all_albums,
-        "allTracks": top_songs # 초기 응답에는 top songs만 포함
+        "allTracks": top_songs  # 초기 응답에는 top songs만 포함
     }
 
 
