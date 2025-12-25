@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, X, MessageSquare, Sparkles } from 'lucide-react';
+import { Send, X, MessageSquare } from 'lucide-react';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
-export function AIChatDrawer({ artistName, onClose }: { artistName: string; onClose: () => void }) {
+interface AIChatDrawerProps {
+  readonly artistName: string;
+  readonly onClose: () => void;
+}
+
+export function AIChatDrawer({ artistName, onClose }: AIChatDrawerProps) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);

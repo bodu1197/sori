@@ -4836,7 +4836,7 @@ async def translate_post_content(request: Request):
 
 
 @app.get("/api/translate/cached/{post_id}")
-async def get_cached_translation(post_id: str, target_language: str = "en"):
+def get_cached_translation(post_id: str, target_language: str = "en"):
     """
     Get cached translation for a specific post.
     Returns null if not cached.
