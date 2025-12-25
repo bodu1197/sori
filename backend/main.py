@@ -1626,12 +1626,13 @@ async def _process_best_artist_for_summary(
 
 def _try_cached_summary(cache_key: str, q: str, country: str, background_tasks) -> dict | None:
     """Try to get summary from cache or database."""
-    # Redis 캐시 먼저 확인
-    cached = cache_get(cache_key)
-    if cached:
-        logger.info(f"Redis cache hit: {cache_key}")
-        cached["source"] = "redis"
-        return cached
+    # Note: Redis caching is currently disabled (cache_get returns None)
+    # When re-enabled, uncomment the following block:
+    # cached = cache_get(cache_key)
+    # if cached:
+    #     logger.info(f"Redis cache hit: {cache_key}")
+    #     cached["source"] = "redis"
+    #     return cached
 
     # DB에서 검색어 매핑 확인
     artist_browse_ids = db_get_artists_by_keyword(q, country)
@@ -1996,6 +1997,8 @@ def _format_song_results(songs_results: list) -> list:
     """Format song results for API response."""
     songs = []
     for s in (songs_results or [])[:5]:
+        if not isinstance(s, dict):
+            continue
         songs.append({
             "videoId": s.get("videoId"),
             "title": s.get("title"),
