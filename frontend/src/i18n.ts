@@ -34,4 +34,4 @@ i18n
     },
   });
 
-export { i18n as default };
+export default i18n;
