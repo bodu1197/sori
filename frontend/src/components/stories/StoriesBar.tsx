@@ -230,10 +230,13 @@ export default function StoriesBar() {
 
           {displayGroups.map((group, index) => {
             const getGradientClass = () => {
-              if (!group.hasUnviewed) return 'bg-gray-300 dark:bg-gray-600';
-              if (group.isArtist)
-                return 'bg-gradient-to-tr from-blue-400 via-indigo-500 to-purple-600 shadow-md shadow-blue-500/30';
-              return 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600';
+              if (group.hasUnviewed) {
+                if (group.isArtist) {
+                  return 'bg-gradient-to-tr from-blue-400 via-indigo-500 to-purple-600 shadow-md shadow-blue-500/30';
+                }
+                return 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600';
+              }
+              return 'bg-gray-300 dark:bg-gray-600';
             };
 
             return (
