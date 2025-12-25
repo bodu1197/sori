@@ -45,7 +45,7 @@ import {
 function ForYouSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { recommendations, loadingRecs, countryName, context } = useHomeRecommendations();
+  const { recommendations, countryName, context } = useHomeRecommendations();
 
   // Handle banner click (Navigate to profile with tracks)
   const handleBannerClick = () => {
@@ -140,7 +140,10 @@ function StoryRail() {
       {loading
         ? // Skeleton Loaders to prevent layout shift
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center flex-shrink-0 gap-2">
+            <div
+              key={`story-skeleton-${i}`}
+              className="flex flex-col items-center flex-shrink-0 gap-2"
+            >
               <div className="w-[66px] h-[66px] rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
               <div className="w-12 h-2.5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
             </div>
@@ -420,7 +423,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
 function SuggestedUsersSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const { suggestedUsers, loading } = useSuggestedUsers();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -433,7 +435,7 @@ function SuggestedUsersSection() {
         <div className="flex gap-3 px-4 overflow-hidden">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
-              key={i}
+              key={`suggested-skeleton-${i}`}
               className="flex-shrink-0 w-36 bg-gray-100 dark:bg-gray-800 rounded-xl p-3 animate-pulse"
             >
               <div className="w-16 h-16 mx-auto rounded-full bg-gray-200 dark:bg-gray-700 mb-2" />

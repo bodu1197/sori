@@ -231,6 +231,12 @@ function AllSongsSection({
   onToggleLike,
   t,
 }: AllSongsSectionProps) {
+  const renderToggleIcon = () => {
+    if (isLoading) return <Loader2 size={18} className="animate-spin" />;
+    if (isExpanded) return <Users size={18} className="rotate-180" />;
+    return <Users size={18} />;
+  };
+
   return (
     <div className="bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden">
       <button
@@ -245,13 +251,7 @@ function AllSongsSection({
             <div className="text-sm font-semibold">{t('search.allSongs')}</div>
           </div>
         </div>
-        {isLoading ? (
-          <Loader2 size={18} className="animate-spin" />
-        ) : isExpanded ? (
-          <Users size={18} className="rotate-180" />
-        ) : (
-          <Users size={18} />
-        )}
+        {renderToggleIcon()}
       </button>
       {isExpanded && (
         <div className="border-t border-gray-200 dark:border-gray-700">
@@ -295,7 +295,6 @@ export default function SearchPage() {
     searchArtist,
     searchAlbums,
     searchSongs,
-    setSearchArtist,
   } = useMusicSearch();
 
   const {
@@ -337,9 +336,7 @@ export default function SearchPage() {
   const [allSongsLoading, setAllSongsLoading] = useState(false);
 
   // Liked Songs Hook
-  const { likedSongs, isLiked, toggleLike } = useLikedSongs();
-  const [likedAlbums, setLikedAlbums] = useState<Set<string>>(new Set());
-  const [savingAlbums, setSavingAlbums] = useState<Set<string>>(new Set());
+  const { likedSongs, toggleLike } = useLikedSongs();
 
   // Check follow status when search artist changes
   useEffect(() => {
@@ -562,41 +559,29 @@ export default function SearchPage() {
     toggleLike(item);
   };
 
-  const handleToggleAlbumLike = async (album: SearchAlbum) => {
-    const albumId = album.browseId || `album-${album.title}`;
-    if (!user || savingAlbums.has(albumId)) return;
-
-    const albumIsLiked = likedAlbums.has(albumId);
-    setSavingAlbums((prev) => new Set(prev).add(albumId));
-
-    try {
-      if (albumIsLiked) {
-        setLikedAlbums((prev) => {
-          const n = new Set(prev);
-          n.delete(albumId);
-          return n;
-        });
-      } else {
-        const tracks = album.tracks || getCachedTracks(albumId) || [];
-        for (const track of tracks) {
-          if (!likedSongs.has(track.videoId)) {
-            await toggleLike(track);
-          }
-        }
-        setLikedAlbums((prev) => new Set(prev).add(albumId));
-      }
-    } finally {
-      setSavingAlbums((prev) => {
-        const n = new Set(prev);
-        n.delete(albumId);
-        return n;
-      });
-    }
-  };
-
   const hasResults = searchArtist || searchSongs.length > 0 || searchAlbums.length > 0;
   const hasUserResults = userResults.length > 0;
   const isLoading = activeTab === 'music' ? searchLoading : userSearchLoading;
+
+  // Render music search content - extracted to reduce cognitive complexity
+  const renderMusicContent = () => {
+    if (searchLoading) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={32} className="animate-spin text-gray-500" />
+        </div>
+      );
+    }
+    if (!hasResults) {
+      return (
+        <div className="text-center py-16 text-gray-500">
+          <Music size={48} className="mx-auto mb-4 opacity-50" />
+          <p>{t('search.startTyping') || 'Start typing to search'}</p>
+        </div>
+      );
+    }
+    return null; // Results will be rendered separately
+  };
 
   return (
     <div className="bg-white dark:bg-black min-h-screen pb-20">
@@ -675,11 +660,8 @@ export default function SearchPage() {
 
         {activeTab === 'music' && (
           <>
-            {searchLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={32} className="animate-spin text-gray-500" />
-              </div>
-            ) : hasResults ? (
+            {renderMusicContent()}
+            {hasResults && !searchLoading && (
               <div className="space-y-6">
                 {/* Artist Card */}
                 {searchArtist && (
@@ -775,11 +757,6 @@ export default function SearchPage() {
                     )}
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="text-center py-16 text-gray-500">
-                <Music size={48} className="mx-auto mb-4 opacity-50" />
-                <p>{t('search.startTyping') || 'Start typing to search'}</p>
               </div>
             )}
           </>

@@ -389,7 +389,7 @@ def _build_default_ai_persona(artist_name: str) -> dict:
     return {
         "system_prompt": f"You are {artist_name}, a music artist chatting with a fan. Be friendly, warm, and authentic. Keep responses short (1-2 sentences).",
         "tone": "friendly, warm, casual",
-        "greeting": f"Hey! Thanks for reaching out! 💕"
+        "greeting": "Hey! Thanks for reaching out! 💕"
     }
 
 

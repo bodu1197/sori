@@ -23,6 +23,60 @@ function SearchStep({
   onSelect,
   onPreview,
 }: SearchStepProps) {
+  const renderContent = () => {
+    if (searching) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-gray-400" />
+        </div>
+      );
+    }
+    if (searchResults.length === 0) {
+      return (
+        <div className="py-12 text-center">
+          <Music size={48} className="mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-500">
+            {searchQuery ? 'No songs found' : 'Search for a song to share'}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {searchResults.map((track) => (
+          <button
+            type="button"
+            key={track.videoId}
+            className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
+            onClick={() => onSelect(track)}
+          >
+            <img
+              src={getBestThumbnail(track.thumbnails) || 'https://via.placeholder.com/60'}
+              alt={track.title}
+              className="w-14 h-14 rounded-lg object-cover"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-black dark:text-white truncate">{track.title}</p>
+              <p className="text-sm text-gray-500 truncate">
+                {track.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPreview(track);
+              }}
+              className="p-2 text-gray-400 hover:text-black dark:hover:text-white"
+            >
+              <Music size={20} />
+            </button>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="p-4">
@@ -46,53 +100,7 @@ function SearchStep({
           )}
         </div>
       </div>
-      <div className="px-4">
-        {searching ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 size={32} className="animate-spin text-gray-400" />
-          </div>
-        ) : searchResults.length === 0 ? (
-          <div className="py-12 text-center">
-            <Music size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500">
-              {searchQuery ? 'No songs found' : 'Search for a song to share'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {searchResults.map((track) => (
-              <button
-                type="button"
-                key={track.videoId}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
-                onClick={() => onSelect(track)}
-              >
-                <img
-                  src={getBestThumbnail(track.thumbnails) || 'https://via.placeholder.com/60'}
-                  alt={track.title}
-                  className="w-14 h-14 rounded-lg object-cover"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-black dark:text-white truncate">{track.title}</p>
-                  <p className="text-sm text-gray-500 truncate">
-                    {track.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPreview(track);
-                  }}
-                  className="p-2 text-gray-400 hover:text-black dark:hover:text-white"
-                >
-                  <Music size={20} />
-                </button>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <div className="px-4">{renderContent()}</div>
     </>
   );
 }
@@ -197,8 +205,7 @@ export default function CreatePostPage() {
   const { user } = useAuthStore();
 
   // Use extracted search hook
-  const { searchQuery, setSearchQuery, searchResults, searching, previewTrack, clearSearch } =
-    useTrackSearch();
+  const { searchQuery, setSearchQuery, searchResults, searching, previewTrack } = useTrackSearch();
 
   const [step, setStep] = useState<'search' | 'details'>('search');
   const [selectedTrack, setSelectedTrack] = useState<SearchResult | null>(null);
@@ -283,7 +290,7 @@ export default function CreatePostPage() {
         </div>
       </div>
 
-      {step === 'search' ? (
+      {step === 'search' && (
         <SearchStep
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -292,7 +299,8 @@ export default function CreatePostPage() {
           onSelect={handleSelectTrack}
           onPreview={handlePreview}
         />
-      ) : selectedTrack ? (
+      )}
+      {step === 'details' && selectedTrack && (
         <DetailsStep
           selectedTrack={selectedTrack}
           caption={caption}
@@ -305,7 +313,7 @@ export default function CreatePostPage() {
             setStep('search');
           }}
         />
-      ) : null}
+      )}
     </div>
   );
 }

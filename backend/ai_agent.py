@@ -631,7 +631,7 @@ def generate_artist_dm(artist_name: str, persona: dict, context: str = "new foll
         return None
 
     tone = persona.get("tone", DEFAULT_TONE) if persona else DEFAULT_TONE
-    greeting = persona.get("greeting", f"Hey! Thanks for the support!") if persona else "Hey! Thanks for the support!"
+    greeting = persona.get("greeting", "Hey! Thanks for the support!") if persona else "Hey! Thanks for the support!"
 
     prompt = f"""
     You are {artist_name}, a music artist sending a DM to a fan.
