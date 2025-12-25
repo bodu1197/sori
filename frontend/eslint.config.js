@@ -59,11 +59,11 @@ export default defineConfig([
         'error',
         { varsIgnorePattern: '^_', argsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error', // STRICT: Block any types
 
       // SonarJS - Code Quality Rules (STRICT)
       'sonarjs/cognitive-complexity': ['error', 15],
-      'sonarjs/no-duplicate-string': ['warn', { threshold: 4 }],
+      'sonarjs/no-duplicate-string': ['error', { threshold: 4 }], // STRICT: Block duplicate strings
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/no-collapsible-if': 'error',
       'sonarjs/no-collection-size-mischeck': 'error',
