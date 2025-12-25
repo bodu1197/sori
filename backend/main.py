@@ -2215,12 +2215,13 @@ async def search_quick(request: Request, q: str, country: str = None):
             # Save artist songs from detail (full list), not just search results
             saved_tracks = _save_search_tracks_to_db(artist_songs, artist_browse_id)
             saved_relations = _save_artist_relations_to_db(artist_browse_id, similar_artists)
-            logger.info(f"Search data saved: {artist_data.get('name')} - {saved_albums}/{len(albums)} albums, {saved_tracks}/{len(artist_songs)} tracks, {saved_relations}/{len(similar_artists)} relations")
+            logger.info(f"[SAVE] {artist_data.get('name')}: albums={saved_albums}/{len(albums)}, tracks={saved_tracks}/{len(artist_songs)}, relations={saved_relations}/{len(similar_artists)}")
 
         response = {
             "artist": artist_data,
             "songs": songs,
             "albums": albums,
+            "_debug_artist_songs_count": len(artist_songs),
             "similarArtists": similar_artists,
             "source": "api"
         }
