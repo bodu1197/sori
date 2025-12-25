@@ -239,9 +239,9 @@ export default function MiniPlayer() {
               type="button"
               onClick={toggleRepeat}
               className={`p-2 rounded-full transition-colors ${
-                repeatMode !== 'none'
-                  ? 'bg-gray-100 dark:bg-gray-800'
-                  : 'hover:text-black dark:hover:text-white'
+                repeatMode === 'none'
+                  ? 'hover:text-black dark:hover:text-white'
+                  : 'bg-gray-100 dark:bg-gray-800'
               }`}
               title={`Repeat: ${getRepeatModeLabel()}`}
             >
