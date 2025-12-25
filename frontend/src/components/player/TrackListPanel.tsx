@@ -3,20 +3,20 @@ import { Play, Shuffle, X, ChevronRight } from 'lucide-react';
 import usePlayerStore from '../../stores/usePlayerStore';
 
 declare global {
-  interface Window {
-    YT: {
-      Player: new (element: HTMLElement | string, options: YTPlayerOptions) => YTPlayer;
-      PlayerState: {
-        UNSTARTED: number;
-        ENDED: number;
-        PLAYING: number;
-        PAUSED: number;
-        BUFFERING: number;
-        CUED: number;
-      };
+  // eslint-disable-next-line no-var
+  var YT: {
+    Player: new (element: HTMLElement | string, options: YTPlayerOptions) => YTPlayer;
+    PlayerState: {
+      UNSTARTED: number;
+      ENDED: number;
+      PLAYING: number;
+      PAUSED: number;
+      BUFFERING: number;
+      CUED: number;
     };
-    onYouTubeIframeAPIReady: () => void;
-  }
+  };
+  // eslint-disable-next-line no-var
+  var onYouTubeIframeAPIReady: () => void;
 }
 
 interface YTPlayerOptions {
@@ -222,21 +222,21 @@ export default function TrackListPanel({
       const state = event.data;
 
       switch (state) {
-        case window.YT.PlayerState.PLAYING:
+        case globalThis.YT.PlayerState.PLAYING:
           setLoading(false);
           startProgressUpdater();
           break;
-        case window.YT.PlayerState.PAUSED:
+        case globalThis.YT.PlayerState.PAUSED:
           stopProgressUpdater();
           break;
-        case window.YT.PlayerState.BUFFERING:
+        case globalThis.YT.PlayerState.BUFFERING:
           setLoading(true);
           break;
-        case window.YT.PlayerState.ENDED:
+        case globalThis.YT.PlayerState.ENDED:
           stopProgressUpdater();
           handleTrackEnd();
           break;
-        case window.YT.PlayerState.UNSTARTED:
+        case globalThis.YT.PlayerState.UNSTARTED:
           setLoading(true);
           break;
       }
@@ -255,7 +255,7 @@ export default function TrackListPanel({
   const initializePlayer = useCallback(() => {
     if (!containerRef.current || playerRef.current) return;
 
-    playerRef.current = new window.YT.Player(containerRef.current, {
+    playerRef.current = new globalThis.YT.Player(containerRef.current, {
       height: '100%',
       width: '100%',
       playerVars: {
@@ -266,7 +266,7 @@ export default function TrackListPanel({
         iv_load_policy: 3,
         modestbranding: 1,
         rel: 0,
-        origin: window.location.origin,
+        origin: globalThis.location.origin,
         autoplay: 1,
       },
       events: {
@@ -279,13 +279,13 @@ export default function TrackListPanel({
 
   // Initialize YouTube API
   useEffect(() => {
-    if (window.YT?.Player) {
+    if (globalThis.YT?.Player) {
       initializePlayer();
       return;
     }
 
     if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-      window.onYouTubeIframeAPIReady = initializePlayer;
+      globalThis.onYouTubeIframeAPIReady = initializePlayer;
       return;
     }
 
@@ -295,7 +295,7 @@ export default function TrackListPanel({
     const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
 
-    window.onYouTubeIframeAPIReady = initializePlayer;
+    globalThis.onYouTubeIframeAPIReady = initializePlayer;
 
     return () => {
       if (progressIntervalRef.current) {
