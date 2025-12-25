@@ -4,6 +4,7 @@ import logging
 import base64
 import io
 import httpx
+import secrets
 from datetime import datetime, timedelta
 try:
     import google.generativeai as genai
@@ -538,8 +539,7 @@ def generate_artist_post(artist_name: str, persona: dict) -> dict | None:
         logger.error("google-generativeai library not installed")
         return None
 
-    # Pick a random post type to keep variety
-    import random
+    # Pick a secret-based choice for variety
     post_types = [
         "music update (new song, album, practice session)",
         "personal thoughts or reflection",
@@ -548,7 +548,7 @@ def generate_artist_post(artist_name: str, persona: dict) -> dict | None:
         "daily life update",
         "inspiring quote or wisdom"
     ]
-    chosen_type = random.choice(post_types)
+    chosen_type = secrets.choice(post_types)
 
     tone = persona.get("tone", DEFAULT_TONE_CASUAL) if persona else DEFAULT_TONE_CASUAL
     fandom_name = persona.get("fandom_name", "fans") if persona else "fans"

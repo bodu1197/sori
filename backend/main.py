@@ -20,6 +20,7 @@ from ai_agent import (
 )
 import uuid as uuid_lib
 import random
+import secrets
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -3679,7 +3680,7 @@ def _select_track_media(tracks_data: list, artist_name: str) -> tuple:
     if not tracks_with_video:
         return None, None, None
 
-    selected = random.choice(tracks_with_video)
+    selected = secrets.SystemRandom().choice(tracks_with_video)
     cover_url = upscale_thumbnail_url(selected["thumbnail_url"], size=544) if selected.get("thumbnail_url") else None
     logger.info(f"Selected track for {artist_name}: {selected.get('title')} (video_id: {selected.get('video_id')})")
     return cover_url, selected.get("video_id"), selected.get("title")
@@ -3689,7 +3690,7 @@ def _select_album_cover(albums_data: list, artist_name: str) -> str | None:
     """Select a random album cover. Returns cover_url or None."""
     if not albums_data:
         return None
-    album = random.choice(albums_data)
+    album = secrets.SystemRandom().choice(albums_data)
     if album.get("thumbnail_url"):
         logger.info(f"Using real album art for {artist_name}: {album.get('title')}")
         return upscale_thumbnail_url(album["thumbnail_url"], size=544)
@@ -3854,7 +3855,7 @@ async def run_artist_activity(request: Request, background_tasks: BackgroundTask
             return {"status": "no_artists", "message": "No virtual members found"}
 
         artists = artists_result.data
-        random.shuffle(artists)
+        secrets.SystemRandom().shuffle(artists)
         posts_created = 0
 
         for artist in artists:
@@ -4746,7 +4747,7 @@ async def test_artist_activity():
         if not artists_result.data:
             return {"status": "error", "message": "No virtual members found. Run /api/virtual-members/migrate-all first."}
 
-        artist = random.choice(artists_result.data)
+        artist = secrets.SystemRandom().choice(artists_result.data)
         persona = artist.get("ai_persona") or {}
         artist_name = artist.get("full_name") or artist.get("username")
         browse_id = artist.get("artist_browse_id")

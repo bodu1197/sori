@@ -5,16 +5,21 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # 시스템 의존성 설치
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
+
+# 비루트 사용자 생성
+RUN useradd -m appuser
+USER appuser
 
 # Python 패키지 설치 (캐시 활용)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY . .
+# 애플리케이션 코드 복사
+COPY --chown=appuser:appuser . .
 
 # Cloud Run은 PORT 환경변수 사용
 ENV PORT=8080

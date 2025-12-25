@@ -10,8 +10,8 @@ Write-Host "==============================================" -ForegroundColor Cya
 Write-Host ""
 
 $ErrorsFound = $false
-$RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-if (-not $RepoRoot) { $RepoRoot = Get-Location }
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+if (-not $RepoRoot -or -not (Test-Path "$RepoRoot\frontend")) { $RepoRoot = Get-Location }
 
 # =============================================================================
 # Step 1: Frontend ESLint Check
@@ -129,6 +129,25 @@ if ($SonarToken) {
     }
 } else {
     Write-Host "  [SKIP] SONAR_TOKEN not set (set with `$env:SONAR_TOKEN=...)" -ForegroundColor Yellow
+}
+
+# =============================================================================
+# Step 5: Run SonarCloud Analysis (Optional - requires token)
+# =============================================================================
+Write-Host ""
+Write-Host "[5/5] Running SonarCloud Analysis..." -ForegroundColor Yellow
+
+if ($SonarToken) {
+    Write-Host "  - Executing sonar-scanner..." -ForegroundColor Gray
+    sonar-scanner -Dsonar.login=$SonarToken -Dsonar.host.url=https://sonarcloud.io
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  [PASS] Analysis successful" -ForegroundColor Green
+    } else {
+        Write-Host "  [FAIL] Analysis failed" -ForegroundColor Red
+        $ErrorsFound = $true
+    }
+} else {
+    Write-Host "  [SKIP] SONAR_TOKEN not set, skipping manual scan" -ForegroundColor Yellow
 }
 
 # =============================================================================
