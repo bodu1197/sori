@@ -5,6 +5,7 @@ import TopNav from './TopNav';
 import MiniPlayer from '../player/MiniPlayer';
 import TrackListPanel from '../player/TrackListPanel';
 import usePlayerStore from '../../stores/usePlayerStore';
+import { secureShuffle } from '../../lib/shuffle';
 
 export default function MobileLayout() {
   const { pathname } = useLocation();
@@ -66,7 +67,7 @@ export default function MobileLayout() {
         artist: t.artists?.map((a) => a.name).join(', ') || 'Unknown Artist',
         duration: t.duration,
       }));
-      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+      const shuffled = secureShuffle(tracks);
       startPlayback(shuffled, 0);
     }
   };

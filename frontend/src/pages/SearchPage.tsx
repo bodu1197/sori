@@ -14,6 +14,7 @@ import {
   Users,
   Music,
 } from 'lucide-react';
+import { secureShuffle } from '../lib/shuffle';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
 import { FollowButton } from '../components/social';
@@ -422,7 +423,7 @@ export default function SearchPage() {
     const albumId = album.browseId || `album-${album.title}`;
     const tracks = album.tracks || getCachedTracks(albumId) || [];
     if (tracks.length === 0) return;
-    const shuffled = [...albumTracksToPlaylist(tracks, album)].sort(() => Math.random() - 0.5);
+    const shuffled = secureShuffle(albumTracksToPlaylist(tracks, album));
     startPlayback(shuffled, 0);
   };
 
@@ -455,7 +456,7 @@ export default function SearchPage() {
   const handleShuffleSearchSongs = () => {
     if (searchSongs.length === 0) return;
     const playlist = songsToPlaylist(searchSongs);
-    const shuffled = [...playlist].sort(() => Math.random() - 0.5);
+    const shuffled = secureShuffle(playlist);
     openTrackPanel({
       title: searchArtist?.artist || t('search.topTracks'),
       author: { name: `${searchSongs.length} ${t('search.tracks')}` },

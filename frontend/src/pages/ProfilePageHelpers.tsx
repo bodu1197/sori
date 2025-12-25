@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { secureShuffle } from '../lib/shuffle';
 import {
   Heart,
   Play,
@@ -449,7 +450,7 @@ export function useProfilePlayback() {
         thumbnail: s.thumbnail,
         cover: s.cover,
       }));
-      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+      const shuffled = secureShuffle(tracks);
       startPlayback(shuffled, 0);
     },
     [t, openTrackPanel, startPlayback]

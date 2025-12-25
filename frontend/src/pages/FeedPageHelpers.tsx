@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { secureShuffle } from '../lib/shuffle';
 import useAuthStore from '../stores/useAuthStore';
 import useContentStore from '../stores/useContentStore';
 import useContextRecommendation from '../hooks/useContextRecommendation';
@@ -197,7 +198,7 @@ function addProfilesToSuggestions(
   maxCount: number,
   shuffle = false
 ): void {
-  const source = shuffle ? [...profiles].sort(() => Math.random() - 0.5) : profiles;
+  const source = shuffle ? secureShuffle(profiles) : profiles;
   for (const profile of source) {
     if (addedIds.has(profile.id) || followingIds.has(profile.id)) continue;
     suggestions.push(profile);

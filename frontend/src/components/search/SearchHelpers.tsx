@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Heart, ChevronDown, ChevronUp, Shuffle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { secureShuffle } from '../../lib/shuffle';
 import useAuthStore from '../../stores/useAuthStore';
 
 const API_BASE_URL =
@@ -340,10 +341,9 @@ export function useUserSearch() {
         .eq('member_type', 'artist')
         .limit(100);
 
-      const shuffledArtists = (artistData || [])
-        .filter((u) => !followingIds.has(u.id))
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 10);
+      const shuffledArtists = secureShuffle(
+        (artistData || []).filter((u) => !followingIds.has(u.id))
+      ).slice(0, 10);
       setSuggestedUsers(shuffledArtists);
 
       const { data: recentPostsData } = await supabase
@@ -360,20 +360,18 @@ export function useUserSearch() {
           .select('id, username, full_name, avatar_url, followers_count')
           .in('id', recentUserIds)
           .limit(20);
-        activeFiltered = (activeUsers || [])
-          .filter((u) => !followingIds.has(u.id))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 10);
+        activeFiltered = secureShuffle(
+          (activeUsers || []).filter((u) => !followingIds.has(u.id))
+        ).slice(0, 10);
       } else {
         const { data: regularUsers } = await supabase
           .from('profiles')
           .select('id, username, full_name, avatar_url, followers_count')
           .is('member_type', null)
           .limit(50);
-        activeFiltered = (regularUsers || [])
-          .filter((u) => !followingIds.has(u.id))
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 10);
+        activeFiltered = secureShuffle(
+          (regularUsers || []).filter((u) => !followingIds.has(u.id))
+        ).slice(0, 10);
       }
       setNewUsers(activeFiltered);
     } catch (err) {

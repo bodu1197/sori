@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { sanitizeArtistName } from '../lib/api';
+import { secureRandomIndex } from '../lib/shuffle';
 
 export interface Track {
   videoId: string;
@@ -223,7 +224,7 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
     if (shuffleMode) {
       if (playlist.length > 1) {
         do {
-          nextIndex = Math.floor(Math.random() * playlist.length);
+          nextIndex = secureRandomIndex(playlist.length);
         } while (nextIndex === currentIndex);
       } else {
         nextIndex = 0;

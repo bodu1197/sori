@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
+import { secureShuffle } from '../lib/shuffle';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import FollowersModal from '../components/social/FollowersModal';
@@ -178,7 +179,7 @@ export default function ProfilePage() {
       artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
       thumbnail: s.thumbnails?.[0]?.url,
     }));
-    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    const shuffled = secureShuffle(tracks);
     startPlayback(shuffled, 0);
   };
 
@@ -216,7 +217,7 @@ export default function ProfilePage() {
       thumbnail: s.thumbnail,
       cover: s.cover,
     }));
-    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    const shuffled = secureShuffle(tracks);
     startPlayback(shuffled, 0);
   };
 
