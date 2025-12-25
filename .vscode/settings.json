@@ -1,0 +1,64 @@
+{
+  // ESLint settings
+  "eslint.enable": true,
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": [{ "directory": "frontend", "changeProcessCWD": true }],
+
+  // Auto-fix on save
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // Format on save
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // SonarLint settings
+  "sonarlint.rules": {
+    // React readonly props
+    "typescript:S6606": { "level": "on" },
+    // Nullish coalescing
+    "typescript:S6582": { "level": "on" },
+    // Prefer globalThis
+    "typescript:S6539": { "level": "on" },
+    // Cognitive complexity
+    "typescript:S3776": { "level": "on" },
+    // No duplicate strings
+    "typescript:S1192": { "level": "on" },
+    // Negated conditions
+    "typescript:S1940": { "level": "on" }
+  },
+  "sonarlint.pathToNodeExecutable": "",
+  "sonarlint.connectedMode.connections.sonarcloud": [
+    {
+      "organizationKey": "bodu1197",
+      "connectionId": "sori-sonarcloud"
+    }
+  ],
+
+  // TypeScript settings
+  "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+
+  // File associations
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+
+  // Exclude from search
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true,
+    "**/coverage": true
+  }
+}
