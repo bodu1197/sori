@@ -2,6 +2,7 @@
  * Profile Page Helper Components
  * Extracted from ProfilePage.tsx to reduce cognitive complexity
  */
+/* eslint-disable react-refresh/only-export-components */
 import { useTranslation } from 'react-i18next';
 import { Music, Grid, Heart, Shuffle } from 'lucide-react';
 
@@ -27,14 +28,6 @@ interface ArtistAlbum {
   type?: string;
   year?: string;
   thumbnails?: Thumbnail[];
-}
-
-interface ArtistVideo {
-  videoId: string;
-  title: string;
-  artists?: Array<{ name: string; id?: string }>;
-  thumbnails?: Thumbnail[];
-  views?: string;
 }
 
 interface SimilarArtist {
@@ -78,8 +71,8 @@ export function ArtistSongList({
   showAll,
   onToggleShowAll,
   onPlaySong,
-  currentVideoId,
-  isPlaying,
+  currentVideoId: _currentVideoId,
+  isPlaying: _isPlaying,
 }: ArtistSongListProps) {
   const { t } = useTranslation();
   const displayedSongs = showAll ? songs : songs.slice(0, 5);

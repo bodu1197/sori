@@ -3,7 +3,6 @@ import { Play, Shuffle, X, ChevronRight } from 'lucide-react';
 import usePlayerStore from '../../stores/usePlayerStore';
 
 declare global {
-  // eslint-disable-next-line no-var
   var YT: {
     Player: new (element: HTMLElement | string, options: YTPlayerOptions) => YTPlayer;
     PlayerState: {
@@ -15,7 +14,7 @@ declare global {
       CUED: number;
     };
   };
-  // eslint-disable-next-line no-var
+
   var onYouTubeIframeAPIReady: () => void;
 }
 

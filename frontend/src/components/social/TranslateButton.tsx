@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useCallback } from 'react';
 import { Languages, Loader2, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

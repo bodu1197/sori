@@ -214,7 +214,7 @@ export default function useCountry(): Country {
   // Use timezone-based detection (no CORS issues, works instantly)
   const countryCode = getCountryFromTimezone();
 
-  const country = useMemo<Country>(
+  return useMemo<Country>(
     () => ({
       code: countryCode,
       name: COUNTRY_NAMES[countryCode] || 'Unknown',
@@ -222,6 +222,4 @@ export default function useCountry(): Country {
     }),
     [countryCode]
   );
-
-  return country;
 }

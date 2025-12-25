@@ -83,26 +83,9 @@ export default function StoryViewer({
     }
   }, [currentStory, isPaused, isMuted, startPlayback, pause]);
 
-  // Progress timer
-  useEffect(() => {
-    if (isPaused) return;
-
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          // Move to next story
-          goToNextStory();
-          return 0;
-        }
-        return prev + 100 / (STORY_DURATION / 100);
-      });
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [isPaused, currentStoryIndex, currentGroupIndex]);
-
-  const goToNextStory = useCallback(() => {
-    if (currentStoryIndex < currentGroup.stories.length - 1) {
+  // Navigation functions (defined before usage in effects)
+  const goToNextStory = () => {
+    if (currentStoryIndex < (currentGroup?.stories.length ?? 0) - 1) {
       setCurrentStoryIndex((prev) => prev + 1);
       setProgress(0);
     } else if (currentGroupIndex < groups.length - 1) {
@@ -112,7 +95,39 @@ export default function StoryViewer({
     } else {
       onClose();
     }
-  }, [currentStoryIndex, currentGroupIndex, currentGroup?.stories.length, groups.length, onClose]);
+  };
+
+  // Progress timer
+  useEffect(() => {
+    if (isPaused) return;
+
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          // Move to next story - handled by separate effect below
+          return 100;
+        }
+        return prev + 100 / (STORY_DURATION / 100);
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  // Handle story transition when progress completes
+  useEffect(() => {
+    if (progress >= 100) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Timer-based story transition requires setState
+      goToNextStory();
+    }
+  }, [
+    progress,
+    currentStoryIndex,
+    currentGroupIndex,
+    currentGroup?.stories.length,
+    groups.length,
+    onClose,
+  ]);
 
   const goToPrevStory = useCallback(() => {
     if (currentStoryIndex > 0) {

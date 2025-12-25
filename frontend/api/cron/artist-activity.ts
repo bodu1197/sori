@@ -6,12 +6,10 @@ const CRON_SECRET = process.env.CRON_SECRET || 'dev-secret';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Verify cron secret (Vercel sends this header for cron jobs)
+  // Also allow direct calls with secret param for testing
   const authHeader = req.headers.authorization;
-  if (authHeader !== `Bearer ${CRON_SECRET}`) {
-    // Also allow direct calls with secret param for testing
-    if (req.query.secret !== CRON_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+  if (authHeader !== `Bearer ${CRON_SECRET}` && req.query.secret !== CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {

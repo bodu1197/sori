@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Heart, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -11,53 +11,51 @@ export default function TopNav() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
-  // Function to fetch unread message count
-  const fetchUnreadMessages = useCallback(async () => {
-    if (!user?.id) return;
-
-    const { data: participantData } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id, last_read_at')
-      .eq('user_id', user.id);
-
-    if (participantData && participantData.length > 0) {
-      let unread = 0;
-      for (const p of participantData) {
-        const { count } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('conversation_id', p.conversation_id)
-          .neq('sender_id', user.id)
-          .gt('created_at', p.last_read_at || '1970-01-01');
-        unread += count || 0;
-      }
-      setUnreadMessages(unread);
-    } else {
-      setUnreadMessages(0);
-    }
-  }, [user?.id]);
-
-  // Refetch when route changes (e.g., leaving chat page)
-  useEffect(() => {
-    fetchUnreadMessages();
-  }, [location.pathname, fetchUnreadMessages]);
-
   // Fetch unread counts
   useEffect(() => {
+    let isMounted = true;
+
+    async function fetchUnreadMessageCount() {
+      if (!user?.id) return;
+      const userId = user.id;
+
+      const { data: participantData } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, last_read_at')
+        .eq('user_id', userId);
+
+      if (participantData && participantData.length > 0) {
+        let unread = 0;
+        for (const p of participantData) {
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', p.conversation_id)
+            .neq('sender_id', userId)
+            .gt('created_at', p.last_read_at || '1970-01-01');
+          unread += count || 0;
+        }
+        if (isMounted) setUnreadMessages(unread);
+      } else if (isMounted) {
+        setUnreadMessages(0);
+      }
+    }
+
     async function fetchUnreadCounts() {
       if (!user?.id) return;
+      const userId = user.id;
 
       // Unread notifications
       const { count: notifCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('is_read', false);
 
-      setUnreadNotifications(notifCount || 0);
+      if (isMounted) setUnreadNotifications(notifCount || 0);
 
       // Fetch unread messages
-      await fetchUnreadMessages();
+      await fetchUnreadMessageCount();
     }
 
     fetchUnreadCounts();
@@ -131,17 +129,18 @@ export default function TopNav() {
         },
         () => {
           // Refetch unread count when last_read_at is updated
-          fetchUnreadMessages();
+          fetchUnreadMessageCount();
         }
       )
       .subscribe();
 
     return () => {
+      isMounted = false;
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(participantChannel);
     };
-  }, [user?.id, location.pathname, fetchUnreadMessages]);
+  }, [user?.id, location.pathname]);
 
   return (
     <header className="h-[44px] bg-white dark:bg-black px-4 flex justify-between items-center sticky top-0 z-40">

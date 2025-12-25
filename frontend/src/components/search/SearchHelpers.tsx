@@ -2,6 +2,7 @@
  * Search Page Helper Components and Hooks
  * Extracted from SearchPage.tsx to reduce cognitive complexity
  */
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Heart, ChevronDown, ChevronUp, Shuffle } from 'lucide-react';
@@ -495,6 +496,7 @@ export function useLikedSongs() {
   }, [user]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Data loading on mount is a valid pattern
     loadLikedSongs();
   }, [loadLikedSongs]);
 

@@ -9,14 +9,6 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 export default defineConfig([
   globalIgnores(['dist', 'node_modules', 'coverage']),
 
-  // Disable react-refresh for helper/utility files
-  {
-    files: ['**/*Helpers.tsx', '**/*Helper.tsx', '**/use*.ts', '**/use*.tsx'],
-    rules: {
-      'react-refresh/only-export-components': 'off',
-    },
-  },
-
   // JavaScript files
   {
     files: ['**/*.{js,jsx}'],
@@ -64,30 +56,30 @@ export default defineConfig([
     rules: {
       // TypeScript specific
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         { varsIgnorePattern: '^_', argsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
 
-      // SonarJS - Code Quality Rules (all warnings for gradual adoption)
-      'sonarjs/cognitive-complexity': ['warn', 15],
+      // SonarJS - Code Quality Rules (STRICT)
+      'sonarjs/cognitive-complexity': ['error', 15],
       'sonarjs/no-duplicate-string': ['warn', { threshold: 4 }],
-      'sonarjs/no-identical-functions': 'warn',
-      'sonarjs/no-collapsible-if': 'warn',
-      'sonarjs/no-collection-size-mischeck': 'warn',
-      'sonarjs/no-duplicated-branches': 'warn',
-      'sonarjs/no-identical-conditions': 'warn',
-      'sonarjs/no-inverted-boolean-check': 'warn',
-      'sonarjs/no-redundant-boolean': 'warn',
-      'sonarjs/no-redundant-jump': 'warn',
-      'sonarjs/no-same-line-conditional': 'warn',
-      'sonarjs/no-unused-collection': 'warn',
-      'sonarjs/no-useless-catch': 'warn',
-      'sonarjs/prefer-immediate-return': 'warn',
-      'sonarjs/prefer-single-boolean-return': 'warn',
-      'sonarjs/prefer-while': 'warn',
+      'sonarjs/no-identical-functions': 'error',
+      'sonarjs/no-collapsible-if': 'error',
+      'sonarjs/no-collection-size-mischeck': 'error',
+      'sonarjs/no-duplicated-branches': 'error',
+      'sonarjs/no-identical-conditions': 'error',
+      'sonarjs/no-inverted-boolean-check': 'error',
+      'sonarjs/no-redundant-boolean': 'error',
+      'sonarjs/no-redundant-jump': 'error',
+      'sonarjs/no-same-line-conditional': 'error',
+      'sonarjs/no-unused-collection': 'error',
+      'sonarjs/no-useless-catch': 'error',
+      'sonarjs/prefer-immediate-return': 'error',
+      'sonarjs/prefer-single-boolean-return': 'error',
+      'sonarjs/prefer-while': 'error',
 
-      // Best practices matching SonarCloud
+      // Best practices
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always'],

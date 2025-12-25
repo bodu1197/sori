@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Play,
   Shuffle,
-  Heart,
   X,
   Loader2,
   ListMusic,
@@ -15,8 +14,7 @@ import {
   Music,
 } from 'lucide-react';
 import { secureShuffle } from '../lib/shuffle';
-import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
-import { supabase } from '../lib/supabase';
+import usePlayerStore from '../stores/usePlayerStore';
 import { FollowButton } from '../components/social';
 import { DEFAULT_AVATAR } from '../components/common';
 
@@ -46,9 +44,6 @@ const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
 type SearchTab = 'music' | 'users';
-
-const PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23374151' width='120' height='120' rx='60'/%3E%3Ccircle cx='60' cy='45' r='20' fill='%236B7280'/%3E%3Cellipse cx='60' cy='95' rx='35' ry='25' fill='%236B7280'/%3E%3C/svg%3E";
 
 // Users Tab Content Component
 interface UsersTabContentProps {

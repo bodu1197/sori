@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
@@ -89,14 +89,27 @@ export default function ProfilePage() {
 
   // Dynamic recommendations passed from FeedPage
   const location = useLocation();
-  const [recommendedTracks, setRecommendedTracks] = useState<PlaylistTrackData[]>([]);
+  const processedLocationKeyRef = useRef<string | null>(null);
+  const [recommendedTracks, setRecommendedTracks] = useState<PlaylistTrackData[]>(
+    () => location.state?.recommendedTracks || []
+  );
   const [recommendationContext, setRecommendationContext] = useState<{
     title: string;
     message: string;
-  } | null>(null);
+  } | null>(() =>
+    location.state?.recommendedTracks
+      ? { title: location.state.contextTitle, message: location.state.contextMessage }
+      : null
+  );
 
+  // Handle subsequent navigation with new recommendations (not initial render)
   useEffect(() => {
+    const currentKey = location.key;
+    if (processedLocationKeyRef.current === currentKey) return;
+
     if (location.state?.recommendedTracks) {
+      processedLocationKeyRef.current = currentKey;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing state from navigation is a valid pattern
       setRecommendedTracks(location.state.recommendedTracks);
       setRecommendationContext({
         title: location.state.contextTitle,
@@ -106,7 +119,7 @@ export default function ProfilePage() {
         setActiveTab('liked');
       }
     }
-  }, [location.state, isOwnProfile]);
+  }, [location.key, location.state, isOwnProfile]);
 
   // Wrapper handlers using extracted hooks
   const handlePlayTrack = (track: LikedTrack, index: number) =>

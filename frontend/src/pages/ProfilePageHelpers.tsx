@@ -2,6 +2,7 @@
  * ProfilePage Helper Hooks
  * Extracted from ProfilePage.tsx to reduce cognitive complexity
  */
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useEffect, useCallback, SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -932,7 +933,7 @@ export function ArtistMusicTab({
   onPlayVideo,
   onShowAlbum,
   onNavigateToArtist,
-  profileName,
+  profileName: _profileName,
   t,
 }: ArtistMusicTabProps) {
   if (artistMusicLoading) {

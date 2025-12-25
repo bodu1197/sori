@@ -4,9 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { MessageCircle, Play, Repeat2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
-import useContentStore from '../stores/useContentStore';
-import useContextRecommendation from '../hooks/useContextRecommendation';
-import useCountry from '../hooks/useCountry';
 import useAuthStore from '../stores/useAuthStore';
 import {
   LikeButton,
@@ -24,15 +21,9 @@ import { StoriesBar } from '../components/stories';
 import { DEFAULT_AVATAR } from '../components/common';
 type FeedFilter = 'following' | 'all';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
-
 import {
-  type Artist,
-  type RecommendationTrack, // Added this if needed by useState state which was removed? No, type was used in hook return type.
   type Profile,
   type FeedPost,
-  type SuggestedUser,
   getHighResThumbnail,
   useHomeRecommendations,
   useSuggestedUsers,
@@ -115,61 +106,6 @@ function ForYouSection() {
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/30 rounded-full blur-3xl"></div>
       </button>
-    </div>
-  );
-}
-
-function StoryRail() {
-  const navigate = useNavigate();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchStories() {
-      const { data } = await supabase.from('profiles').select('*').limit(10);
-      if (data) setProfiles(data as Profile[]);
-      setLoading(false);
-    }
-    fetchStories();
-  }, []);
-
-  if (!loading && profiles.length === 0) return null;
-
-  return (
-    <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide min-h-[110px]">
-      {loading
-        ? // Skeleton Loaders to prevent layout shift
-          ['sk-story-1', 'sk-story-2', 'sk-story-3', 'sk-story-4', 'sk-story-5', 'sk-story-6'].map(
-            (id) => (
-              <div key={id} className="flex flex-col items-center flex-shrink-0 gap-2">
-                <div className="w-[66px] h-[66px] rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
-                <div className="w-12 h-2.5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-              </div>
-            )
-          )
-        : profiles.map((profile) => (
-            <button
-              key={profile.id}
-              onClick={() => navigate(`/profile/${profile.id}`)}
-              className="flex flex-col items-center flex-shrink-0 cursor-pointer"
-            >
-              <div
-                className={`rounded-full p-[3px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500`}
-              >
-                <div className="bg-white dark:bg-black p-[2px] rounded-full">
-                  <img
-                    src={profile.avatar_url || DEFAULT_AVATAR}
-                    alt={profile.username}
-                    className="w-[60px] h-[60px] rounded-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-              <span className="text-xs mt-1 text-gray-800 dark:text-gray-200 truncate w-[64px] text-center">
-                {profile.username}
-              </span>
-            </button>
-          ))}
     </div>
   );
 }
@@ -567,7 +503,7 @@ export default function FeedPage() {
         const userIds = [...new Set(postsData.map((p) => p.user_id).filter(Boolean))];
 
         // Step 3: Fetch profiles for those user IDs
-        let profilesMap = new Map<string, Profile>();
+        const profilesMap = new Map<string, Profile>();
         if (userIds.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
