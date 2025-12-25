@@ -100,10 +100,18 @@ export function useArtistMusic(profile: Profile | null) {
         const response = await fetch(`${API_BASE_URL}/api/artist/${profile.artist_browse_id}`);
         if (!response.ok) throw new Error('Failed to fetch');
         const data = await response.json();
-        setArtistSongs(data.topSongs || []);
-        setArtistAlbums(data.albums || []);
-        setArtistVideos(data.videos || []);
-        setSimilarArtists(data.related || []);
+
+        // API returns data in nested structure: data.artist.songs.results, etc.
+        const artist = data.artist || data;
+        const songs = artist.songs?.results || artist.topSongs || [];
+        const albums = artist.albums?.results || artist.albums || [];
+        const videos = artist.videos?.results || artist.videos || [];
+        const related = artist.related?.results || artist.related || [];
+
+        setArtistSongs(songs);
+        setArtistAlbums(albums);
+        setArtistVideos(videos);
+        setSimilarArtists(related);
       } catch (err) {
         console.error('Error fetching artist music:', err);
       } finally {
