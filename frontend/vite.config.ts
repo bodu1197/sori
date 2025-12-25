@@ -36,7 +36,6 @@ function getPageChunk(pageName: string): string {
 }
 
 function getComponentChunk(id: string): string | undefined {
-  if (id.includes('/stories/')) return 'component-stories';
   if (id.includes('/player/')) return 'component-player';
   if (id.includes('/profile/')) return 'component-profile';
   return undefined;

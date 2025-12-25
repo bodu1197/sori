@@ -1,30 +1,29 @@
-import React, { useEffect, useState, useRef, SyntheticEvent, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { MessageCircle, Play, Repeat2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
-import useAuthStore from '../stores/useAuthStore';
-import {
-  LikeButton,
-  useLikeCountText,
-  InlineComments,
-  RepostButton,
-  BookmarkButton,
-  ShareButton,
-  PostOptionsMenu,
-  TranslateButton,
-  usePostTranslation,
-  FollowButton,
-} from '../components/social';
-import { StoriesBar } from '../components/stories';
+import React, { SyntheticEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { DEFAULT_AVATAR } from '../components/common';
+import {
+  BookmarkButton,
+  FollowButton,
+  InlineComments,
+  LikeButton,
+  PostOptionsMenu,
+  RepostButton,
+  ShareButton,
+  TranslateButton,
+  useLikeCountText,
+  usePostTranslation,
+} from '../components/social';
+import { supabase } from '../lib/supabase';
+import useAuthStore from '../stores/useAuthStore';
+import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 type FeedFilter = 'following' | 'all';
 
 import {
-  type Profile,
   type FeedPost,
   getHighResThumbnail,
+  type Profile,
   useHomeRecommendations,
   useSuggestedUsers,
 } from './FeedPageHelpers';
@@ -596,9 +595,6 @@ export default function FeedPage() {
           </button>
         </div>
       )}
-
-      {/* Stories */}
-      <StoriesBar />
 
       {/* Posts */}
       <div className="space-y-2 mt-2">
