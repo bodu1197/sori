@@ -95,31 +95,79 @@ export function useArtistMusic(profile: Profile | null) {
     setIsVirtualMember(true);
     setLoading(true);
 
-    const fetchArtistMusic = async () => {
+    const fetchFromSupabase = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/artist/${profile.artist_browse_id}`);
-        if (!response.ok) throw new Error('Failed to fetch');
-        const data = await response.json();
+        const browseId = profile.artist_browse_id;
 
-        // API returns data in nested structure: data.artist.songs.results, etc.
-        const artist = data.artist || data;
-        const songs = artist.songs?.results || artist.topSongs || [];
-        const albums = artist.albums?.results || artist.albums || [];
-        const videos = artist.videos?.results || artist.videos || [];
-        const related = artist.related?.results || artist.related || [];
+        // Fetch tracks, albums, and similar artists in parallel from Supabase
+        const [tracksResult, albumsResult, relationsResult] = await Promise.all([
+          supabase
+            .from('music_tracks')
+            .select('video_id, title, artist_name, album_title, duration, thumbnails')
+            .eq('artist_browse_id', browseId)
+            .order('created_at', { ascending: false })
+            .limit(20),
+          supabase
+            .from('music_albums')
+            .select('browse_id, title, album_type, year, thumbnails')
+            .eq('artist_browse_id', browseId)
+            .order('year', { ascending: false })
+            .limit(20),
+          supabase
+            .from('artist_relations')
+            .select('related_artist_browse_id')
+            .eq('main_artist_browse_id', browseId)
+            .limit(10),
+        ]);
+
+        // Transform tracks to ArtistSong format
+        const songs: ArtistSong[] = (tracksResult.data || []).map((track) => ({
+          videoId: track.video_id,
+          title: track.title,
+          artists: [{ name: track.artist_name }],
+          album: { name: track.album_title },
+          duration: track.duration,
+          thumbnails: JSON.parse(track.thumbnails || '[]'),
+        }));
+
+        // Transform albums to ArtistAlbum format
+        const albums: ArtistAlbum[] = (albumsResult.data || []).map((album) => ({
+          browseId: album.browse_id,
+          title: album.title,
+          type: album.album_type,
+          year: album.year,
+          thumbnails: JSON.parse(album.thumbnails || '[]'),
+        }));
+
+        // Fetch similar artist profiles from Supabase
+        const relatedIds = (relationsResult.data || []).map((r) => r.related_artist_browse_id);
+        let similar: SimilarArtist[] = [];
+        if (relatedIds.length > 0) {
+          const { data: relatedProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, artist_browse_id')
+            .in('artist_browse_id', relatedIds)
+            .limit(10);
+
+          similar = (relatedProfiles || []).map((p) => ({
+            browseId: p.artist_browse_id,
+            artist: p.full_name,
+            thumbnails: p.avatar_url ? [{ url: p.avatar_url }] : [],
+          }));
+        }
 
         setArtistSongs(songs);
         setArtistAlbums(albums);
-        setArtistVideos(videos);
-        setSimilarArtists(related);
+        setArtistVideos([]); // Videos not stored in Supabase
+        setSimilarArtists(similar);
       } catch (err) {
-        console.error('Error fetching artist music:', err);
+        console.error('Error fetching artist music from Supabase:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchArtistMusic();
+    fetchFromSupabase();
   }, [profile?.artist_browse_id]);
 
   return {
