@@ -1,8 +1,8 @@
-import '@testing-library/jest-dom';
 import { jest } from '@jest/globals';
+import '@testing-library/jest-dom';
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
+// Mock globalThis.matchMedia
+Object.defineProperty(globalThis, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
     matches: false,
@@ -23,7 +23,7 @@ class MockIntersectionObserver {
   disconnect = jest.fn();
 }
 
-Object.defineProperty(window, 'IntersectionObserver', {
+Object.defineProperty(globalThis, 'IntersectionObserver', {
   writable: true,
   value: MockIntersectionObserver,
 });
@@ -35,4 +35,4 @@ const localStorageMock = {
   removeItem: jest.fn(),
   clear: jest.fn(),
 };
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });

@@ -18,12 +18,11 @@ import {
 } from 'lucide-react';
 import React, { SyntheticEvent } from 'react';
 import { type PlaylistTrackData } from '../../stores/usePlayerStore';
+export { type PlaylistTrackData };
 
 // =============================================================================
 // Shared Types & Interfaces
 // =============================================================================
-
-export { type PlaylistTrackData };
 
 export interface Thumbnail {
   url: string;

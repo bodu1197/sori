@@ -1,7 +1,7 @@
 import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import { translations, SupportedLanguage } from './locales/translations';
+import { initReactI18next } from 'react-i18next';
+import { SupportedLanguage, translations } from './locales/translations';
 
 interface Resources {
   [key: string]: {
@@ -34,4 +34,4 @@ i18n
     },
   });
 
-export default i18n;
+export { i18n as default };

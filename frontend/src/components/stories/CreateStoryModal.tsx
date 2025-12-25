@@ -1,5 +1,5 @@
+import { Loader2, Music, Search, Type, X } from 'lucide-react';
 import { useState } from 'react';
-import { X, Search, Music, Type, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
@@ -30,8 +30,8 @@ interface SearchResult {
 }
 
 interface CreateStoryModalProps {
-  onClose: () => void;
-  onStoryCreated: (story: Story) => void;
+  readonly onClose: () => void;
+  readonly onStoryCreated: (story: Story) => void;
 }
 
 const BACKGROUND_COLORS = [

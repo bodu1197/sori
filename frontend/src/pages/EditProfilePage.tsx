@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Camera, Check, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Loader2, Check } from 'lucide-react';
+import { DEFAULT_AVATAR } from '../components/common';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
-import { DEFAULT_AVATAR } from '../components/common';
 
 interface Profile {
   username: string;
@@ -129,7 +129,7 @@ export default function EditProfilePage() {
         throw new Error('Username must be at least 3 characters');
       }
 
-      if (!/^[a-zA-Z0-9_]+$/.test(profile.username)) {
+      if (!/^\w+$/.test(profile.username)) {
         throw new Error('Username can only contain letters, numbers, and underscores');
       }
 

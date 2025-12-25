@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pause, Play, Trash2, Volume2, VolumeX, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import usePlayerStore from '../../stores/usePlayerStore';
 import { DEFAULT_AVATAR } from '../common';
@@ -28,12 +28,12 @@ interface StoryGroup {
 }
 
 interface StoryViewerProps {
-  groups: StoryGroup[];
-  initialGroupIndex: number;
-  onClose: () => void;
-  onStoryViewed: (storyId: string) => void;
-  viewedStories: Set<string>;
-  isOwnStory?: boolean;
+  readonly groups: StoryGroup[];
+  readonly initialGroupIndex: number;
+  readonly onClose: () => void;
+  readonly onStoryViewed: (storyId: string) => void;
+  readonly viewedStories: Set<string>;
+  readonly isOwnStory?: boolean;
 }
 
 const STORY_DURATION = 5000; // 5 seconds per story
@@ -171,8 +171,8 @@ export default function StoryViewer({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
+    return () => globalThis.removeEventListener('keydown', handleKeyDown);
   }, [goToPrevStory, goToNextStory, onClose]);
 
   if (!currentStory) return null;

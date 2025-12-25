@@ -1,8 +1,8 @@
-import { useEffect, useState, SyntheticEvent } from 'react';
+import { Loader2, Play } from 'lucide-react';
+import { SyntheticEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useCountry from '../hooks/useCountry';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
-import { Play, Loader2 } from 'lucide-react';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
@@ -115,7 +115,7 @@ export default function ChartsPage() {
         <div className="text-center py-20">
           <p className="text-red-500 mb-4">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => globalThis.location.reload()}
             className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-medium"
           >
             {t('charts.retry')}

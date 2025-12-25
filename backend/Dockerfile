@@ -4,22 +4,22 @@ FROM python:3.11-slim
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 시스템 의존성 설치
+# 시스템 의존성 설치 + 비루트 사용자 생성 (단일 RUN으로 합침)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m -u 1000 appuser
 
-# 비루트 사용자 생성
-RUN useradd -m appuser
-USER appuser
-
-# Python 패키지 설치 (캐시 활용)
-COPY requirements.txt .
+# Python 패키지 설치 (캐시 활용) - root로 설치 후 사용자 전환
+COPY --chmod=644 requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 애플리케이션 코드 복사
-# 애플리케이션 코드 복사
-COPY --chown=appuser:appuser . .
+# 비루트 사용자로 전환
+USER appuser
+
+# 애플리케이션 코드 복사 (읽기 전용 권한)
+COPY --chown=appuser:appuser --chmod=555 *.py ./
+COPY --chown=appuser:appuser --chmod=444 requirements.txt ./
 
 # Cloud Run은 PORT 환경변수 사용
 ENV PORT=8080

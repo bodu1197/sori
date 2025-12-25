@@ -330,7 +330,7 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
 
   addToPlaylist: (track) => {
     const { playlist } = get();
-    if (!playlist.find((t) => t.videoId === track.videoId)) {
+    if (!playlist.some((t) => t.videoId === track.videoId)) {
       set({ playlist: [...playlist, track] });
     }
   },
