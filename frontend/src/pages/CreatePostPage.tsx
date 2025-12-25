@@ -7,12 +7,12 @@ import { useTrackSearch, getBestThumbnail, type SearchResult } from './CreatePos
 
 // Search Step Component
 interface SearchStepProps {
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-  searchResults: SearchResult[];
-  searching: boolean;
-  onSelect: (track: SearchResult) => void;
-  onPreview: (track: SearchResult) => void;
+  readonly searchQuery: string;
+  readonly setSearchQuery: (q: string) => void;
+  readonly searchResults: SearchResult[];
+  readonly searching: boolean;
+  readonly onSelect: (track: SearchResult) => void;
+  readonly onPreview: (track: SearchResult) => void;
 }
 
 function SearchStep({
@@ -107,13 +107,13 @@ function SearchStep({
 
 // Details Step Component
 interface DetailsStepProps {
-  selectedTrack: SearchResult;
-  caption: string;
-  setCaption: (c: string) => void;
-  isPublic: boolean;
-  setIsPublic: (p: boolean) => void;
-  onPreview: (track: SearchResult) => void;
-  onClear: () => void;
+  readonly selectedTrack: SearchResult;
+  readonly caption: string;
+  readonly setCaption: (c: string) => void;
+  readonly isPublic: boolean;
+  readonly setIsPublic: (p: boolean) => void;
+  readonly onPreview: (track: SearchResult) => void;
+  readonly onClear: () => void;
 }
 
 function DetailsStep({
