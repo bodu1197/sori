@@ -3226,6 +3226,43 @@ async def _save_artist_summary_background(artist_id: str, artist_detail: dict, q
         logger.warning(f"Background save error: {e}")
 
 
+def _check_summary_cache_and_db(
+    q: str, country: str, cache_key: str, background_tasks
+) -> dict | None:
+    """Check cache and database for existing summary data."""
+    cached = cache_get(cache_key)
+    if cached:
+        logger.info(f"Redis cache hit: {cache_key}")
+        cached["source"] = "redis"
+        return cached
+
+    artist_browse_ids = db_get_artists_by_keyword(q, country)
+    if not artist_browse_ids:
+        return None
+
+    logger.info(f"DB hit for keyword: {q} ({len(artist_browse_ids)} artists)")
+    db_result = _process_db_artists(
+        artist_browse_ids, background_tasks, country, top_songs_limit=5
+    )
+
+    if not db_result:
+        return None
+
+    result = {
+        "keyword": q,
+        "country": country,
+        "artists": db_result["artists"],
+        "songs": db_result["songs"],
+        "albums": [],
+        "albums2": db_result["albums"],
+        "allTracks": db_result["allTracks"],
+        "source": "database",
+        "updating": db_result["updating"]
+    }
+    cache_set(cache_key, result, ttl=1800)
+    return result
+
+
 @app.get("/api/search/summary")
 async def search_summary(
     request: Request,
@@ -3240,40 +3277,14 @@ async def search_summary(
     - Exact artist match priority
     - Immediate response without extra fetches
     """
-    if not country:
-        country = request.headers.get("CF-IPCountry", "US")
-
+    country = country or request.headers.get("CF-IPCountry", "US")
     cache_key = f"summary:{country}:{q}"
 
     # 1단계: DB/Redis 확인
     if not force_refresh:
-        cached = cache_get(cache_key)
-        if cached:
-            logger.info(f"Redis cache hit: {cache_key}")
-            cached["source"] = "redis"
-            return cached
-
-        artist_browse_ids = db_get_artists_by_keyword(q, country)
-        if artist_browse_ids:
-            logger.info(f"DB hit for keyword: {q} ({len(artist_browse_ids)} artists)")
-            db_result = _process_db_artists(
-                artist_browse_ids, background_tasks, country, top_songs_limit=5
-            )
-
-            if db_result:
-                result = {
-                    "keyword": q,
-                    "country": country,
-                    "artists": db_result["artists"],
-                    "songs": db_result["songs"],
-                    "albums": [],
-                    "albums2": db_result["albums"],
-                    "allTracks": db_result["allTracks"],
-                    "source": "database",
-                    "updating": db_result["updating"]
-                }
-                cache_set(cache_key, result, ttl=1800)
-                return result
+        cached_result = _check_summary_cache_and_db(q, country, cache_key, background_tasks)
+        if cached_result:
+            return cached_result
 
     # 2단계: ytmusicapi (Optimized)
     logger.info(f"Fetching from ytmusicapi (Optimized): {q}")
