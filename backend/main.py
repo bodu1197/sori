@@ -1157,11 +1157,14 @@ def search_music(
     try:
         ytmusic = get_ytmusic(country)
         results = ytmusic.search(q, filter=filter, limit=limit)
-        
+
         # 캐시 저장 (30분)
         cache_set(cache_key, results, ttl=1800)
-        
+
         return {"source": "api", "results": results}
+    except json.JSONDecodeError as e:
+        logger.warning(f"Search JSON parse error: {e}")
+        return {"source": "api", "results": []}
     except Exception as e:
         logger.error(f"Search error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1683,13 +1686,27 @@ async def _fetch_ytmusic_summary(
     # 병렬 검색
     future_artists = run_in_thread(ytmusic.search, q, filter="artists", limit=5)
     future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=20)
-    artists_results, direct_song_results = await asyncio.gather(future_artists, future_songs)
+    artists_results, direct_song_results = await asyncio.gather(
+        future_artists, future_songs, return_exceptions=True
+    )
+
+    # Handle exceptions
+    if isinstance(artists_results, Exception):
+        logger.warning(f"Artist search failed in summary: {artists_results}")
+        artists_results = []
+    if isinstance(direct_song_results, Exception):
+        logger.warning(f"Songs search failed in summary: {direct_song_results}")
+        direct_song_results = []
 
     # 아티스트 결과 처리
     artists_search = artists_results or []
     if not artists_search:
-        general_results = await run_in_thread(ytmusic.search, q, limit=40)
-        artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
+        try:
+            general_results = await run_in_thread(ytmusic.search, q, limit=40)
+            artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
+        except Exception as e:
+            logger.warning(f"Fallback general search failed: {e}")
+            artists_search = []
 
     # 노래 결과 정제
     songs_search = _process_direct_songs(direct_song_results)
@@ -2030,7 +2047,17 @@ async def search_quick(request: Request, q: str, country: str = None):
         ytmusic = get_ytmusic(country)
         future_artists = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=11)
         future_songs = run_in_thread(ytmusic.search, q.strip(), filter="songs", limit=5)
-        artists_results, songs_results = await asyncio.gather(future_artists, future_songs)
+        artists_results, songs_results = await asyncio.gather(
+            future_artists, future_songs, return_exceptions=True
+        )
+
+        # Handle exceptions from asyncio.gather
+        if isinstance(artists_results, Exception):
+            logger.warning(f"Artist search failed: {artists_results}")
+            artists_results = []
+        if isinstance(songs_results, Exception):
+            logger.warning(f"Songs search failed: {songs_results}")
+            songs_results = []
 
         artist_data, similar_artists, albums, songs_playlist_id = await _process_quick_search_artist(
             ytmusic, artists_results
@@ -2058,6 +2085,9 @@ async def search_quick(request: Request, q: str, country: str = None):
         cache_set(cache_key, response, ttl=1800)
         return response
 
+    except json.JSONDecodeError as e:
+        logger.warning(f"Quick search JSON parse error: {e}")
+        return {"artist": None, "songs": [], "albums": [], "similarArtists": [], "source": "api"}
     except Exception as e:
         logger.error(f"Quick search error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2141,6 +2171,9 @@ async def get_artist_playlist_id(q: str, country: str = "US"):
             "source": "api"
         }
 
+    except json.JSONDecodeError as e:
+        logger.warning(f"Playlist ID search JSON parse error: {e}")
+        return {"playlistId": None, "artist": None, "source": "api"}
     except Exception as e:
         logger.error(f"Playlist ID search error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -3246,16 +3279,27 @@ async def search_summary(
     logger.info(f"Fetching from ytmusicapi (Optimized): {q}")
     try:
         ytmusic = get_ytmusic(country)
-        
+
         # Parallel Search (인기곡 5개만)
         future_artists = run_in_thread(ytmusic.search, q, filter="artists", limit=5)
         future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=5)
-        artists_results, _ = await asyncio.gather(future_artists, future_songs)
-        
+        artists_results, _ = await asyncio.gather(
+            future_artists, future_songs, return_exceptions=True
+        )
+
+        # Handle exceptions
+        if isinstance(artists_results, Exception):
+            logger.warning(f"Artist search failed in optimized summary: {artists_results}")
+            artists_results = []
+
         artists_search = artists_results or []
         if not artists_search:
-             general_results = await run_in_thread(ytmusic.search, q, limit=40)
-             artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
+            try:
+                general_results = await run_in_thread(ytmusic.search, q, limit=40)
+                artists_search = [r for r in general_results if r.get("resultType") == "artist"][:5]
+            except Exception as e:
+                logger.warning(f"Fallback search failed: {e}")
+                artists_search = []
 
         # Process best artist
         artists_data, albums_list, songs_search = await _process_artist_for_optimized_summary(
@@ -3275,6 +3319,12 @@ async def search_summary(
         cache_set(cache_key, result, ttl=1800)
         return result
 
+    except json.JSONDecodeError as e:
+        logger.warning(f"Summary search JSON parse error: {e}")
+        return {
+            "keyword": q, "country": country, "artists": [], "songs": [],
+            "albums": [], "albums2": [], "allTracks": [], "source": "api"
+        }
     except Exception as e:
         logger.error(f"Summary search error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -3349,6 +3399,9 @@ async def provision_artist_agent(request: Request):
             "avatar": get_best_thumbnail(details.get("thumbnails", []))
         }
 
+    except json.JSONDecodeError as e:
+        logger.warning(f"Provision JSON parse error: {e}")
+        raise HTTPException(status_code=503, detail="Music service temporarily unavailable")
     except Exception as e:
         logger.error(f"Provision error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
