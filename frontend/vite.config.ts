@@ -4,6 +4,10 @@ import { defineConfig } from 'vite';
 
 // Chunk grouping helper functions
 function getVendorChunk(id: string): string | undefined {
+  // Keep lucide-react in main bundle to avoid initialization order issues
+  if (id.includes('lucide')) {
+    return undefined; // Let it be part of the main bundle
+  }
   if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
     return 'vendor-react';
   }
@@ -12,9 +16,6 @@ function getVendorChunk(id: string): string | undefined {
   }
   if (id.includes('i18next')) {
     return 'vendor-i18n';
-  }
-  if (id.includes('lucide')) {
-    return 'vendor-icons';
   }
   return 'vendor';
 }
