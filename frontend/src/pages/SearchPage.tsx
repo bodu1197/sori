@@ -43,6 +43,8 @@ import {
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
+const T_SEARCH_TOP_TRACKS = 'search.topTracks';
+
 type SearchTab = 'music' | 'users';
 
 // Users Tab Content Component
@@ -433,7 +435,7 @@ export default function SearchPage() {
     if (searchSongs.length === 0) return;
     const playlist = songsToPlaylist(searchSongs);
     openTrackPanel({
-      title: searchArtist?.artist || t('search.topTracks'),
+      title: searchArtist?.artist || t(T_SEARCH_TOP_TRACKS),
       author: { name: `${searchSongs.length} ${t('search.tracks')}` },
       thumbnails: searchArtist?.thumbnails,
       tracks: searchSongs.map((s) => ({
@@ -453,7 +455,7 @@ export default function SearchPage() {
     const playlist = songsToPlaylist(searchSongs);
     const shuffled = secureShuffle(playlist);
     openTrackPanel({
-      title: searchArtist?.artist || t('search.topTracks'),
+      title: searchArtist?.artist || t(T_SEARCH_TOP_TRACKS),
       author: { name: `${searchSongs.length} ${t('search.tracks')}` },
       thumbnails: searchArtist?.thumbnails,
       tracks: searchSongs.map((s) => ({
@@ -507,7 +509,7 @@ export default function SearchPage() {
   const handlePlayTrackFromSearch = (track: SearchSong, index: number) => {
     openPanelAndPlay(
       searchSongs,
-      searchArtist?.artist || t('search.topTracks'),
+      searchArtist?.artist || t(T_SEARCH_TOP_TRACKS),
       index,
       searchArtist?.thumbnails
     );
@@ -528,10 +530,18 @@ export default function SearchPage() {
       const response = await fetch(`${API_BASE_URL}/api/playlist/${searchArtist.songsPlaylistId}`);
       if (response.ok) {
         const data = await response.json();
-        const tracks = data.playlist?.tracks || [];
+        interface TrackResponse {
+          videoId: string;
+          title: string;
+          artists?: Array<{ name: string; id?: string }>;
+          thumbnails?: Array<{ url: string; width?: number; height?: number }>;
+          duration?: string;
+          album?: { name?: string; id?: string };
+        }
+        const tracks: TrackResponse[] = data.playlist?.tracks || [];
         // Conform to SearchSong interface
         setAllSongsTracks(
-          tracks.map((t: any) => ({
+          tracks.map((t: TrackResponse) => ({
             videoId: t.videoId,
             title: t.title,
             artists: t.artists,
@@ -679,7 +689,7 @@ export default function SearchPage() {
                 {searchSongs.length > 0 && (
                   <div>
                     <h3 className="text-base font-bold mb-3 text-black dark:text-white">
-                      {t('search.topTracks')}
+                      {t(T_SEARCH_TOP_TRACKS)}
                     </h3>
                     <div className="space-y-1">
                       {(showAllSongs ? searchSongs : searchSongs.slice(0, 5)).map((song, i) => (

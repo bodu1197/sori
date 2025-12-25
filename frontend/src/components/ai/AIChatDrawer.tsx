@@ -3,17 +3,28 @@ import { Send, X, MessageSquare } from 'lucide-react';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'model';
+  content: string;
+}
+
+interface ArtistPersona {
+  name: string;
+  style?: string;
+  traits?: string[];
+}
+
 interface AIChatDrawerProps {
   readonly artistName: string;
   readonly onClose: () => void;
 }
 
 export function AIChatDrawer({ artistName, onClose }: AIChatDrawerProps) {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [persona, setPersona] = useState<any>(null);
+  const [persona, setPersona] = useState<ArtistPersona | null>(null);
   const [browseId, setBrowseId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +80,7 @@ export function AIChatDrawer({ artistName, onClose }: AIChatDrawerProps) {
     setSending(true);
 
     // Optimistic Update
-    const newHistory = [...messages, { role: 'user', content: userMsg }];
+    const newHistory: ChatMessage[] = [...messages, { role: 'user' as const, content: userMsg }];
     setMessages(newHistory);
 
     try {
@@ -87,12 +98,15 @@ export function AIChatDrawer({ artistName, onClose }: AIChatDrawerProps) {
 
       if (res.ok) {
         const data = await res.json();
-        setMessages((prev) => [...prev, { role: 'model', content: data.reply }]);
+        setMessages((prev) => [...prev, { role: 'model' as const, content: data.reply }]);
       } else {
         throw new Error('API Error');
       }
     } catch {
-      setMessages((prev) => [...prev, { role: 'model', content: '(Connection Error...)' }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'model' as const, content: '(Connection Error...)' },
+      ]);
     } finally {
       setSending(false);
     }

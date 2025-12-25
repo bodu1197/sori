@@ -16,6 +16,8 @@ import useAuthStore from '../../stores/useAuthStore';
 import { DEFAULT_AVATAR } from '../common';
 import { Comment } from './useComments';
 
+const WINDOW_FEATURES = 'noopener,noreferrer';
+
 function formatTimeAgo(dateString: string): string {
   const now = new Date();
   const date = new Date(dateString);
@@ -72,7 +74,7 @@ export default function CommentCard({
     globalThis.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
       '_blank',
-      'noopener,noreferrer'
+      WINDOW_FEATURES
     );
     setShowShareMenu(false);
   };
@@ -81,7 +83,7 @@ export default function CommentCard({
     globalThis.open(
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
       '_blank',
-      'noopener,noreferrer'
+      WINDOW_FEATURES
     );
     setShowShareMenu(false);
   };
@@ -90,7 +92,7 @@ export default function CommentCard({
     globalThis.open(
       `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
       '_blank',
-      'noopener,noreferrer'
+      WINDOW_FEATURES
     );
     setShowShareMenu(false);
   };
@@ -99,7 +101,7 @@ export default function CommentCard({
     globalThis.open(
       `https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`,
       '_blank',
-      'noopener,noreferrer'
+      WINDOW_FEATURES
     );
     setShowShareMenu(false);
   };

@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/no-duplicate-string -- i18n translations file: same keys repeat across language blocks by design */
 export interface TranslationStrings {
   common: {
     loading: string;

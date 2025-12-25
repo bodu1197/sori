@@ -28,6 +28,11 @@ import { supabase } from '../lib/supabase';
 
 const API_BASE_URL = 'https://musicgram-api-89748215794.us-central1.run.app';
 
+// Translation keys (extracted to avoid duplication)
+const T_COMMON_UNKNOWN = 'common.unknown';
+const T_COMMON_UNKNOWN_ARTIST = 'common.unknownArtist';
+const T_PROFILE_SONGS = 'profile.songs';
+
 // Types
 export interface Profile {
   id: string;
@@ -105,11 +110,11 @@ export interface SimilarArtist {
 }
 
 export interface HomeContentItem {
-  title: string;
+  title?: string;
   videoId?: string;
   playlistId?: string;
   browseId?: string;
-  thumbnails?: Array<{ url: string; width: number; height: number }>;
+  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
   artists?: Array<{ name: string; id?: string }>;
   views?: string;
   album?: { name: string; id: string };
@@ -328,9 +333,9 @@ export function useProfilePlayback() {
         const sectionVideoTracks = section.contents.filter((c) => c.videoId);
         const panelTracks: PlaylistTrackData[] = sectionVideoTracks.map((c) => ({
           videoId: c.videoId as string,
-          title: c.title,
+          title: c.title || t(T_COMMON_UNKNOWN),
           artists:
-            c.artists || (c.subtitle ? [{ name: c.subtitle }] : [{ name: t('common.unknown') }]),
+            c.artists || (c.subtitle ? [{ name: c.subtitle }] : [{ name: t(T_COMMON_UNKNOWN) }]),
           thumbnails: c.thumbnails,
         }));
 
@@ -344,8 +349,8 @@ export function useProfilePlayback() {
         const videoTrackIndex = sectionVideoTracks.findIndex((c) => c.videoId === item.videoId);
         const tracks = sectionVideoTracks.map((c) => ({
           videoId: c.videoId as string,
-          title: c.title,
-          artist: c.artists?.map((a) => a.name).join(', ') || c.subtitle || t('common.unknown'),
+          title: c.title || t(T_COMMON_UNKNOWN),
+          artist: c.artists?.map((a) => a.name).join(', ') || c.subtitle || t(T_COMMON_UNKNOWN),
           thumbnail: getBestThumbnail(c.thumbnails) || undefined,
         }));
         startPlayback(tracks, videoTrackIndex >= 0 ? videoTrackIndex : 0);
@@ -371,8 +376,8 @@ export function useProfilePlayback() {
 
       const panelTrack: PlaylistTrackData = {
         videoId: post.video_id,
-        title: post.title || t('common.unknown'),
-        artists: post.artist ? [{ name: post.artist }] : [{ name: t('common.unknownArtist') }],
+        title: post.title || t(T_COMMON_UNKNOWN),
+        artists: post.artist ? [{ name: post.artist }] : [{ name: t(T_COMMON_UNKNOWN_ARTIST) }],
         thumbnails: post.cover_url ? [{ url: post.cover_url }] : undefined,
       };
       openTrackPanel({
@@ -385,8 +390,8 @@ export function useProfilePlayback() {
 
       setTrack({
         videoId: post.video_id,
-        title: post.title || t('common.unknown'),
-        artist: post.artist || t('common.unknownArtist'),
+        title: post.title || t(T_COMMON_UNKNOWN),
+        artist: post.artist || t(T_COMMON_UNKNOWN_ARTIST),
         thumbnail: post.cover_url,
         cover: post.cover_url,
       });
@@ -401,12 +406,12 @@ export function useProfilePlayback() {
         const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
           videoId: s.videoId,
           title: s.title,
-          artists: [{ name: s.artist || t('common.unknownArtist') }],
+          artists: [{ name: s.artist || t(T_COMMON_UNKNOWN_ARTIST) }],
           thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
         }));
         openTrackPanel({
           title: t('profile.yourMusic'),
-          author: { name: `${likedSongs.length} ${t('profile.songs')}` },
+          author: { name: `${likedSongs.length} ${t(T_PROFILE_SONGS)}` },
           tracks: panelTracks,
           trackCount: likedSongs.length,
         });
@@ -434,12 +439,12 @@ export function useProfilePlayback() {
       const panelTracks: PlaylistTrackData[] = likedSongs.map((s) => ({
         videoId: s.videoId,
         title: s.title,
-        artists: [{ name: s.artist || t('common.unknownArtist') }],
+        artists: [{ name: s.artist || t(T_COMMON_UNKNOWN_ARTIST) }],
         thumbnails: s.thumbnail ? [{ url: s.thumbnail }] : undefined,
       }));
       openTrackPanel({
         title: t('profile.yourMusic'),
-        author: { name: `${likedSongs.length} ${t('profile.songs')}` },
+        author: { name: `${likedSongs.length} ${t(T_PROFILE_SONGS)}` },
         tracks: panelTracks,
         trackCount: likedSongs.length,
       });
@@ -668,7 +673,7 @@ export function useProfileData(targetUserId: string | undefined, isOwnProfile: b
       setPlaylists((playlistData as Playlist[]) || []);
 
       const playlistsWithVideo = ((playlistData as Playlist[]) || []).filter((p) => p.video_id);
-      const artistName = profileInfo.username || t('common.unknownArtist');
+      const artistName = profileInfo.username || t(T_COMMON_UNKNOWN_ARTIST);
 
       if (ownProfile) {
         setLikedSongs(playlistsWithVideo.map((p) => mapPlaylistToLikedTrack(p, artistName)));
@@ -1160,7 +1165,7 @@ export function LikedMusicTab({
         <div>
           <h3 className="font-bold text-lg">{t('profile.yourMusic')}</h3>
           <p className="text-xs text-gray-500">
-            {likedSongs.length} {t('profile.songs')}
+            {likedSongs.length} {t(T_PROFILE_SONGS)}
           </p>
         </div>
         {likedSongs.length > 0 && (
@@ -1223,8 +1228,7 @@ interface RecommendationsSectionProps {
   readonly isPlaying: boolean;
   readonly onPlayTrack: (tracks: PlaylistTrackData[], index: number) => void;
   readonly onClear: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly t: any;
+  readonly t: TFunction;
 }
 
 function RecommendationsSection({
@@ -1259,7 +1263,7 @@ function RecommendationsSection({
         {recommendedTracks.map((track, index) => {
           const safeThumbnail = track.videoId
             ? `https://i.ytimg.com/vi/${track.videoId}/hqdefault.jpg`
-            : track.thumbnails?.[0]?.url || (track as any).thumbnail || '';
+            : track.thumbnails?.[0]?.url || track.thumbnail || '';
 
           return (
             <LikedTrackItem
@@ -1270,7 +1274,7 @@ function RecommendationsSection({
                 artist:
                   typeof track.artists?.[0] === 'string'
                     ? track.artists[0]
-                    : track.artists?.[0]?.name || (track as any).artist || 'Unknown',
+                    : track.artists?.[0]?.name || track.artist || 'Unknown',
                 thumbnail: safeThumbnail,
                 cover_url: safeThumbnail,
                 playlistId: 'temp-rec',
@@ -1422,7 +1426,7 @@ export function UserSavedMusicTab({
         <div>
           <h3 className="font-bold text-lg">{t('profile.savedMusic', 'Saved Music')}</h3>
           <p className="text-xs text-gray-500">
-            {userSavedSongs.length} {t('profile.songs')}
+            {userSavedSongs.length} {t(T_PROFILE_SONGS)}
           </p>
         </div>
         {userSavedSongs.length > 0 && (

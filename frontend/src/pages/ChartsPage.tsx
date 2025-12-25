@@ -7,6 +7,9 @@ import { Play, Loader2 } from 'lucide-react';
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
+const UNKNOWN_ARTIST = 'Unknown Artist';
+const T_CHARTS_TOP100 = 'charts.top100';
+
 interface Artist {
   name: string;
   id?: string;
@@ -52,6 +55,7 @@ export default function ChartsPage() {
     }
 
     fetchCharts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t function is stable
   }, [country.code]);
 
   const handlePlay = (track: ChartTrack, index: number) => {
@@ -63,12 +67,12 @@ export default function ChartsPage() {
       .map((t) => ({
         videoId: (t.videoId || t.video_id) as string,
         title: t.title,
-        artists: t.artists || (t.artist ? [{ name: t.artist }] : [{ name: 'Unknown Artist' }]),
+        artists: t.artists || (t.artist ? [{ name: t.artist }] : [{ name: UNKNOWN_ARTIST }]),
         thumbnails:
           t.thumbnail || t.cover ? [{ url: (t.thumbnail || t.cover) as string }] : undefined,
       }));
     openTrackPanel({
-      title: `${t('charts.top100')} - ${country.name}`,
+      title: `${t(T_CHARTS_TOP100)} - ${country.name}`,
       author: { name: `${chartData.length} ${t('profile.tracks')}` },
       tracks: panelTracks,
       trackCount: chartData.length,
@@ -80,7 +84,7 @@ export default function ChartsPage() {
       .map((t) => ({
         videoId: (t.videoId || t.video_id) as string,
         title: t.title,
-        artist: t.artist || t.artists?.[0]?.name || 'Unknown Artist',
+        artist: t.artist || t.artists?.[0]?.name || UNKNOWN_ARTIST,
         thumbnail: t.thumbnail || t.cover,
         cover: t.cover || t.thumbnail,
       }));
@@ -90,7 +94,7 @@ export default function ChartsPage() {
   if (loading) {
     return (
       <div className="pb-20 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t('charts.top100')}</h1>
+        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t(T_CHARTS_TOP100)}</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
           {t('charts.basedOn', { country: country.name })} {country.flag}
         </p>
@@ -104,7 +108,7 @@ export default function ChartsPage() {
   if (error) {
     return (
       <div className="pb-20 px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t('charts.top100')}</h1>
+        <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t(T_CHARTS_TOP100)}</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
           {t('charts.basedOn', { country: country.name })} {country.flag}
         </p>
@@ -123,7 +127,7 @@ export default function ChartsPage() {
 
   return (
     <div className="pb-20 px-4 pt-6">
-      <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t('charts.top100')}</h1>
+      <h1 className="text-2xl font-bold mb-1 text-black dark:text-white">{t(T_CHARTS_TOP100)}</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-6 flex items-center">
         {t('charts.basedOn', { country: country.name })} {country.flag}
       </p>
@@ -189,7 +193,7 @@ export default function ChartsPage() {
                     {track.title}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {track.artist || track.artists?.[0]?.name || 'Unknown Artist'}
+                    {track.artist || track.artists?.[0]?.name || UNKNOWN_ARTIST}
                   </span>
                 </div>
               </button>

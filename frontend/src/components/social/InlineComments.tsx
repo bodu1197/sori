@@ -7,6 +7,8 @@ import { useComments } from './useComments';
 import CommentCard from './CommentCard';
 import CommentInput from './CommentInput';
 
+const COMMENT_MEDIA_BUCKET = 'comment-media';
+
 interface InlineCommentsProps {
   readonly postId: string;
   readonly initialCount?: number;
@@ -48,10 +50,12 @@ export default function InlineComments({
     if (imageFile) {
       const fileName = `comments/${postId}/${Date.now()}_${imageFile.name}`;
       const { data, error } = await supabase.storage
-        .from('comment-media')
+        .from(COMMENT_MEDIA_BUCKET)
         .upload(fileName, imageFile);
       if (!error && data) {
-        const { data: urlData } = supabase.storage.from('comment-media').getPublicUrl(data.path);
+        const { data: urlData } = supabase.storage
+          .from(COMMENT_MEDIA_BUCKET)
+          .getPublicUrl(data.path);
         imageUrl = urlData.publicUrl;
       }
     }
@@ -59,10 +63,12 @@ export default function InlineComments({
     if (videoFile) {
       const fileName = `comments/${postId}/${Date.now()}_${videoFile.name}`;
       const { data, error } = await supabase.storage
-        .from('comment-media')
+        .from(COMMENT_MEDIA_BUCKET)
         .upload(fileName, videoFile);
       if (!error && data) {
-        const { data: urlData } = supabase.storage.from('comment-media').getPublicUrl(data.path);
+        const { data: urlData } = supabase.storage
+          .from(COMMENT_MEDIA_BUCKET)
+          .getPublicUrl(data.path);
         videoUrl = urlData.publicUrl;
       }
     }

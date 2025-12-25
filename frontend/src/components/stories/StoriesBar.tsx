@@ -30,6 +30,20 @@ interface StoryGroup {
   isArtist?: boolean;
 }
 
+interface MusicArtistRow {
+  browse_id: string;
+  name: string;
+  thumbnail_url?: string;
+  thumbnails?: string;
+}
+
+interface StoryWithProfile extends Story {
+  profiles?: {
+    username?: string;
+    avatar_url?: string;
+  };
+}
+
 export default function StoriesBar() {
   const { user } = useAuthStore();
   const [storyGroups, setStoryGroups] = useState<StoryGroup[]>([]);
@@ -61,10 +75,10 @@ export default function StoriesBar() {
           .order('updated_at', { ascending: false })
           .limit(10);
 
-        const sourceArtists = artistsData || [];
+        const sourceArtists = (artistsData || []) as MusicArtistRow[];
 
         // Only use real data from DB (no fake/mock data)
-        const artists = sourceArtists.map((a: any) => {
+        const artists = sourceArtists.map((a: MusicArtistRow) => {
           let avatar = DEFAULT_AVATAR;
 
           // 1. Check thumbnail_url first (saved by /api/search/quick)
@@ -138,7 +152,7 @@ export default function StoriesBar() {
             setViewedStories(viewedSet);
 
             const groups: { [key: string]: StoryGroup } = {};
-            (storiesData || []).forEach((story: any) => {
+            (storiesData || []).forEach((story: StoryWithProfile) => {
               if (!groups[story.user_id]) {
                 groups[story.user_id] = {
                   user_id: story.user_id,

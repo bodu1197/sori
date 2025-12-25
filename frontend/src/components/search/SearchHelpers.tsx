@@ -188,7 +188,7 @@ export function useArtistFollow() {
         setFollowingArtist(false);
       }
     },
-    [user, followingArtist, followedArtists, followingArtist]
+    [user, followingArtist, followedArtists]
   );
 
   return { followedArtists, followingArtist, checkArtistFollowed, toggleArtistFollow };
@@ -240,8 +240,17 @@ export function useMusicSearch() {
 
         setSearchArtist(artist);
 
+        interface AlbumResponse {
+          browseId?: string;
+          title: string;
+          artists?: Artist[];
+          thumbnails?: Thumbnail[];
+          year?: string;
+          type?: string;
+        }
+
         setSearchAlbums(
-          (data.albums || []).map((a: any) => ({
+          (data.albums || []).map((a: AlbumResponse) => ({
             browseId: a.browseId,
             title: a.title,
             artists: a.artists,
@@ -354,7 +363,7 @@ export function useUserSearch() {
         .limit(50);
       const recentUserIds = [...new Set(recentPostsData?.map((p) => p.user_id) || [])];
 
-      let activeFiltered: any[] = [];
+      let activeFiltered: UserProfile[] = [];
       if (recentUserIds.length > 0) {
         const { data: activeUsers } = await supabase
           .from('profiles')

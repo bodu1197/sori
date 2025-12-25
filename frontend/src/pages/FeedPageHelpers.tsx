@@ -55,12 +55,30 @@ export interface SuggestedUser {
   followers_count?: number;
 }
 
+interface Thumbnail {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+interface SongItem {
+  videoId: string;
+  title: string;
+  artists?: Artist[];
+  thumbnails?: Thumbnail[];
+}
+
+interface ApiSection {
+  title?: string;
+  contents?: SongItem[];
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
 
 // Helper: Extract songs from API sections
-function extractSongsFromSections(sections: any[]): any[] {
-  const songs: any[] = [];
+function extractSongsFromSections(sections: ApiSection[]): SongItem[] {
+  const songs: SongItem[] = [];
   for (const section of sections) {
     for (const item of section.contents || []) {
       if (!item.videoId) continue;
@@ -76,7 +94,7 @@ function extractSongsFromSections(sections: any[]): any[] {
 }
 
 // Helper: Select random songs with time-based seed
-function selectRandomSongs(allSongs: any[], count: number): RecommendationTrack[] {
+function selectRandomSongs(allSongs: SongItem[], count: number): RecommendationTrack[] {
   if (allSongs.length === 0) return [];
 
   const now = new Date();

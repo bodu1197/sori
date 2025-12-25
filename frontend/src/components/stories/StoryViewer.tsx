@@ -84,7 +84,7 @@ export default function StoryViewer({
   }, [currentStory, isPaused, isMuted, startPlayback, pause]);
 
   // Navigation functions (defined before usage in effects)
-  const goToNextStory = () => {
+  const goToNextStory = useCallback(() => {
     if (currentStoryIndex < (currentGroup?.stories.length ?? 0) - 1) {
       setCurrentStoryIndex((prev) => prev + 1);
       setProgress(0);
@@ -95,7 +95,7 @@ export default function StoryViewer({
     } else {
       onClose();
     }
-  };
+  }, [currentStoryIndex, currentGroup?.stories.length, currentGroupIndex, groups.length, onClose]);
 
   // Progress timer
   useEffect(() => {
@@ -120,14 +120,7 @@ export default function StoryViewer({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Timer-based story transition requires setState
       goToNextStory();
     }
-  }, [
-    progress,
-    currentStoryIndex,
-    currentGroupIndex,
-    currentGroup?.stories.length,
-    groups.length,
-    onClose,
-  ]);
+  }, [progress, goToNextStory]);
 
   const goToPrevStory = useCallback(() => {
     if (currentStoryIndex > 0) {

@@ -14,9 +14,11 @@ export interface Track {
 export interface PlaylistTrackData {
   videoId: string;
   title: string;
+  artist?: string;
   artists?: Array<{ name: string; id?: string }>;
   thumbnails?: Array<{ url: string; width?: number; height?: number }>;
   thumbnail?: string;
+  cover?: string;
   duration?: string;
   album?: { name?: string; id?: string };
   isAvailable?: boolean;

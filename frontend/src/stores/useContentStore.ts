@@ -1,8 +1,16 @@
 import { create } from 'zustand';
 
+interface HomeContentItem {
+  videoId?: string;
+  title?: string;
+  artists?: Array<{ name: string; id?: string }>;
+  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
+  playlistId?: string;
+}
+
 interface HomeSection {
   title: string;
-  contents: any[];
+  contents: HomeContentItem[];
 }
 
 interface HomeData {
