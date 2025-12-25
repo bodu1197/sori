@@ -97,9 +97,7 @@ export function useArtistMusic(profile: Profile | null) {
 
     const fetchArtistMusic = async () => {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/music/artist/${profile.artist_browse_id}`
-        );
+        const response = await fetch(`${API_BASE_URL}/api/artist/${profile.artist_browse_id}`);
         if (!response.ok) throw new Error('Failed to fetch');
         const data = await response.json();
         setArtistSongs(data.topSongs || []);
@@ -138,7 +136,7 @@ export function useHomeData(activeTab: string) {
     if (activeTab === 'discover' && !homeData) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHomeLoading(true);
-      fetch(`${API_BASE_URL}/api/music/home?country=${country.code}`)
+      fetch(`${API_BASE_URL}/api/home?country=${country.code}`)
         .then((res) => res.json())
         .then((data) => {
           setHomeData(data);
@@ -169,7 +167,7 @@ export function useProfilePlayback() {
         });
       } else if (item.playlistId || item.browseId) {
         const id = item.playlistId || item.browseId;
-        fetch(`${API_BASE_URL}/api/music/playlist/${id}`)
+        fetch(`${API_BASE_URL}/api/playlist/${id}`)
           .then((res) => res.json())
           .then((data) => {
             const tracks = (data.tracks || []).map((tr: PlaylistTrackData) => ({
@@ -233,7 +231,7 @@ export function useProfilePlayback() {
 
   const fetchAndShowAlbum = useCallback(
     (browseId: string) => {
-      fetch(`${API_BASE_URL}/api/music/album/${browseId}`)
+      fetch(`${API_BASE_URL}/api/album/${browseId}`)
         .then((res) => res.json())
         .then((data) => {
           const tracks = (data.tracks || []).map((tr: ArtistSong) => ({
