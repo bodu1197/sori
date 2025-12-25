@@ -4410,7 +4410,7 @@ async def check_artist_status_endpoint(name: str):
 
 
 @app.delete("/api/admin/delete-virtual-member-posts")
-async def delete_virtual_member_posts():
+def delete_virtual_member_posts():
     """
     가상회원(아티스트)들이 작성한 모든 포스트 삭제
     """

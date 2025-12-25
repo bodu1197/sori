@@ -161,7 +161,10 @@ export default function CommentCard({
             )}
             {/* Video if attached */}
             {comment.video_url && (
-              <video src={comment.video_url} controls className="mt-2 rounded-lg max-h-60 w-full" />
+              <video controls className="mt-2 rounded-lg max-h-60 w-full">
+                <source src={comment.video_url} />
+                <track kind="captions" />
+              </video>
             )}
           </div>
           {/* Menu */}
