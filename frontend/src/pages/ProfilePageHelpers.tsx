@@ -1592,3 +1592,182 @@ export function ProfileTabBar({ activeTab, setActiveTab, isOwnProfile }: Profile
     </div>
   );
 }
+
+// ProfileTabContent - Eliminates nested ternaries
+interface ProfileTabContentProps {
+  activeTab: TabType;
+  isVirtualMember: boolean;
+  // Liked tab props
+  likedSongs: LikedTrack[];
+  recommendedTracks: PlaylistTrackData[];
+  recommendationContext: { title: string; message: string } | null;
+  currentTrackVideoId?: string;
+  isPlaying: boolean;
+  onPlayTrack: (track: LikedTrack, index: number) => void;
+  onDeleteSong: (track: LikedTrack) => void;
+  onShufflePlay: () => void;
+  onPlayRecommendedTrack: (tracks: PlaylistTrackData[], index: number) => void;
+  onClearRecommendations: () => void;
+  // Posts tab props
+  posts: Post[];
+  onPlayPost: (post: Post) => void;
+  // Discover tab props
+  homeData: HomeData | null;
+  homeLoading: boolean;
+  onPlayHomeItem: (item: HomeContentItem, section: HomeSection, index: number) => void;
+  // Artist music tab props
+  artistMusicLoading: boolean;
+  artistSongs: ArtistSong[];
+  artistAlbums: ArtistAlbum[];
+  artistVideos: ArtistVideo[];
+  similarArtists: SimilarArtist[];
+  showAllSongs: boolean;
+  showAllAlbums: boolean;
+  onToggleShowAllSongs: () => void;
+  onToggleShowAllAlbums: () => void;
+  onPlaySong: (
+    songs: Array<{
+      videoId: string;
+      title: string;
+      artists?: Array<{ name: string }>;
+      thumbnails?: Array<{ url: string }>;
+    }>,
+    index: number
+  ) => void;
+  onShufflePlayArtist: (
+    songs: Array<{
+      videoId: string;
+      title: string;
+      artists?: Array<{ name: string }>;
+      thumbnails?: Array<{ url: string }>;
+    }>
+  ) => void;
+  onPlayVideo: (video: {
+    videoId: string;
+    title: string;
+    artists?: Array<{ name: string }>;
+    thumbnails?: Array<{ url: string }>;
+  }) => void;
+  onShowAlbum: (browseId: string) => void;
+  onNavigateToArtist: (artistName: string) => void;
+  profileName?: string;
+  // User saved music tab props
+  userSavedSongs: LikedTrack[];
+  onUserSavedPlayTrack: (track: LikedTrack, idx: number, songs: LikedTrack[]) => void;
+  onUserSavedShufflePlay: (songs: LikedTrack[]) => void;
+  t: TFunction;
+}
+
+export function ProfileTabContent({
+  activeTab,
+  isVirtualMember,
+  likedSongs,
+  recommendedTracks,
+  recommendationContext,
+  currentTrackVideoId,
+  isPlaying,
+  onPlayTrack,
+  onDeleteSong,
+  onShufflePlay,
+  onPlayRecommendedTrack,
+  onClearRecommendations,
+  posts,
+  onPlayPost,
+  homeData,
+  homeLoading,
+  onPlayHomeItem,
+  artistMusicLoading,
+  artistSongs,
+  artistAlbums,
+  artistVideos,
+  similarArtists,
+  showAllSongs,
+  showAllAlbums,
+  onToggleShowAllSongs,
+  onToggleShowAllAlbums,
+  onPlaySong,
+  onShufflePlayArtist,
+  onPlayVideo,
+  onShowAlbum,
+  onNavigateToArtist,
+  profileName,
+  userSavedSongs,
+  onUserSavedPlayTrack,
+  onUserSavedShufflePlay,
+  t,
+}: ProfileTabContentProps) {
+  switch (activeTab) {
+    case 'liked':
+      return (
+        <LikedMusicTab
+          likedSongs={likedSongs}
+          recommendedTracks={recommendedTracks}
+          recommendationContext={recommendationContext}
+          currentTrackVideoId={currentTrackVideoId}
+          isPlaying={isPlaying}
+          onPlayTrack={onPlayTrack}
+          onDeleteSong={onDeleteSong}
+          onShufflePlay={onShufflePlay}
+          onPlayRecommendedTrack={onPlayRecommendedTrack}
+          onClearRecommendations={onClearRecommendations}
+          t={t}
+        />
+      );
+    case 'posts':
+      return (
+        <PostsGrid
+          posts={posts}
+          currentTrackVideoId={currentTrackVideoId}
+          isPlaying={isPlaying}
+          onPlayPost={onPlayPost}
+          t={t}
+        />
+      );
+    case 'discover':
+      return (
+        <DiscoverTab
+          homeData={homeData}
+          homeLoading={homeLoading}
+          onPlayHomeItem={onPlayHomeItem}
+          t={t}
+        />
+      );
+    case 'music':
+      return (
+        <div className="p-4">
+          {isVirtualMember ? (
+            <ArtistMusicTab
+              artistMusicLoading={artistMusicLoading}
+              artistSongs={artistSongs}
+              artistAlbums={artistAlbums}
+              artistVideos={artistVideos}
+              similarArtists={similarArtists}
+              showAllSongs={showAllSongs}
+              showAllAlbums={showAllAlbums}
+              onToggleShowAllSongs={onToggleShowAllSongs}
+              onToggleShowAllAlbums={onToggleShowAllAlbums}
+              onPlaySong={onPlaySong}
+              onShufflePlay={onShufflePlayArtist}
+              onPlayVideo={onPlayVideo}
+              onShowAlbum={onShowAlbum}
+              onNavigateToArtist={onNavigateToArtist}
+              profileName={profileName}
+              t={t}
+            />
+          ) : (
+            <UserSavedMusicTab
+              userSavedSongs={userSavedSongs}
+              currentTrackVideoId={currentTrackVideoId}
+              isPlaying={isPlaying}
+              onPlayTrack={onUserSavedPlayTrack}
+              onShufflePlay={onUserSavedShufflePlay}
+              t={t}
+            />
+          )}
+        </div>
+      );
+    case 'private':
+    default:
+      return <PrivateTab t={t} />;
+  }
+}

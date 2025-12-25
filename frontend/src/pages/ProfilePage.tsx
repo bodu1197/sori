@@ -12,14 +12,9 @@ import {
   useProfilePlayback,
   useConversation,
   useProfileData,
-  PostsGrid,
-  DiscoverTab,
-  PrivateTab,
-  ArtistMusicTab,
-  LikedMusicTab,
-  UserSavedMusicTab,
   ProfileActionButtons,
   ProfileTabBar,
+  ProfileTabContent,
   type Post,
   type Playlist,
   type LikedTrack,
@@ -117,7 +112,7 @@ export default function ProfilePage() {
     playLikedTrack(track, index, likedSongs);
   const handleShufflePlay = () => shufflePlay(likedSongs);
   const handlePlayPost = (post: Post) => playPost(post, profile);
-  const handlePlayHomeItem = (item: HomeContentItem, section: HomeSection) =>
+  const handlePlayHomeItem = (item: HomeContentItem, section: HomeSection, _index: number) =>
     playHomeItem(item, section);
   const handlePlayPlaylist = (playlist: Playlist) => {
     if (!playlist.video_id) return;
@@ -350,77 +345,44 @@ export default function ProfilePage() {
       />
 
       {/* Content Area */}
-      {activeTab === 'liked' ? (
-        <LikedMusicTab
-          likedSongs={likedSongs}
-          recommendedTracks={recommendedTracks}
-          recommendationContext={recommendationContext}
-          currentTrackVideoId={currentTrack?.videoId}
-          isPlaying={isPlaying}
-          onPlayTrack={handlePlayTrack}
-          onDeleteSong={handleDeleteSong}
-          onShufflePlay={handleShufflePlay}
-          onPlayRecommendedTrack={handlePlayRecommendedTrack}
-          onClearRecommendations={() => setRecommendedTracks([])}
-          t={t}
-        />
-      ) : activeTab === 'posts' ? (
-        // Posts Grid Tab
-        <PostsGrid
-          posts={posts}
-          currentTrackVideoId={currentTrack?.videoId}
-          isPlaying={isPlaying}
-          onPlayPost={handlePlayPost}
-          t={t}
-        />
-      ) : activeTab === 'discover' ? (
-        // Discover Tab - YouTube Music Home Feed
-        <DiscoverTab
-          homeData={homeData}
-          homeLoading={homeLoading}
-          onPlayHomeItem={handlePlayHomeItem}
-          t={t}
-        />
-      ) : activeTab === 'music' ? (
-        // Artist Music Tab (for virtual members) or Saved Music Tab
-        <div className="p-4">
-          {isVirtualMember ? (
-            // Virtual Member: Show artist's music from search
-            <ArtistMusicTab
-              artistMusicLoading={artistMusicLoading}
-              artistSongs={artistSongs}
-              artistAlbums={artistAlbums}
-              artistVideos={artistVideos}
-              similarArtists={similarArtists}
-              showAllSongs={showAllSongs}
-              showAllAlbums={showAllAlbums}
-              onToggleShowAllSongs={() => setShowAllSongs(!showAllSongs)}
-              onToggleShowAllAlbums={() => setShowAllAlbums(!showAllAlbums)}
-              onPlaySong={handleArtistPlaySong}
-              onShufflePlay={handleArtistShufflePlay}
-              onPlayVideo={handleArtistPlayVideo}
-              onShowAlbum={fetchAndShowAlbum}
-              onNavigateToArtist={(artistName) =>
-                navigate(`/search?q=${encodeURIComponent(artistName)}`)
-              }
-              profileName={profile?.full_name}
-              t={t}
-            />
-          ) : (
-            <UserSavedMusicTab
-              userSavedSongs={userSavedSongs}
-              currentTrackVideoId={currentTrack?.videoId}
-              isPlaying={isPlaying}
-              onPlayTrack={handleUserSavedPlayTrack}
-              onShufflePlay={handleUserSavedShufflePlay}
-              t={t}
-            />
-          )}
-        </div>
-      ) : (
-        // Private Tab
-        <PrivateTab t={t} />
-      )}
+      <ProfileTabContent
+        activeTab={activeTab}
+        isVirtualMember={isVirtualMember}
+        likedSongs={likedSongs}
+        recommendedTracks={recommendedTracks}
+        recommendationContext={recommendationContext}
+        currentTrackVideoId={currentTrack?.videoId}
+        isPlaying={isPlaying}
+        onPlayTrack={handlePlayTrack}
+        onDeleteSong={handleDeleteSong}
+        onShufflePlay={handleShufflePlay}
+        onPlayRecommendedTrack={handlePlayRecommendedTrack}
+        onClearRecommendations={() => setRecommendedTracks([])}
+        posts={posts}
+        onPlayPost={handlePlayPost}
+        homeData={homeData}
+        homeLoading={homeLoading}
+        onPlayHomeItem={handlePlayHomeItem}
+        artistMusicLoading={artistMusicLoading}
+        artistSongs={artistSongs}
+        artistAlbums={artistAlbums}
+        artistVideos={artistVideos}
+        similarArtists={similarArtists}
+        showAllSongs={showAllSongs}
+        showAllAlbums={showAllAlbums}
+        onToggleShowAllSongs={() => setShowAllSongs(!showAllSongs)}
+        onToggleShowAllAlbums={() => setShowAllAlbums(!showAllAlbums)}
+        onPlaySong={handleArtistPlaySong}
+        onShufflePlayArtist={handleArtistShufflePlay}
+        onPlayVideo={handleArtistPlayVideo}
+        onShowAlbum={fetchAndShowAlbum}
+        onNavigateToArtist={(artistName) => navigate(`/search?q=${encodeURIComponent(artistName)}`)}
+        profileName={profile?.full_name}
+        userSavedSongs={userSavedSongs}
+        onUserSavedPlayTrack={handleUserSavedPlayTrack}
+        onUserSavedShufflePlay={handleUserSavedShufflePlay}
+        t={t}
+      />
 
       {/* Followers/Following Modals */}
       {profile?.id && (
