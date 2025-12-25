@@ -12,7 +12,6 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 import { DEFAULT_AVATAR } from '../common';
 import { Comment } from './useComments';
@@ -34,10 +33,10 @@ function formatTimeAgo(dateString: string): string {
 }
 
 interface CommentCardProps {
-  comment: Comment;
-  onReply: (parentId: string, username: string) => void;
-  onDelete: (commentId: string) => void;
-  isReply?: boolean;
+  readonly comment: Comment;
+  readonly onReply: (parentId: string, username: string) => void;
+  readonly onDelete: (commentId: string) => void;
+  readonly isReply?: boolean;
 }
 
 export default function CommentCard({
@@ -50,7 +49,7 @@ export default function CommentCard({
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(comment.like_count || 0);
+  const [likeCount, setLikeCount] = useState(comment.like_count ?? 0);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
@@ -61,15 +60,16 @@ export default function CommentCard({
   const hasReplies = comment.replies && comment.replies.length > 0;
 
   const shareText = comment.content.slice(0, 200);
-  const shareUrl = `${window.location.origin}/post/${comment.post_id}`;
+  const shareUrl = `${globalThis.location.origin}/post/${comment.post_id}`;
 
   const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+    const newIsLiked = !isLiked;
+    setIsLiked(newIsLiked);
+    setLikeCount((prev) => (newIsLiked ? prev + 1 : prev - 1));
   };
 
   const handleShareTwitter = () => {
-    window.open(
+    globalThis.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
       '_blank',
       'noopener,noreferrer'
@@ -78,7 +78,7 @@ export default function CommentCard({
   };
 
   const handleShareFacebook = () => {
-    window.open(
+    globalThis.open(
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
       '_blank',
       'noopener,noreferrer'
@@ -87,7 +87,7 @@ export default function CommentCard({
   };
 
   const handleShareWhatsApp = () => {
-    window.open(
+    globalThis.open(
       `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
       '_blank',
       'noopener,noreferrer'
@@ -96,7 +96,7 @@ export default function CommentCard({
   };
 
   const handleShareKakao = () => {
-    window.open(
+    globalThis.open(
       `https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`,
       '_blank',
       'noopener,noreferrer'
