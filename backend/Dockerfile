@@ -11,15 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd -m -u 1000 appuser
 
 # Python 패키지 설치 (캐시 활용) - root로 설치 후 사용자 전환
-COPY --chmod=644 requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 비루트 사용자로 전환
 USER appuser
 
-# 애플리케이션 코드 복사 (읽기 전용 권한)
-COPY --chown=appuser:appuser --chmod=555 *.py ./
-COPY --chown=appuser:appuser --chmod=444 requirements.txt ./
+# 애플리케이션 코드 복사
+COPY --chown=appuser:appuser *.py ./
+COPY --chown=appuser:appuser requirements.txt ./
 
 # Cloud Run은 PORT 환경변수 사용
 ENV PORT=8080
