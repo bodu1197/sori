@@ -3229,13 +3229,8 @@ async def _save_artist_summary_background(artist_id: str, artist_detail: dict, q
 def _check_summary_cache_and_db(
     q: str, country: str, cache_key: str, background_tasks
 ) -> dict | None:
-    """Check cache and database for existing summary data."""
-    cached = cache_get(cache_key)
-    if cached:
-        logger.info(f"Redis cache hit: {cache_key}")
-        cached["source"] = "redis"
-        return cached
-
+    """Check database for existing summary data. Cache is currently disabled."""
+    del cache_key  # Reserved for future cache implementation
     artist_browse_ids = db_get_artists_by_keyword(q, country)
     if not artist_browse_ids:
         return None
@@ -3248,7 +3243,7 @@ def _check_summary_cache_and_db(
     if not db_result:
         return None
 
-    result = {
+    return {
         "keyword": q,
         "country": country,
         "artists": db_result["artists"],
@@ -3259,8 +3254,6 @@ def _check_summary_cache_and_db(
         "source": "database",
         "updating": db_result["updating"]
     }
-    cache_set(cache_key, result, ttl=1800)
-    return result
 
 
 @app.get("/api/search/summary")
