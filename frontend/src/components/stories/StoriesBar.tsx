@@ -267,13 +267,13 @@ export default function StoriesBar() {
                         className="w-full h-full rounded-full object-cover"
                         onError={(e) => {
                           const target = e.currentTarget;
-                          if (target.src !== DEFAULT_AVATAR) {
-                            target.src = DEFAULT_AVATAR;
-                          } else {
-                            // If fallback also fails, use a transparent pixel or hide
+                          if (target.src === DEFAULT_AVATAR) {
+                            // Fallback also failed, use transparent pixel
                             target.onerror = null; // Prevent infinite loop
                             target.src =
                               'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                          } else {
+                            target.src = DEFAULT_AVATAR;
                           }
                         }}
                       />

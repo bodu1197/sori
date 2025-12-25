@@ -313,7 +313,14 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
         {/* Translation controls */}
         {post.caption && post.caption.length >= 5 && (
           <div className="flex items-center gap-2 mt-1">
-            {!isTranslated ? (
+            {isTranslated ? (
+              <button
+                onClick={toggleView}
+                className="text-xs text-blue-500 dark:text-blue-400 hover:underline"
+              >
+                {showOriginal ? t('translate.showTranslated') : t('translate.showOriginal')}
+              </button>
+            ) : (
               <TranslateButton
                 postId={post.id}
                 text={post.caption}
@@ -321,13 +328,6 @@ function FeedPostComponent({ post, onLikeChange, onCommentCountChange }: FeedPos
                 size={14}
                 showLabel={true}
               />
-            ) : (
-              <button
-                onClick={toggleView}
-                className="text-xs text-blue-500 dark:text-blue-400 hover:underline"
-              >
-                {showOriginal ? t('translate.showTranslated') : t('translate.showOriginal')}
-              </button>
             )}
           </div>
         )}

@@ -353,7 +353,7 @@ export function useProfilePlayback() {
           artist: c.artists?.map((a) => a.name).join(', ') || c.subtitle || t(T_COMMON_UNKNOWN),
           thumbnail: getBestThumbnail(c.thumbnails) || undefined,
         }));
-        startPlayback(tracks, videoTrackIndex >= 0 ? videoTrackIndex : 0);
+        startPlayback(tracks, Math.max(videoTrackIndex, 0));
         return;
       }
 

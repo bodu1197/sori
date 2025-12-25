@@ -207,7 +207,6 @@ function ArtistCard({
 
 // All Songs Section Component
 interface AllSongsSectionProps {
-  readonly playlistId: string;
   readonly isExpanded: boolean;
   readonly isLoading: boolean;
   readonly tracks: SearchSong[];
@@ -716,7 +715,6 @@ export default function SearchPage() {
                 {/* All Songs */}
                 {searchArtist?.songsPlaylistId && (
                   <AllSongsSection
-                    playlistId={searchArtist.songsPlaylistId}
                     isExpanded={allSongsExpanded}
                     isLoading={allSongsLoading}
                     tracks={allSongsTracks}
