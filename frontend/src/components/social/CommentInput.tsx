@@ -5,11 +5,15 @@ import useAuthStore from '../../stores/useAuthStore';
 import { DEFAULT_AVATAR } from '../common';
 
 interface CommentInputProps {
-  onSubmit: (content: string, imageFile: File | null, videoFile: File | null) => Promise<void>;
-  replyTo?: { id: string; username: string } | null;
-  onCancelReply?: () => void;
-  isExpanded?: boolean;
-  onToggleExpand?: (expanded: boolean) => void;
+  readonly onSubmit: (
+    content: string,
+    imageFile: File | null,
+    videoFile: File | null
+  ) => Promise<void>;
+  readonly replyTo?: { id: string; username: string } | null;
+  readonly onCancelReply?: () => void;
+  readonly isExpanded?: boolean;
+  readonly onToggleExpand?: (expanded: boolean) => void;
 }
 
 export default function CommentInput({
@@ -33,7 +37,7 @@ export default function CommentInput({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  const isExpanded = controlledExpanded !== undefined ? controlledExpanded : localExpanded;
+  const isExpanded = controlledExpanded ?? localExpanded;
 
   useEffect(() => {
     if (replyTo) {
@@ -119,21 +123,7 @@ export default function CommentInput({
 
   return (
     <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-      {!isExpanded ? (
-        <button
-          onClick={handleToggle}
-          className="w-full flex items-center gap-3 py-2 px-3 bg-gray-50 dark:bg-gray-900 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-        >
-          <img
-            src={user.user_metadata?.avatar_url || DEFAULT_AVATAR}
-            alt="You"
-            className="w-8 h-8 rounded-full object-cover"
-          />
-          <span className="text-sm text-gray-400">
-            {t('comments.addComment', 'Add a comment...')}
-          </span>
-        </button>
-      ) : (
+      {isExpanded ? (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -243,6 +233,20 @@ export default function CommentInput({
             </button>
           </div>
         </div>
+      ) : (
+        <button
+          onClick={handleToggle}
+          className="w-full flex items-center gap-3 py-2 px-3 bg-gray-50 dark:bg-gray-900 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+        >
+          <img
+            src={user.user_metadata?.avatar_url || DEFAULT_AVATAR}
+            alt="You"
+            className="w-8 h-8 rounded-full object-cover"
+          />
+          <span className="text-sm text-gray-400">
+            {t('comments.addComment', 'Add a comment...')}
+          </span>
+        </button>
       )}
     </div>
   );
