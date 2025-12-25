@@ -717,11 +717,11 @@ export function useProfileData(targetUserId: string | undefined, isOwnProfile: b
 
 // Posts Grid Component
 interface PostsGridProps {
-  posts: Post[];
-  currentTrackVideoId?: string;
-  isPlaying: boolean;
-  onPlayPost: (post: Post) => void;
-  t: (key: string) => string;
+  readonly posts: Post[];
+  readonly currentTrackVideoId?: string;
+  readonly isPlaying: boolean;
+  readonly onPlayPost: (post: Post) => void;
+  readonly t: (key: string) => string;
 }
 
 export function PostsGrid({
@@ -806,11 +806,11 @@ export function PostsGrid({
 
 // Discover Tab Content Component
 interface DiscoverTabProps {
-  homeData: HomeData | null;
-  homeLoading: boolean;
-  onPlayHomeItem: (item: HomeContentItem, section: HomeSection, index: number) => void;
+  readonly homeData: HomeData | null;
+  readonly homeLoading: boolean;
+  readonly onPlayHomeItem: (item: HomeContentItem, section: HomeSection, index: number) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  readonly t: any;
 }
 
 export function DiscoverTab({ homeData, homeLoading, onPlayHomeItem, t }: DiscoverTabProps) {
@@ -884,7 +884,7 @@ export function DiscoverTab({ homeData, homeLoading, onPlayHomeItem, t }: Discov
 
 // Private Tab Component
 interface PrivateTabProps {
-  t: (key: string) => string;
+  readonly t: (key: string) => string;
 }
 
 export function PrivateTab({ t }: PrivateTabProps) {
@@ -898,23 +898,23 @@ export function PrivateTab({ t }: PrivateTabProps) {
 
 // Artist Music Tab Component (for virtual members)
 interface ArtistMusicTabProps {
-  artistMusicLoading: boolean;
-  artistSongs: ArtistSong[];
-  artistAlbums: ArtistAlbum[];
-  artistVideos: ArtistVideo[];
-  similarArtists: SimilarArtist[];
-  showAllSongs: boolean;
-  showAllAlbums: boolean;
-  onToggleShowAllSongs: () => void;
-  onToggleShowAllAlbums: () => void;
-  onPlaySong: (songs: ArtistSong[], index: number) => void;
-  onShufflePlay: (songs: ArtistSong[]) => void;
-  onPlayVideo: (video: ArtistVideo) => void;
-  onShowAlbum: (browseId: string) => void;
-  onNavigateToArtist: (artistName: string) => void;
-  profileName?: string;
+  readonly artistMusicLoading: boolean;
+  readonly artistSongs: ArtistSong[];
+  readonly artistAlbums: ArtistAlbum[];
+  readonly artistVideos: ArtistVideo[];
+  readonly similarArtists: SimilarArtist[];
+  readonly showAllSongs: boolean;
+  readonly showAllAlbums: boolean;
+  readonly onToggleShowAllSongs: () => void;
+  readonly onToggleShowAllAlbums: () => void;
+  readonly onPlaySong: (songs: ArtistSong[], index: number) => void;
+  readonly onShufflePlay: (songs: ArtistSong[]) => void;
+  readonly onPlayVideo: (video: ArtistVideo) => void;
+  readonly onShowAlbum: (browseId: string) => void;
+  readonly onNavigateToArtist: (artistName: string) => void;
+  readonly profileName?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  readonly t: any;
 }
 
 export function ArtistMusicTab({
@@ -1125,18 +1125,18 @@ export function ArtistMusicTab({
 
 // Liked Music Tab Component (for own profile)
 interface LikedMusicTabProps {
-  likedSongs: LikedTrack[];
-  recommendedTracks: PlaylistTrackData[];
-  recommendationContext: { title: string; message: string } | null;
-  currentTrackVideoId?: string;
-  isPlaying: boolean;
-  onPlayTrack: (track: LikedTrack, index: number) => void;
-  onDeleteSong: (track: LikedTrack) => void;
-  onShufflePlay: () => void;
-  onPlayRecommendedTrack: (tracks: PlaylistTrackData[], index: number) => void;
-  onClearRecommendations: () => void;
+  readonly likedSongs: LikedTrack[];
+  readonly recommendedTracks: PlaylistTrackData[];
+  readonly recommendationContext: { title: string; message: string } | null;
+  readonly currentTrackVideoId?: string;
+  readonly isPlaying: boolean;
+  readonly onPlayTrack: (track: LikedTrack, index: number) => void;
+  readonly onDeleteSong: (track: LikedTrack) => void;
+  readonly onShufflePlay: () => void;
+  readonly onPlayRecommendedTrack: (tracks: PlaylistTrackData[], index: number) => void;
+  readonly onClearRecommendations: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  readonly t: any;
 }
 
 export function LikedMusicTab({
@@ -1216,14 +1216,14 @@ export function LikedMusicTab({
 
 // Recommendations Section Sub-component
 interface RecommendationsSectionProps {
-  recommendedTracks: PlaylistTrackData[];
-  recommendationContext: { title: string; message: string } | null;
-  currentTrackVideoId?: string;
-  isPlaying: boolean;
-  onPlayTrack: (tracks: PlaylistTrackData[], index: number) => void;
-  onClear: () => void;
+  readonly recommendedTracks: PlaylistTrackData[];
+  readonly recommendationContext: { title: string; message: string } | null;
+  readonly currentTrackVideoId?: string;
+  readonly isPlaying: boolean;
+  readonly onPlayTrack: (tracks: PlaylistTrackData[], index: number) => void;
+  readonly onClear: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  readonly t: any;
 }
 
 function RecommendationsSection({
@@ -1290,14 +1290,14 @@ function RecommendationsSection({
 
 // Liked Track Item Component
 interface LikedTrackItemProps {
-  track: LikedTrack;
-  index: number;
-  onPlay: (track: LikedTrack, index: number) => void;
-  onDelete?: (track: LikedTrack) => void;
-  isPlaying: boolean;
-  isCurrentTrack: boolean;
+  readonly track: LikedTrack;
+  readonly index: number;
+  readonly onPlay: (track: LikedTrack, index: number) => void;
+  readonly onDelete?: (track: LikedTrack) => void;
+  readonly isPlaying: boolean;
+  readonly isCurrentTrack: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  readonly t: any;
 }
 
 function LikedTrackItem({
@@ -1398,13 +1398,13 @@ function LikedTrackItem({
 
 // User Saved Music Tab Component (for other users' profile)
 interface UserSavedMusicTabProps {
-  userSavedSongs: LikedTrack[];
-  currentTrackVideoId?: string;
-  isPlaying: boolean;
-  onPlayTrack: (track: LikedTrack, index: number, songs: LikedTrack[]) => void;
-  onShufflePlay: (songs: LikedTrack[]) => void;
+  readonly userSavedSongs: LikedTrack[];
+  readonly currentTrackVideoId?: string;
+  readonly isPlaying: boolean;
+  readonly onPlayTrack: (track: LikedTrack, index: number, songs: LikedTrack[]) => void;
+  readonly onShufflePlay: (songs: LikedTrack[]) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  readonly t: any;
 }
 
 export function UserSavedMusicTab({
@@ -1463,16 +1463,16 @@ export function UserSavedMusicTab({
 // =============================================================================
 
 interface ProfileActionButtonsProps {
-  isOwnProfile: boolean;
-  targetUserId?: string;
-  onNavigateEdit: () => void;
-  onNavigateSettings: () => void;
-  onSignOut: () => void;
-  onFollowChange: (isFollowing: boolean) => void;
-  onStartConversation: () => void;
-  startingConversation: boolean;
-  t: TFunction;
-  FollowButtonComponent: React.ComponentType<{
+  readonly isOwnProfile: boolean;
+  readonly targetUserId?: string;
+  readonly onNavigateEdit: () => void;
+  readonly onNavigateSettings: () => void;
+  readonly onSignOut: () => void;
+  readonly onFollowChange: (isFollowing: boolean) => void;
+  readonly onStartConversation: () => void;
+  readonly startingConversation: boolean;
+  readonly t: TFunction;
+  readonly FollowButtonComponent: React.ComponentType<{
     userId: string;
     size: 'sm' | 'md' | 'lg';
     className: string;
@@ -1553,9 +1553,9 @@ export function ProfileActionButtons({
 type TabType = 'posts' | 'liked' | 'discover' | 'private' | 'music';
 
 interface ProfileTabBarProps {
-  activeTab: TabType;
-  setActiveTab: (tab: TabType) => void;
-  isOwnProfile: boolean;
+  readonly activeTab: TabType;
+  readonly setActiveTab: (tab: TabType) => void;
+  readonly isOwnProfile: boolean;
 }
 
 export function ProfileTabBar({ activeTab, setActiveTab, isOwnProfile }: ProfileTabBarProps) {
@@ -1596,37 +1596,37 @@ export function ProfileTabBar({ activeTab, setActiveTab, isOwnProfile }: Profile
 
 // ProfileTabContent - Eliminates nested ternaries
 interface ProfileTabContentProps {
-  activeTab: TabType;
-  isVirtualMember: boolean;
+  readonly activeTab: TabType;
+  readonly isVirtualMember: boolean;
   // Liked tab props
-  likedSongs: LikedTrack[];
-  recommendedTracks: PlaylistTrackData[];
-  recommendationContext: { title: string; message: string } | null;
-  currentTrackVideoId?: string;
-  isPlaying: boolean;
-  onPlayTrack: (track: LikedTrack, index: number) => void;
-  onDeleteSong: (track: LikedTrack) => void;
-  onShufflePlay: () => void;
-  onPlayRecommendedTrack: (tracks: PlaylistTrackData[], index: number) => void;
-  onClearRecommendations: () => void;
+  readonly likedSongs: LikedTrack[];
+  readonly recommendedTracks: PlaylistTrackData[];
+  readonly recommendationContext: { title: string; message: string } | null;
+  readonly currentTrackVideoId?: string;
+  readonly isPlaying: boolean;
+  readonly onPlayTrack: (track: LikedTrack, index: number) => void;
+  readonly onDeleteSong: (track: LikedTrack) => void;
+  readonly onShufflePlay: () => void;
+  readonly onPlayRecommendedTrack: (tracks: PlaylistTrackData[], index: number) => void;
+  readonly onClearRecommendations: () => void;
   // Posts tab props
-  posts: Post[];
-  onPlayPost: (post: Post) => void;
+  readonly posts: Post[];
+  readonly onPlayPost: (post: Post) => void;
   // Discover tab props
-  homeData: HomeData | null;
-  homeLoading: boolean;
-  onPlayHomeItem: (item: HomeContentItem, section: HomeSection, index: number) => void;
+  readonly homeData: HomeData | null;
+  readonly homeLoading: boolean;
+  readonly onPlayHomeItem: (item: HomeContentItem, section: HomeSection, index: number) => void;
   // Artist music tab props
-  artistMusicLoading: boolean;
-  artistSongs: ArtistSong[];
-  artistAlbums: ArtistAlbum[];
-  artistVideos: ArtistVideo[];
-  similarArtists: SimilarArtist[];
-  showAllSongs: boolean;
-  showAllAlbums: boolean;
-  onToggleShowAllSongs: () => void;
-  onToggleShowAllAlbums: () => void;
-  onPlaySong: (
+  readonly artistMusicLoading: boolean;
+  readonly artistSongs: ArtistSong[];
+  readonly artistAlbums: ArtistAlbum[];
+  readonly artistVideos: ArtistVideo[];
+  readonly similarArtists: SimilarArtist[];
+  readonly showAllSongs: boolean;
+  readonly showAllAlbums: boolean;
+  readonly onToggleShowAllSongs: () => void;
+  readonly onToggleShowAllAlbums: () => void;
+  readonly onPlaySong: (
     songs: Array<{
       videoId: string;
       title: string;
@@ -1635,7 +1635,7 @@ interface ProfileTabContentProps {
     }>,
     index: number
   ) => void;
-  onShufflePlayArtist: (
+  readonly onShufflePlayArtist: (
     songs: Array<{
       videoId: string;
       title: string;
@@ -1643,20 +1643,20 @@ interface ProfileTabContentProps {
       thumbnails?: Array<{ url: string }>;
     }>
   ) => void;
-  onPlayVideo: (video: {
+  readonly onPlayVideo: (video: {
     videoId: string;
     title: string;
     artists?: Array<{ name: string }>;
     thumbnails?: Array<{ url: string }>;
   }) => void;
-  onShowAlbum: (browseId: string) => void;
-  onNavigateToArtist: (artistName: string) => void;
-  profileName?: string;
+  readonly onShowAlbum: (browseId: string) => void;
+  readonly onNavigateToArtist: (artistName: string) => void;
+  readonly profileName?: string;
   // User saved music tab props
-  userSavedSongs: LikedTrack[];
-  onUserSavedPlayTrack: (track: LikedTrack, idx: number, songs: LikedTrack[]) => void;
-  onUserSavedShufflePlay: (songs: LikedTrack[]) => void;
-  t: TFunction;
+  readonly userSavedSongs: LikedTrack[];
+  readonly onUserSavedPlayTrack: (track: LikedTrack, idx: number, songs: LikedTrack[]) => void;
+  readonly onUserSavedShufflePlay: (songs: LikedTrack[]) => void;
+  readonly t: TFunction;
 }
 
 export function ProfileTabContent({

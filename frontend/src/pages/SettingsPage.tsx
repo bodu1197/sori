@@ -80,12 +80,12 @@ const LANGUAGES = [
 ];
 
 interface SettingItemProps {
-  icon: React.ReactNode;
-  label: string;
-  description?: string;
-  onClick?: () => void;
-  rightElement?: React.ReactNode;
-  danger?: boolean;
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly description?: string;
+  readonly onClick?: () => void;
+  readonly rightElement?: React.ReactNode;
+  readonly danger?: boolean;
 }
 
 function SettingItem({
@@ -114,8 +114,8 @@ function SettingItem({
 }
 
 interface ToggleProps {
-  enabled: boolean;
-  onChange: (value: boolean) => void;
+  readonly enabled: boolean;
+  readonly onChange: (value: boolean) => void;
 }
 
 function Toggle({ enabled, onChange }: ToggleProps) {

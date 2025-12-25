@@ -52,14 +52,14 @@ const PLACEHOLDER =
 
 // Users Tab Content Component
 interface UsersTabContentProps {
-  userSearchLoading: boolean;
-  hasUserResults: boolean;
-  userResults: UserProfile[];
-  suggestedLoading: boolean;
-  suggestedUsers: UserProfile[];
-  newUsers: UserProfile[];
-  onNavigate: (id: string) => void;
-  t: (key: string) => string;
+  readonly userSearchLoading: boolean;
+  readonly hasUserResults: boolean;
+  readonly userResults: UserProfile[];
+  readonly suggestedLoading: boolean;
+  readonly suggestedUsers: UserProfile[];
+  readonly newUsers: UserProfile[];
+  readonly onNavigate: (id: string) => void;
+  readonly t: (key: string) => string;
 }
 
 function UsersTabContent({
@@ -135,18 +135,18 @@ function UsersTabContent({
 
 // Artist Card Component
 interface ArtistCardProps {
-  artist: {
+  readonly artist: {
     browseId?: string;
     artist: string;
     subscribers?: string;
     thumbnails?: Thumbnail[];
   };
-  isFollowed: boolean;
-  followingArtist: boolean;
-  onToggleFollow: () => void;
-  onPlayAll: () => void;
-  onShuffle: () => void;
-  t: (key: string) => string;
+  readonly isFollowed: boolean;
+  readonly followingArtist: boolean;
+  readonly onToggleFollow: () => void;
+  readonly onPlayAll: () => void;
+  readonly onShuffle: () => void;
+  readonly t: (key: string) => string;
 }
 
 function ArtistCard({
@@ -210,15 +210,15 @@ function ArtistCard({
 
 // All Songs Section Component
 interface AllSongsSectionProps {
-  playlistId: string;
-  isExpanded: boolean;
-  isLoading: boolean;
-  tracks: SearchSong[];
-  likedSongs: Set<string>;
-  onToggle: () => void;
-  onPlayTrack: (song: SearchSong, index: number) => void;
-  onToggleLike: (song: SearchSong) => void;
-  t: (key: string) => string;
+  readonly playlistId: string;
+  readonly isExpanded: boolean;
+  readonly isLoading: boolean;
+  readonly tracks: SearchSong[];
+  readonly likedSongs: Set<string>;
+  readonly onToggle: () => void;
+  readonly onPlayTrack: (song: SearchSong, index: number) => void;
+  readonly onToggleLike: (song: SearchSong) => void;
+  readonly t: (key: string) => string;
 }
 
 function AllSongsSection({
