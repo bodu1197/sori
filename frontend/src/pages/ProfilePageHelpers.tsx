@@ -99,17 +99,17 @@ export function useArtistMusic(profile: Profile | null) {
       try {
         const browseId = profile.artist_browse_id;
 
-        // Fetch tracks, albums, and similar artists in parallel from Supabase
+        // Fetch tracks, albums, and relations in parallel from Supabase
         const [tracksResult, albumsResult, relationsResult] = await Promise.all([
           supabase
             .from('music_tracks')
-            .select('video_id, title, artist_name, album_title, duration, thumbnails')
+            .select('video_id, title, duration, thumbnail_url')
             .eq('artist_browse_id', browseId)
             .order('created_at', { ascending: false })
             .limit(20),
           supabase
             .from('music_albums')
-            .select('browse_id, title, album_type, year, thumbnails')
+            .select('browse_id, title, type, year, thumbnail_url')
             .eq('artist_browse_id', browseId)
             .order('year', { ascending: false })
             .limit(20),
@@ -124,23 +124,25 @@ export function useArtistMusic(profile: Profile | null) {
         const songs: ArtistSong[] = (tracksResult.data || []).map((track) => ({
           videoId: track.video_id,
           title: track.title,
-          artists: [{ name: track.artist_name }],
-          album: { name: track.album_title },
+          artists: [{ name: profile.full_name || profile.username || '' }],
+          album: { name: '' },
           duration: track.duration,
-          thumbnails: JSON.parse(track.thumbnails || '[]'),
+          thumbnails: track.thumbnail_url ? [{ url: track.thumbnail_url }] : [],
         }));
 
         // Transform albums to ArtistAlbum format
         const albums: ArtistAlbum[] = (albumsResult.data || []).map((album) => ({
           browseId: album.browse_id,
           title: album.title,
-          type: album.album_type,
+          type: album.type,
           year: album.year,
-          thumbnails: JSON.parse(album.thumbnails || '[]'),
+          thumbnails: album.thumbnail_url ? [{ url: album.thumbnail_url }] : [],
         }));
 
         // Fetch similar artist profiles from Supabase
-        const relatedIds = (relationsResult.data || []).map((r) => r.related_artist_browse_id);
+        const relatedIds = (relationsResult.data || []).map(
+          (r: { related_artist_browse_id: string }) => r.related_artist_browse_id
+        );
         let similar: SimilarArtist[] = [];
         if (relatedIds.length > 0) {
           const { data: relatedProfiles } = await supabase
@@ -168,7 +170,7 @@ export function useArtistMusic(profile: Profile | null) {
     };
 
     fetchFromSupabase();
-  }, [profile?.artist_browse_id]);
+  }, [profile?.artist_browse_id, profile?.full_name, profile?.username]);
 
   return {
     artistSongs,

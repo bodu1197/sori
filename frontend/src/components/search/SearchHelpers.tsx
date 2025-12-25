@@ -194,8 +194,173 @@ export function useArtistFollow() {
   return { followedArtists, followingArtist, checkArtistFollowed, toggleArtistFollow };
 }
 
+// Constants for freshness check
+const FRESHNESS_DAYS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Check if data is fresh (within 30 days)
+ */
+function isDataFresh(updatedAt: string | null): boolean {
+  if (!updatedAt) return false;
+  const updated = new Date(updatedAt).getTime();
+  const now = Date.now();
+  return now - updated < FRESHNESS_DAYS * MS_PER_DAY;
+}
+
+/**
+ * Search artist from Supabase database
+ */
+async function searchFromSupabase(query: string): Promise<{
+  artist: SearchArtist | null;
+  albums: SearchAlbum[];
+  songs: SearchSong[];
+  isFresh: boolean;
+} | null> {
+  try {
+    // Search artist by name (case-insensitive)
+    const { data: artistData } = await supabase
+      .from('music_artists')
+      .select('browse_id, name, thumbnail_url, songs_playlist_id, updated_at')
+      .ilike('name', `%${query.trim()}%`)
+      .limit(1)
+      .single();
+
+    if (!artistData?.browse_id) return null;
+
+    const isFresh = isDataFresh(artistData.updated_at);
+
+    // Fetch albums and tracks in parallel
+    const [albumsResult, tracksResult, relationsResult] = await Promise.all([
+      supabase
+        .from('music_albums')
+        .select('browse_id, title, type, year, thumbnail_url')
+        .eq('artist_browse_id', artistData.browse_id)
+        .order('year', { ascending: false })
+        .limit(20),
+      supabase
+        .from('music_tracks')
+        .select('video_id, title, duration, thumbnail_url')
+        .eq('artist_browse_id', artistData.browse_id)
+        .order('created_at', { ascending: false })
+        .limit(5),
+      supabase
+        .from('artist_relations')
+        .select('related_artist_browse_id')
+        .eq('main_artist_browse_id', artistData.browse_id)
+        .limit(10),
+    ]);
+
+    // Fetch related artist details
+    const relatedIds = (relationsResult.data || []).map(
+      (r: { related_artist_browse_id: string }) => r.related_artist_browse_id
+    );
+    let relatedArtists: RelatedArtist[] = [];
+    if (relatedIds.length > 0) {
+      const { data: relatedData } = await supabase
+        .from('music_artists')
+        .select('browse_id, name, thumbnail_url')
+        .in('browse_id', relatedIds)
+        .limit(10);
+
+      relatedArtists = (relatedData || []).map((a) => ({
+        browseId: a.browse_id,
+        name: a.name,
+        title: a.name,
+        thumbnails: a.thumbnail_url ? [{ url: a.thumbnail_url }] : [],
+      }));
+    }
+
+    const artist: SearchArtist = {
+      browseId: artistData.browse_id,
+      artist: artistData.name,
+      thumbnails: artistData.thumbnail_url ? [{ url: artistData.thumbnail_url }] : [],
+      songsPlaylistId: artistData.songs_playlist_id,
+      related: relatedArtists,
+    };
+
+    const albums: SearchAlbum[] = (albumsResult.data || []).map((a) => ({
+      browseId: a.browse_id,
+      title: a.title,
+      type: a.type || 'Album',
+      year: a.year,
+      thumbnails: a.thumbnail_url ? [{ url: a.thumbnail_url }] : [],
+    }));
+
+    const songs: SearchSong[] = (tracksResult.data || []).map((t) => ({
+      videoId: t.video_id,
+      title: t.title,
+      duration: t.duration,
+      artists: [{ name: artistData.name }],
+      thumbnails: t.thumbnail_url ? [{ url: t.thumbnail_url }] : [],
+    }));
+
+    return { artist, albums, songs, isFresh };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch from backend API
+ */
+async function searchFromAPI(query: string): Promise<{
+  artist: SearchArtist | null;
+  albums: SearchAlbum[];
+  songs: SearchSong[];
+} | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(query.trim())}`
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+
+    const artist = data.artist
+      ? {
+          browseId: data.artist.browseId,
+          artist: data.artist.name,
+          thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
+          songsPlaylistId: data.artist.songsPlaylistId,
+          related: (data.similarArtists || []).map(
+            (a: { browseId: string; name: string; thumbnail: string }) => ({
+              browseId: a.browseId,
+              title: a.name,
+              thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
+            })
+          ),
+        }
+      : null;
+
+    interface AlbumResponse {
+      browseId?: string;
+      title: string;
+      artists?: Artist[];
+      thumbnails?: Thumbnail[];
+      year?: string;
+      type?: string;
+    }
+
+    const albums: SearchAlbum[] = (data.albums || []).map((a: AlbumResponse) => ({
+      browseId: a.browseId,
+      title: a.title,
+      artists: a.artists,
+      thumbnails: a.thumbnails,
+      year: a.year,
+      type: a.type || 'Album',
+    }));
+
+    return { artist, albums, songs: data.songs || [] };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Hook for managing Music Search Logic
+ * Supabase-first: Check DB first, fallback to API if stale or not found
  */
 export function useMusicSearch() {
   const [searchLoading, setSearchLoading] = useState(false);
@@ -207,61 +372,33 @@ export function useMusicSearch() {
     if (query.trim().length < 2) return;
 
     setSearchLoading(true);
-    // Note: State reset logic should be handled by caller or we expose a reset function?
-    // Caller should call clearSearch before new search if clean state is needed.
-    // But performSearch implies new search.
     setSearchArtist(null);
     setSearchAlbums([]);
     setSearchSongs([]);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(query.trim())}`
-      );
+      // 1. Try Supabase first (fast path)
+      const dbResult = await searchFromSupabase(query);
 
-      if (response.ok) {
-        const data = await response.json();
-        const artist = data.artist
-          ? {
-              browseId: data.artist.browseId,
-              artist: data.artist.name,
-              name: data.artist.name,
-              thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
-              songsPlaylistId: data.artist.songsPlaylistId,
-              related: (data.similarArtists || []).map(
-                (a: { browseId: string; name: string; thumbnail: string }) => ({
-                  browseId: a.browseId,
-                  title: a.name,
-                  thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
-                })
-              ),
-            }
-          : null;
+      if (dbResult?.artist && dbResult.isFresh) {
+        // Data is fresh, use it directly
+        setSearchArtist(dbResult.artist);
+        setSearchAlbums(dbResult.albums);
+        setSearchSongs(dbResult.songs);
+        setSearchLoading(false);
+        return;
+      }
 
-        setSearchArtist(artist);
+      // 2. Fallback to API (data not found or stale)
+      const apiResult = await searchFromAPI(query);
 
-        interface AlbumResponse {
-          browseId?: string;
-          title: string;
-          artists?: Artist[];
-          thumbnails?: Thumbnail[];
-          year?: string;
-          type?: string;
-        }
+      if (apiResult) {
+        setSearchArtist(apiResult.artist);
+        setSearchAlbums(apiResult.albums);
+        setSearchSongs(apiResult.songs);
 
-        setSearchAlbums(
-          (data.albums || []).map((a: AlbumResponse) => ({
-            browseId: a.browseId,
-            title: a.title,
-            artists: a.artists,
-            thumbnails: a.thumbnails,
-            year: a.year,
-            type: a.type || 'Album',
-          }))
-        );
-        setSearchSongs(data.songs || []);
-
-        if (artist?.browseId && !artist.songsPlaylistId) {
+        // Fetch playlist ID if not present
+        if (apiResult.artist?.browseId && !apiResult.artist.songsPlaylistId) {
           fetch(`${API_BASE_URL}/api/artist/playlist-id?q=${encodeURIComponent(query.trim())}`)
             .then((res) => res.json())
             .then((playlistData) => {
@@ -273,6 +410,11 @@ export function useMusicSearch() {
             })
             .catch(() => {});
         }
+      } else if (dbResult?.artist) {
+        // API failed but we have stale data, use it
+        setSearchArtist(dbResult.artist);
+        setSearchAlbums(dbResult.albums);
+        setSearchSongs(dbResult.songs);
       }
     } catch {
       setSearchArtist(null);

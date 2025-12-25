@@ -1972,6 +1972,137 @@ def _save_artist_with_virtual_member(artist_data: dict, songs_playlist_id: str |
         logger.warning(f"Artist save or virtual member creation failed: {e}")
 
 
+def _save_search_albums_to_db(albums: list, artist_browse_id: str) -> int:
+    """Save albums from search results to database."""
+    if not supabase_client or not albums or not artist_browse_id:
+        return 0
+
+    saved_count = 0
+    for album in albums:
+        if not isinstance(album, dict):
+            continue
+
+        browse_id = album.get("browseId")
+        if not browse_id:
+            continue
+
+        try:
+            album_data = {
+                "browse_id": browse_id,
+                "artist_browse_id": artist_browse_id,
+                "title": album.get("title") or "",
+                "type": album.get("type") or "Album",
+                "year": album.get("year") or "",
+                "thumbnail_url": get_best_thumbnail(album.get("thumbnails", [])),
+                "track_count": len(album.get("tracks", []))
+            }
+
+            supabase_client.table("music_albums").upsert(
+                album_data, on_conflict="browse_id"
+            ).execute()
+            saved_count += 1
+        except Exception as e:
+            logger.debug(f"Album save skipped: {e}")
+
+    return saved_count
+
+
+def _save_search_tracks_to_db(songs: list, artist_browse_id: str) -> int:
+    """Save tracks from search results to database."""
+    if not supabase_client or not songs or not artist_browse_id:
+        return 0
+
+    saved_count = 0
+    for song in songs:
+        if not isinstance(song, dict):
+            continue
+
+        video_id = song.get("videoId")
+        if not video_id:
+            continue
+
+        try:
+            duration = song.get("duration") or ""
+            duration_seconds = _parse_duration_to_seconds(duration)
+
+            track_data = {
+                "video_id": video_id,
+                "artist_browse_id": artist_browse_id,
+                "title": song.get("title") or "",
+                "duration": duration,
+                "duration_seconds": duration_seconds,
+                "thumbnail_url": get_best_thumbnail(song.get("thumbnails", [])),
+                "is_explicit": song.get("isExplicit", False)
+            }
+
+            supabase_client.table("music_tracks").upsert(
+                track_data, on_conflict="video_id"
+            ).execute()
+            saved_count += 1
+        except Exception as e:
+            logger.debug(f"Track save skipped: {e}")
+
+    return saved_count
+
+
+def _save_artist_relations_to_db(main_browse_id: str, similar_artists: list) -> int:
+    """Save artist relations to database."""
+    if not supabase_client or not main_browse_id or not similar_artists:
+        return 0
+
+    saved_count = 0
+    for artist in similar_artists:
+        if not isinstance(artist, dict):
+            continue
+
+        related_id = artist.get("browseId")
+        if not related_id or related_id == main_browse_id:
+            continue
+
+        try:
+            relation_data = {
+                "main_artist_browse_id": main_browse_id,
+                "related_artist_browse_id": related_id,
+                "relation_type": "similar"
+            }
+
+            supabase_client.table("artist_relations").upsert(
+                relation_data,
+                on_conflict="main_artist_browse_id,related_artist_browse_id"
+            ).execute()
+            saved_count += 1
+
+            # Also save the related artist to music_artists
+            related_name = artist.get("name") or artist.get("artist") or ""
+            related_thumb = artist.get("thumbnail") or get_best_thumbnail(artist.get("thumbnails", []))
+            if related_name:
+                supabase_client.table("music_artists").upsert({
+                    "browse_id": related_id,
+                    "name": related_name,
+                    "thumbnail_url": related_thumb,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }, on_conflict="browse_id").execute()
+        except Exception as e:
+            logger.debug(f"Relation save skipped: {e}")
+
+    return saved_count
+
+
+def _parse_duration_to_seconds(duration: str) -> int:
+    """Parse duration string (MM:SS or HH:MM:SS) to seconds."""
+    if not duration:
+        return 0
+    try:
+        parts = duration.split(":")
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    except (ValueError, IndexError):
+        pass
+    return 0
+
+
 async def _process_quick_search_artist(ytmusic, artists_results: list) -> tuple:
     """Process artist from search results and fetch detail info."""
     if not artists_results or len(artists_results) == 0:
@@ -2068,12 +2199,17 @@ async def search_quick(request: Request, q: str, country: str = None):
         if artists_results and len(artists_results) > 1:
             similar_artists = _supplement_similar_artists(similar_artists, artists_results[1:11])
 
-        # Save artist to DB and create virtual member
-        if artist_data:
-            _save_artist_with_virtual_member(artist_data, songs_playlist_id)
-
         # Format song results
         songs = _format_song_results(songs_results)
+
+        # Save all search data to DB (artist, albums, tracks, relations)
+        if artist_data and artist_data.get("browseId"):
+            artist_browse_id = artist_data["browseId"]
+            _save_artist_with_virtual_member(artist_data, songs_playlist_id)
+            _save_search_albums_to_db(albums, artist_browse_id)
+            _save_search_tracks_to_db(songs, artist_browse_id)
+            _save_artist_relations_to_db(artist_browse_id, similar_artists)
+            logger.info(f"Search data saved: {artist_data.get('name')} - {len(albums)} albums, {len(songs)} tracks")
 
         response = {
             "artist": artist_data,
