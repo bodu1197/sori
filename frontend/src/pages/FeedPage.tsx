@@ -139,15 +139,14 @@ function StoryRail() {
     <div className="flex gap-4 overflow-x-auto px-4 py-3 border-b border-gray-100 dark:border-gray-800 scrollbar-hide min-h-[110px]">
       {loading
         ? // Skeleton Loaders to prevent layout shift
-          Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={`story-skeleton-${i}`}
-              className="flex flex-col items-center flex-shrink-0 gap-2"
-            >
-              <div className="w-[66px] h-[66px] rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
-              <div className="w-12 h-2.5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-            </div>
-          ))
+          ['sk-story-1', 'sk-story-2', 'sk-story-3', 'sk-story-4', 'sk-story-5', 'sk-story-6'].map(
+            (id) => (
+              <div key={id} className="flex flex-col items-center flex-shrink-0 gap-2">
+                <div className="w-[66px] h-[66px] rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                <div className="w-12 h-2.5 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+              </div>
+            )
+          )
         : profiles.map((profile) => (
             <button
               key={profile.id}
@@ -433,9 +432,9 @@ function SuggestedUsersSection() {
           <div className="h-5 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         </div>
         <div className="flex gap-3 px-4 overflow-hidden">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {['sk-suggest-1', 'sk-suggest-2', 'sk-suggest-3', 'sk-suggest-4'].map((id) => (
             <div
-              key={`suggested-skeleton-${i}`}
+              key={id}
               className="flex-shrink-0 w-36 bg-gray-100 dark:bg-gray-800 rounded-xl p-3 animate-pulse"
             >
               <div className="w-16 h-16 mx-auto rounded-full bg-gray-200 dark:bg-gray-700 mb-2" />

@@ -217,7 +217,7 @@ export default function StoryViewer({
       >
         {/* Progress bars */}
         <div className="absolute top-2 left-2 right-2 z-10 flex gap-1">
-          {currentGroup.stories.map((_, index) => {
+          {currentGroup.stories.map((story, index) => {
             const getProgressWidth = () => {
               if (index < currentStoryIndex) return '100%';
               if (index === currentStoryIndex) return `${progress}%`;
@@ -225,10 +225,7 @@ export default function StoryViewer({
             };
 
             return (
-              <div
-                key={`story-progress-${index}`}
-                className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden"
-              >
+              <div key={story.id} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-white rounded-full transition-all duration-100"
                   style={{ width: getProgressWidth() }}
