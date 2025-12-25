@@ -124,7 +124,7 @@ export function useArtistFollow() {
           .from('profiles')
           .select('id')
           .eq('artist_browse_id', browseId)
-          .single();
+          .maybeSingle();
 
         if (!profileData) return;
 
@@ -133,7 +133,7 @@ export function useArtistFollow() {
           .select('id')
           .eq('follower_id', user.id)
           .eq('following_id', profileData.id)
-          .single();
+          .maybeSingle();
 
         if (data) {
           setFollowedArtists((prev) => new Set(prev).add(browseId));
