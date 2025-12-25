@@ -345,11 +345,12 @@ export default function ChatPage() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
-        {loading ? (
+        {loading && (
           <div className="flex items-center justify-center h-full">
             <Loader2 size={32} className="animate-spin text-gray-400" />
           </div>
-        ) : messages.length === 0 ? (
+        )}
+        {!loading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <img
               src={otherUser?.avatar_url || DEFAULT_AVATAR}
@@ -359,7 +360,8 @@ export default function ChatPage() {
             <p className="font-semibold text-black dark:text-white">{otherUser?.username}</p>
             <p className="text-sm text-gray-500 mt-1">Start a conversation</p>
           </div>
-        ) : (
+        )}
+        {!loading && messages.length > 0 && (
           <div className="space-y-4">
             {groupMessagesByDate().map((group) => (
               <div key={group.date}>
