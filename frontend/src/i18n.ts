@@ -34,4 +34,5 @@ i18n
     },
   });
 
+// NOSONAR - Cannot use export...from syntax because i18n is initialized before export
 export default i18n;
