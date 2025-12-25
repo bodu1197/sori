@@ -30,6 +30,7 @@ import {
   type AlbumTrack,
   type Thumbnail,
   type UserProfile,
+  type RelatedArtist,
   getBestThumbnail,
   songsToPlaylist,
   albumTracksToPlaylist,
@@ -757,6 +758,38 @@ export default function SearchPage() {
                         onToggle={toggleShowAllAlbums}
                       />
                     )}
+                  </div>
+                )}
+
+                {/* Similar Artists */}
+                {searchArtist?.related && searchArtist.related.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold mb-3 text-black dark:text-white">
+                      {t('search.similarArtists')}
+                    </h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                      {searchArtist.related.map((artist: RelatedArtist) => (
+                        <button
+                          key={artist.browseId}
+                          onClick={() => {
+                            const artistName = artist.name || artist.artist || artist.title || '';
+                            if (artistName) {
+                              performSearch(artistName);
+                            }
+                          }}
+                          className="flex-shrink-0 w-24 text-center group"
+                        >
+                          <img
+                            src={getBestThumbnail(artist.thumbnails) || DEFAULT_AVATAR}
+                            alt={artist.name || artist.title || ''}
+                            className="w-20 h-20 mx-auto rounded-full object-cover bg-gray-200 dark:bg-gray-700 group-hover:ring-2 ring-black dark:ring-white transition"
+                          />
+                          <p className="mt-2 text-xs font-medium truncate text-gray-700 dark:text-gray-300">
+                            {artist.name || artist.artist || artist.title}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
