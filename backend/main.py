@@ -3250,7 +3250,7 @@ async def search_summary(
         # Parallel Search (인기곡 5개만)
         future_artists = run_in_thread(ytmusic.search, q, filter="artists", limit=5)
         future_songs = run_in_thread(ytmusic.search, q, filter="songs", limit=5)
-        artists_results, direct_song_results = await asyncio.gather(future_artists, future_songs)
+        artists_results, _ = await asyncio.gather(future_artists, future_songs)
         
         artists_search = artists_results or []
         if not artists_search:
@@ -3552,7 +3552,7 @@ async def migrate_all_artists(request: Request, background_tasks: BackgroundTask
 
         # Check which ones already have profiles
         existing = supabase_client.table("profiles").select("artist_browse_id").not_.is_("artist_browse_id", "null").execute()
-        existing_ids = set([p["artist_browse_id"] for p in existing.data]) if existing.data else set()
+        existing_ids = {p["artist_browse_id"] for p in existing.data} if existing.data else set()
 
         to_migrate = [a for a in artists.data if a["browse_id"] not in existing_ids]
 
@@ -3586,7 +3586,7 @@ async def migrate_all_artists(request: Request, background_tasks: BackgroundTask
 
 
 @app.get("/api/virtual-members/list")
-async def list_virtual_members():
+def list_virtual_members():
     """
     List all virtual members (artists with profiles).
     """
@@ -3934,7 +3934,7 @@ async def collect_chart_artists(request: Request, background_tasks: BackgroundTa
         body = {}
         try:
             body = await request.json()
-        except (json.JSONDecodeError, ValueError):
+        except ValueError:
             pass
 
         countries = body.get("countries", CHART_COUNTRIES)
@@ -3976,7 +3976,7 @@ async def collect_chart_artists_batch(request: Request, background_tasks: Backgr
         body = {}
         try:
             body = await request.json()
-        except (json.JSONDecodeError, ValueError):
+        except ValueError:
             pass
 
         batch = body.get("batch", 0)
@@ -4089,7 +4089,7 @@ async def update_existing_artists(request: Request):
     """스마트 우선순위 기반 아티스트 업데이트"""
     try:
         body = await request.json()
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         body = {}
 
     if body.get("secret", "") != os.getenv("CRON_SECRET", "dev-secret"):
@@ -4212,7 +4212,7 @@ async def create_virtual_members_cron(request: Request):
     """
     try:
         body = await request.json()
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         body = {}
 
     secret = body.get("secret", "")
@@ -4324,7 +4324,7 @@ async def expand_related_artists(request: Request):
     """
     try:
         body = await request.json()
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         body = {}
 
     secret = body.get("secret", "")
@@ -4361,7 +4361,7 @@ async def expand_related_artists(request: Request):
         existing_artists = supabase_client.table("music_artists").select(
             "browse_id"
         ).execute()
-        existing_ids = set(a["browse_id"] for a in existing_artists.data) if existing_artists.data else set()
+        existing_ids = {a["browse_id"] for a in existing_artists.data} if existing_artists.data else set()
 
         logger.info(f"[EXPAND] Processing {len(artists_with_related.data)} artists, {len(existing_ids)} already exist")
 
