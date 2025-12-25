@@ -302,7 +302,7 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     set({
       repeatMode: nextMode,
-      shuffleMode: nextMode !== 'none' ? false : shuffleMode,
+      shuffleMode: nextMode === 'none' ? shuffleMode : false,
     });
   },
 

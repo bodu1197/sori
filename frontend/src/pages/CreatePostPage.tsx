@@ -186,9 +186,9 @@ function DetailsStep({
           <button
             onClick={() => setIsPublic(false)}
             className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition ${
-              !isPublic
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-gray-200 dark:border-gray-700'
+              isPublic
+                ? 'border-gray-200 dark:border-gray-700'
+                : 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
             }`}
           >
             <span className="text-black dark:text-white font-medium">Private</span>

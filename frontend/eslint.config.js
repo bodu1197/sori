@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
+import unicorn from 'eslint-plugin-unicorn';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
@@ -52,6 +53,7 @@ export default defineConfig([
     },
     plugins: {
       sonarjs,
+      unicorn,
     },
     rules: {
       // TypeScript specific
@@ -84,6 +86,10 @@ export default defineConfig([
       'no-var': 'error',
       eqeqeq: ['error', 'always'],
       'no-nested-ternary': 'warn',
+
+      // Unicorn - Additional Code Smell Detection
+      'unicorn/no-negated-condition': 'error', // Block negated conditions in ternaries
+      'unicorn/prefer-math-min-max': 'error', // Prefer Math.min/Math.max over ternary
     },
   },
 ]);

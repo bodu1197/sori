@@ -325,7 +325,7 @@ export default function NotificationsPage() {
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
                   className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition w-full text-left ${
-                    !notification.is_read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+                    notification.is_read ? '' : 'bg-blue-50/50 dark:bg-blue-950/20'
                   }`}
                 >
                   {/* Avatar with notification type icon */}

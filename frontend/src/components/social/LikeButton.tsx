@@ -123,7 +123,7 @@ export default function LikeButton({
     <button
       onClick={handleLikeToggle}
       disabled={loading}
-      className={`relative transition-transform active:scale-90 ${loading ? 'opacity-50' : ''} ${!user ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative transition-transform active:scale-90 ${loading ? 'opacity-50' : ''} ${user ? 'cursor-pointer' : 'cursor-not-allowed'}`}
       aria-label={isLiked ? 'Unlike' : 'Like'}
     >
       <Heart
