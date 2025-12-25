@@ -1113,7 +1113,7 @@ app.add_middleware(
 # =============================================================================
 
 @app.get("/")
-async def root():
+def root():
     return {
         "service": "MusicGram API",
         "status": "running",
@@ -1121,7 +1121,7 @@ async def root():
     }
 
 @app.get("/health")
-async def health():
+def health():
     return {
         "status": "healthy",
         "database": "connected" if supabase_client else "not configured"

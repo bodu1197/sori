@@ -178,7 +178,10 @@ export default function CommentInput({
                 <img src={imagePreview} alt="Preview" className="max-h-40 rounded-lg" />
               )}
               {videoPreview && (
-                <video src={videoPreview} controls className="max-h-40 rounded-lg" />
+                <video controls className="max-h-40 rounded-lg">
+                  <source src={videoPreview} />
+                  <track kind="captions" />
+                </video>
               )}
               <button
                 onClick={removeMedia}
