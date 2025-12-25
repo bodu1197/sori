@@ -2106,12 +2106,13 @@ def _parse_duration_to_seconds(duration: str) -> int:
 async def _process_quick_search_artist(ytmusic, artists_results: list) -> tuple:
     """Process artist from search results and fetch detail info."""
     if not artists_results or len(artists_results) == 0:
-        return None, [], [], None
+        return None, [], [], [], None
 
     artist = artists_results[0]
     artist_id = artist.get("browseId")
     similar_artists = []
     albums = []
+    artist_songs = []
     songs_playlist_id = None
 
     if artist_id:
@@ -2126,6 +2127,10 @@ async def _process_quick_search_artist(ytmusic, artists_results: list) -> tuple:
             singles_section = artist_detail.get("singles", {})
             albums.extend(await _fetch_all_albums(ytmusic, singles_section, artist_name, "Single"))
 
+            # Extract artist songs from detail
+            songs_section = artist_detail.get("songs", {})
+            artist_songs = songs_section.get("results", [])
+
             # Extract similar artists
             related_section = artist_detail.get("related", {})
             similar_artists = _extract_similar_artists(related_section, artist_id, 10)
@@ -2139,7 +2144,7 @@ async def _process_quick_search_artist(ytmusic, artists_results: list) -> tuple:
         "songsPlaylistId": songs_playlist_id
     }
 
-    return artist_data, similar_artists, albums, songs_playlist_id
+    return artist_data, similar_artists, albums, artist_songs, songs_playlist_id
 
 
 def _format_song_results(songs_results: list) -> list:
@@ -2191,7 +2196,7 @@ async def search_quick(request: Request, q: str, country: str = None):
             logger.warning(f"Songs search failed: {songs_results}")
             songs_results = []
 
-        artist_data, similar_artists, albums, songs_playlist_id = await _process_quick_search_artist(
+        artist_data, similar_artists, albums, artist_songs, songs_playlist_id = await _process_quick_search_artist(
             ytmusic, artists_results
         )
 
@@ -2199,7 +2204,7 @@ async def search_quick(request: Request, q: str, country: str = None):
         if artists_results and len(artists_results) > 1:
             similar_artists = _supplement_similar_artists(similar_artists, artists_results[1:11])
 
-        # Format song results
+        # Format song results for API response (5 songs max)
         songs = _format_song_results(songs_results)
 
         # Save all search data to DB (artist, albums, tracks, relations)
@@ -2207,9 +2212,10 @@ async def search_quick(request: Request, q: str, country: str = None):
             artist_browse_id = artist_data["browseId"]
             _save_artist_with_virtual_member(artist_data, songs_playlist_id)
             saved_albums = _save_search_albums_to_db(albums, artist_browse_id)
-            saved_tracks = _save_search_tracks_to_db(songs, artist_browse_id)
+            # Save artist songs from detail (full list), not just search results
+            saved_tracks = _save_search_tracks_to_db(artist_songs, artist_browse_id)
             saved_relations = _save_artist_relations_to_db(artist_browse_id, similar_artists)
-            logger.info(f"Search data saved: {artist_data.get('name')} - {saved_albums}/{len(albums)} albums, {saved_tracks}/{len(songs)} tracks, {saved_relations}/{len(similar_artists)} relations")
+            logger.info(f"Search data saved: {artist_data.get('name')} - {saved_albums}/{len(albums)} albums, {saved_tracks}/{len(artist_songs)} tracks, {saved_relations}/{len(similar_artists)} relations")
 
         response = {
             "artist": artist_data,
