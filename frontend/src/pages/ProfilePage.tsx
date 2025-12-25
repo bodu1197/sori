@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Grid, Heart, Lock, LogOut, Music, Disc, Settings, UserPlus, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import FollowersModal from '../components/social/FollowersModal';
@@ -18,6 +18,8 @@ import {
   ArtistMusicTab,
   LikedMusicTab,
   UserSavedMusicTab,
+  ProfileActionButtons,
+  ProfileTabBar,
   type Post,
   type Playlist,
   type LikedTrack,
@@ -80,18 +82,11 @@ export default function ProfilePage() {
     artistMusicLoading,
     isVirtualMember,
     deleteSong,
-    setLikedSongs,
   } = useProfileData(targetUserId, isOwnProfile);
 
   // Use extracted playback hook
-  const {
-    playHomeItem,
-    playPost,
-    playLikedTrack,
-    shufflePlay,
-    fetchAndShowPlaylist,
-    fetchAndShowAlbum,
-  } = useProfilePlayback();
+  const { playHomeItem, playPost, playLikedTrack, shufflePlay, fetchAndShowAlbum } =
+    useProfilePlayback();
 
   const { homeData, homeLoading } = useHomeData(activeTab);
   const { startConversation, startingConversation } = useConversation(targetUserId, isOwnProfile);
@@ -282,69 +277,26 @@ export default function ProfilePage() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 mb-4">
-          {isOwnProfile ? (
-            <>
-              <button
-                onClick={() => navigate('/edit-profile')}
-                className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-              >
-                {t('profile.editProfile')}
-              </button>
-              <button
-                onClick={() => navigate('/settings')}
-                className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                title={t('profile.settings', 'Settings')}
-              >
-                <Settings size={18} />
-              </button>
-              <button
-                onClick={signOut}
-                className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
-                title={t('profile.signOut')}
-              >
-                <LogOut size={18} />
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Instagram-style Follow button with dropdown */}
-              <FollowButton
-                userId={targetUserId!}
-                size="md"
-                className="flex-1"
-                showDropdown
-                onFollowChange={(isFollowing) => {
-                  setProfile((prev) => {
-                    if (!prev) return null;
-                    return {
-                      ...prev,
-                      followers_count: Math.max(
-                        0,
-                        (prev.followers_count || 0) + (isFollowing ? 1 : -1)
-                      ),
-                    };
-                  });
-                }}
-              />
-              {/* Message button */}
-              <button
-                onClick={startConversation}
-                disabled={startingConversation}
-                className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center disabled:opacity-50"
-              >
-                {t('profile.message')}
-              </button>
-              {/* User suggestion button */}
-              <button
-                className="bg-gray-100 dark:bg-gray-800 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                title={t('profile.suggestedUsers', 'Suggested users')}
-              >
-                <UserPlus size={18} />
-              </button>
-            </>
-          )}
-        </div>
+        <ProfileActionButtons
+          isOwnProfile={isOwnProfile}
+          targetUserId={targetUserId}
+          onNavigateEdit={() => navigate('/edit-profile')}
+          onNavigateSettings={() => navigate('/settings')}
+          onSignOut={signOut}
+          onFollowChange={(isFollowing) => {
+            setProfile((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                followers_count: Math.max(0, (prev.followers_count || 0) + (isFollowing ? 1 : -1)),
+              };
+            });
+          }}
+          onStartConversation={startConversation}
+          startingConversation={startingConversation}
+          t={t}
+          FollowButtonComponent={FollowButton}
+        />
 
         {/* Story Highlights Section - Instagram style */}
         <div className="mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
@@ -391,45 +343,11 @@ export default function ProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-t border-gray-100 dark:border-gray-800">
-        <button
-          onClick={() => setActiveTab('posts')}
-          className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'posts' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-        >
-          <Grid size={24} />
-        </button>
-        {isOwnProfile && (
-          <button
-            onClick={() => setActiveTab('liked')}
-            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'liked' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-          >
-            <Heart size={24} />
-          </button>
-        )}
-        {isOwnProfile ? (
-          <button
-            onClick={() => setActiveTab('discover')}
-            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'discover' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-          >
-            <Disc size={24} />
-          </button>
-        ) : (
-          <button
-            onClick={() => setActiveTab('music')}
-            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'music' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-          >
-            <Music size={24} />
-          </button>
-        )}
-        {isOwnProfile && (
-          <button
-            onClick={() => setActiveTab('private')}
-            className={`flex-1 flex justify-center py-3 border-b-2 ${activeTab === 'private' ? 'border-black dark:border-white text-black dark:text-white' : 'border-transparent text-gray-400'}`}
-          >
-            <Lock size={24} />
-          </button>
-        )}
-      </div>
+      <ProfileTabBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isOwnProfile={isOwnProfile}
+      />
 
       {/* Content Area */}
       {activeTab === 'liked' ? (

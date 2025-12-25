@@ -5,7 +5,19 @@
 import React, { useState, useEffect, useCallback, SyntheticEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Heart, Play, Music, Shuffle, Lock, Disc } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import {
+  Heart,
+  Play,
+  Music,
+  Shuffle,
+  Lock,
+  Disc,
+  Grid,
+  LogOut,
+  Settings,
+  UserPlus,
+} from 'lucide-react';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import useContentStore from '../stores/useContentStore';
@@ -1442,5 +1454,141 @@ export function UserSavedMusicTab({
         )}
       </div>
     </>
+  );
+}
+
+// =============================================================================
+// ProfileActionButtons Component
+// =============================================================================
+
+interface ProfileActionButtonsProps {
+  isOwnProfile: boolean;
+  targetUserId?: string;
+  onNavigateEdit: () => void;
+  onNavigateSettings: () => void;
+  onSignOut: () => void;
+  onFollowChange: (isFollowing: boolean) => void;
+  onStartConversation: () => void;
+  startingConversation: boolean;
+  t: TFunction;
+  FollowButtonComponent: React.ComponentType<{
+    userId: string;
+    size: 'sm' | 'md' | 'lg';
+    className: string;
+    showDropdown: boolean;
+    onFollowChange: (isFollowing: boolean) => void;
+  }>;
+}
+
+export function ProfileActionButtons({
+  isOwnProfile,
+  targetUserId,
+  onNavigateEdit,
+  onNavigateSettings,
+  onSignOut,
+  onFollowChange,
+  onStartConversation,
+  startingConversation,
+  t,
+  FollowButtonComponent,
+}: ProfileActionButtonsProps) {
+  if (isOwnProfile) {
+    return (
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={onNavigateEdit}
+          className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        >
+          {t('profile.editProfile')}
+        </button>
+        <button
+          onClick={onNavigateSettings}
+          className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+          title={t('profile.settings', 'Settings')}
+        >
+          <Settings size={18} />
+        </button>
+        <button
+          onClick={onSignOut}
+          className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center gap-2 text-red-500"
+          title={t('profile.signOut')}
+        >
+          <LogOut size={18} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2 mb-4">
+      <FollowButtonComponent
+        userId={targetUserId!}
+        size="md"
+        className="flex-1"
+        showDropdown
+        onFollowChange={onFollowChange}
+      />
+      <button
+        onClick={onStartConversation}
+        disabled={startingConversation}
+        className="flex-1 bg-gray-100 dark:bg-gray-800 py-1.5 rounded-lg text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition flex items-center justify-center disabled:opacity-50"
+      >
+        {t('profile.message')}
+      </button>
+      <button
+        className="bg-gray-100 dark:bg-gray-800 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        title={t('profile.suggestedUsers', 'Suggested users')}
+      >
+        <UserPlus size={18} />
+      </button>
+    </div>
+  );
+}
+
+// =============================================================================
+// ProfileTabBar Component
+// =============================================================================
+
+type TabType = 'posts' | 'liked' | 'discover' | 'private' | 'music';
+
+interface ProfileTabBarProps {
+  activeTab: TabType;
+  setActiveTab: (tab: TabType) => void;
+  isOwnProfile: boolean;
+}
+
+export function ProfileTabBar({ activeTab, setActiveTab, isOwnProfile }: ProfileTabBarProps) {
+  const getTabClass = (tab: TabType) =>
+    `flex-1 flex justify-center py-3 border-b-2 ${
+      activeTab === tab
+        ? 'border-black dark:border-white text-black dark:text-white'
+        : 'border-transparent text-gray-400'
+    }`;
+
+  return (
+    <div className="flex border-t border-gray-100 dark:border-gray-800">
+      <button onClick={() => setActiveTab('posts')} className={getTabClass('posts')}>
+        <Grid size={24} />
+      </button>
+      {isOwnProfile && (
+        <button onClick={() => setActiveTab('liked')} className={getTabClass('liked')}>
+          <Heart size={24} />
+        </button>
+      )}
+      {isOwnProfile ? (
+        <button onClick={() => setActiveTab('discover')} className={getTabClass('discover')}>
+          <Disc size={24} />
+        </button>
+      ) : (
+        <button onClick={() => setActiveTab('music')} className={getTabClass('music')}>
+          <Music size={24} />
+        </button>
+      )}
+      {isOwnProfile && (
+        <button onClick={() => setActiveTab('private')} className={getTabClass('private')}>
+          <Lock size={24} />
+        </button>
+      )}
+    </div>
   );
 }
