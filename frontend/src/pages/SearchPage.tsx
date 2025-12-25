@@ -14,7 +14,6 @@ import {
   Users,
   Music,
 } from 'lucide-react';
-import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
 import { supabase } from '../lib/supabase';
 import { FollowButton } from '../components/social';
@@ -284,7 +283,6 @@ function AllSongsSection({
 export default function SearchPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const { startPlayback, openTrackPanel } = usePlayerStore();
 
   // Search Hooks

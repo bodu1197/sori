@@ -135,9 +135,12 @@ export default function ShareButton({
       }
 
       // Send message with shared post
-      const messageContent = postTitle
-        ? `Shared: ${postTitle}${postArtist ? ` - ${postArtist}` : ''}`
-        : 'Shared a post';
+      const getMessageContent = () => {
+        if (!postTitle) return 'Shared a post';
+        if (postArtist) return `Shared: ${postTitle} - ${postArtist}`;
+        return `Shared: ${postTitle}`;
+      };
+      const messageContent = getMessageContent();
 
       await supabase.from('messages').insert({
         conversation_id: conversationId,

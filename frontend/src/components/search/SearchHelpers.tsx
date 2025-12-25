@@ -641,11 +641,12 @@ export function AlbumCard({
       {/* Expanded Tracks */}
       {isExpanded && (
         <div className="border-t border-gray-200 dark:border-gray-800">
-          {isLoading ? (
+          {isLoading && (
             <div className="p-4 text-center text-sm text-gray-500">
               {t('common.loading', 'Loading...')}
             </div>
-          ) : tracks && tracks.length > 0 ? (
+          )}
+          {!isLoading && tracks && tracks.length > 0 && (
             <>
               {/* Play/Shuffle Buttons */}
               <div className="flex gap-2 p-3">
@@ -671,7 +672,7 @@ export function AlbumCard({
                 {tracks.map((track, index) => (
                   <button
                     type="button"
-                    key={track.videoId || index}
+                    key={track.videoId || `track-${index}`}
                     onClick={() => onPlayTrack(index)}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition w-full text-left"
                   >
@@ -684,7 +685,8 @@ export function AlbumCard({
                 ))}
               </div>
             </>
-          ) : (
+          )}
+          {!isLoading && (!tracks || tracks.length === 0) && (
             <div className="p-4 text-center text-sm text-gray-500">
               {t('search.noTracks', 'No tracks available')}
             </div>

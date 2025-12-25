@@ -833,7 +833,7 @@ export function DiscoverTab({ homeData, homeLoading, onPlayHomeItem, t }: Discov
   return (
     <div className="p-4 space-y-6">
       {homeData.sections.map((section, sectionIndex) => (
-        <div key={sectionIndex}>
+        <div key={section.title || `section-${sectionIndex}`}>
           <h3 className="font-bold text-lg mb-3">{section.title}</h3>
           <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
             {section.contents.slice(0, 12).map((item, itemIndex) => (

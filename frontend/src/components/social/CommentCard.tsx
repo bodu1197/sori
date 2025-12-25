@@ -219,7 +219,7 @@ export default function CommentCard({
                   <span className="w-5 h-5 bg-black dark:bg-white rounded flex items-center justify-center text-white dark:text-black text-xs font-bold">
                     X
                   </span>
-                  Twitter
+                  <span>Twitter</span>
                 </button>
                 <button
                   onClick={handleShareFacebook}
@@ -228,7 +228,7 @@ export default function CommentCard({
                   <span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-xs font-bold">
                     f
                   </span>
-                  Facebook
+                  <span>Facebook</span>
                 </button>
                 <button
                   onClick={handleShareWhatsApp}
@@ -237,7 +237,7 @@ export default function CommentCard({
                   <span className="w-5 h-5 bg-green-500 rounded flex items-center justify-center text-white text-xs font-bold">
                     W
                   </span>
-                  WhatsApp
+                  <span>WhatsApp</span>
                 </button>
                 <button
                   onClick={handleShareKakao}
@@ -246,7 +246,7 @@ export default function CommentCard({
                   <span className="w-5 h-5 bg-yellow-400 rounded flex items-center justify-center text-black text-xs font-bold">
                     K
                   </span>
-                  KakaoTalk
+                  <span>KakaoTalk</span>
                 </button>
                 <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                 <button

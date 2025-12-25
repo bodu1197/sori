@@ -72,16 +72,6 @@ export default function InlineComments({
       // Success
       // Check if top level
       if (!replyTo?.id) {
-        // Update count (optimistic? useComments updates state, but count prop?)
-        // useComments state is updated.
-        // We need to call onCommentCountChange.
-        // comments length from hook will update on next render.
-        // But we can just use (comments.length + 1) logic approximately or effect?
-        // Let's use simplified logic:
-        const currentCount = comments.length; // Before update? No, closure.
-        // Better to use effect on comments.length change?
-        // But comments might change from fetch.
-        // Let's just pass (comments.length + 1)
         onCommentCountChange?.(comments.length + 1);
       }
       setReplyTo(null);

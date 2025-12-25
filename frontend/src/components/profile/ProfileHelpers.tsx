@@ -240,21 +240,26 @@ export function ProfileTabs({
   const { t } = useTranslation();
 
   // Define tabs based on profile type
-  const tabs = isVirtualMember
-    ? [
+  const getProfileTabs = () => {
+    if (isVirtualMember) {
+      return [
         { key: 'music' as const, icon: Music, label: t('profile.music', 'Music') },
         { key: 'posts' as const, icon: Grid, label: t('profile.posts') },
-      ]
-    : isOwnProfile
-      ? [
-          { key: 'discover' as const, icon: Grid, label: t('profile.discover', 'Discover') },
-          { key: 'liked' as const, icon: Heart, label: t('profile.yourMusic', 'Your Music') },
-          { key: 'posts' as const, icon: Grid, label: t('profile.myPosts', 'Posts') },
-        ]
-      : [
-          { key: 'music' as const, icon: Music, label: t('profile.music', 'Music') },
-          { key: 'posts' as const, icon: Grid, label: t('profile.posts') },
-        ];
+      ];
+    }
+    if (isOwnProfile) {
+      return [
+        { key: 'discover' as const, icon: Grid, label: t('profile.discover', 'Discover') },
+        { key: 'liked' as const, icon: Heart, label: t('profile.yourMusic', 'Your Music') },
+        { key: 'posts' as const, icon: Grid, label: t('profile.myPosts', 'Posts') },
+      ];
+    }
+    return [
+      { key: 'music' as const, icon: Music, label: t('profile.music', 'Music') },
+      { key: 'posts' as const, icon: Grid, label: t('profile.posts') },
+    ];
+  };
+  const tabs = getProfileTabs();
 
   return (
     <div className="flex justify-around border-y border-gray-200 dark:border-gray-800 py-2">

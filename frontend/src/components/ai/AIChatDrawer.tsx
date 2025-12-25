@@ -139,7 +139,10 @@ export function AIChatDrawer({ artistName, onClose }: { artistName: string; onCl
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div
+            key={`msg-${i}-${msg.role}`}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
             <div
               className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
                 msg.role === 'user'
