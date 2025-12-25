@@ -226,7 +226,7 @@ def db_save_artist(artist_data: dict) -> str | None:
             except Exception as vm_error:
                 logger.warning(f"Virtual member auto-creation skipped: {vm_error}")
 
-        if result.data:
+        if result.data and len(result.data) > 0:
             return result.data[0].get("id")
         return None
     except Exception as e:
@@ -486,7 +486,7 @@ def db_save_track(track_data: dict, album_id: str = None, artist_id: str = None)
             data, on_conflict="video_id"
         ).execute()
 
-        if result.data:
+        if result.data and len(result.data) > 0:
             return result.data[0].get("id")
         return None
     except Exception as e:
@@ -4779,10 +4779,11 @@ async def translate_post_content(request: Request):
                 "translated_text, source_language"
             ).eq("post_id", post_id).eq("target_language", target_lang).limit(1).execute()
 
-            if cache_result.data:
+            if cache_result.data and len(cache_result.data) > 0:
+                cached_entry = cache_result.data[0]
                 return {
-                    "translated_text": cache_result.data[0]["translated_text"],
-                    "source_language": cache_result.data[0]["source_language"],
+                    "translated_text": cached_entry["translated_text"],
+                    "source_language": cached_entry["source_language"],
                     "cached": True
                 }
 
@@ -4845,11 +4846,12 @@ async def get_cached_translation(post_id: str, target_language: str = "en"):
             "translated_text, source_language, created_at"
         ).eq("post_id", post_id).eq("target_language", target_language).limit(1).execute()
 
-        if result.data:
+        if result.data and len(result.data) > 0:
+            cached_entry = result.data[0]
             return {
-                "translated_text": result.data[0]["translated_text"],
-                "source_language": result.data[0]["source_language"],
-                "cached_at": result.data[0]["created_at"]
+                "translated_text": cached_entry["translated_text"],
+                "source_language": cached_entry["source_language"],
+                "cached_at": cached_entry["created_at"]
             }
 
         return {"translated_text": None}
@@ -4867,9 +4869,10 @@ def _identify_new_releases(current_albums, current_singles, stored_result):
     known_album_ids = set()
     known_single_ids = set()
 
-    if stored_result and stored_result.data:
-        known_album_ids = set(stored_result.data[0].get("known_album_ids", []) or [])
-        known_single_ids = set(stored_result.data[0].get("known_single_ids", []) or [])
+    if stored_result and stored_result.data and len(stored_result.data) > 0:
+        stored_entry = stored_result.data[0]
+        known_album_ids = set(stored_entry.get("known_album_ids", []) or [])
+        known_single_ids = set(stored_entry.get("known_single_ids", []) or [])
 
     current_album_ids = {a["id"] for a in current_albums}
     current_single_ids = {s["id"] for s in current_singles}
