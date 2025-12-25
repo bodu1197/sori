@@ -1,26 +1,26 @@
-import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { DEFAULT_AVATAR } from '../components/common';
+import FollowButton from '../components/social/FollowButton';
+import FollowersModal from '../components/social/FollowersModal';
 import { secureShuffle } from '../lib/shuffle';
 import useAuthStore from '../stores/useAuthStore';
 import usePlayerStore, { PlaylistTrackData } from '../stores/usePlayerStore';
-import FollowersModal from '../components/social/FollowersModal';
-import FollowButton from '../components/social/FollowButton';
-import { DEFAULT_AVATAR } from '../components/common';
 import {
-  useHomeData,
-  useProfilePlayback,
-  useConversation,
-  useProfileData,
   ProfileActionButtons,
   ProfileTabBar,
   ProfileTabContent,
-  type Post,
-  type Playlist,
-  type LikedTrack,
-  type HomeSection,
+  useConversation,
+  useHomeData,
+  useProfileData,
+  useProfilePlayback,
   type HomeContentItem,
+  type HomeSection,
+  type LikedTrack,
+  type Playlist,
+  type Post,
 } from './ProfilePageHelpers';
 
 interface StatItemProps {
@@ -84,7 +84,7 @@ export default function ProfilePage() {
   const { playHomeItem, playPost, playLikedTrack, shufflePlay, fetchAndShowAlbum } =
     useProfilePlayback();
 
-  const { homeData, homeLoading } = useHomeData(activeTab);
+  const { homeData, homeLoading } = useHomeData(activeTab, isOwnProfile);
   const { startConversation, startingConversation } = useConversation(targetUserId, isOwnProfile);
 
   // Dynamic recommendations passed from FeedPage

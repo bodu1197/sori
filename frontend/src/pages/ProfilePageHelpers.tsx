@@ -127,13 +127,14 @@ export function useArtistMusic(profile: Profile | null) {
 /**
  * Hook for managing recommendation/discovery data
  */
-export function useHomeData(activeTab: string) {
+export function useHomeData(activeTab: string, isOwnProfile: boolean = true) {
   const { homeData, setHomeData } = useContentStore();
   const [homeLoading, setHomeLoading] = useState(false);
   const country = useCountry();
 
   useEffect(() => {
-    if (activeTab === 'discover' && !homeData) {
+    // Only fetch home data for own profile and discover tab
+    if (isOwnProfile && activeTab === 'discover' && !homeData) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHomeLoading(true);
       fetch(`${API_BASE_URL}/api/home?country=${country.code}`)
@@ -143,7 +144,7 @@ export function useHomeData(activeTab: string) {
         })
         .finally(() => setHomeLoading(false));
     }
-  }, [activeTab, homeData, country.code, setHomeData]);
+  }, [activeTab, homeData, country.code, setHomeData, isOwnProfile]);
 
   return { homeData, homeLoading };
 }
