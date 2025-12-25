@@ -17,8 +17,8 @@ import {
   UserPlus,
 } from 'lucide-react';
 import React, { SyntheticEvent } from 'react';
-import { type PlaylistTrackData } from '../../stores/usePlayerStore';
-export { type PlaylistTrackData };
+import type { PlaylistTrackData } from '../../stores/usePlayerStore';
+export type { PlaylistTrackData } from '../../stores/usePlayerStore';
 
 // =============================================================================
 // Shared Types & Interfaces
