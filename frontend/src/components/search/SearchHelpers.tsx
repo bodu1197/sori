@@ -380,8 +380,11 @@ export function useMusicSearch() {
       // 1. Try Supabase first (fast path)
       const dbResult = await searchFromSupabase(query);
 
-      if (dbResult?.artist && dbResult.isFresh) {
-        // Data is fresh, use it directly
+      // Check if data is complete (has albums OR tracks)
+      const hasData = dbResult && (dbResult.albums.length > 0 || dbResult.songs.length > 0);
+
+      if (dbResult?.artist && dbResult.isFresh && hasData) {
+        // Data is fresh AND complete, use it directly
         setSearchArtist(dbResult.artist);
         setSearchAlbums(dbResult.albums);
         setSearchSongs(dbResult.songs);
@@ -389,7 +392,7 @@ export function useMusicSearch() {
         return;
       }
 
-      // 2. Fallback to API (data not found or stale)
+      // 2. Fallback to API (data not found, stale, or incomplete)
       const apiResult = await searchFromAPI(query);
 
       if (apiResult) {
