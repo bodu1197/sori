@@ -2,67 +2,19 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-// Chunk grouping helper functions
-function getVendorChunk(id: string): string | undefined {
-  // Keep lucide-react in main bundle to avoid initialization order issues
-  if (id.includes('lucide')) {
-    return undefined; // Let it be part of the main bundle
-  }
-  if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-    return 'vendor-react';
-  }
-  if (id.includes('zustand') || id.includes('supabase')) {
-    return 'vendor-state';
-  }
-  if (id.includes('i18next')) {
-    return 'vendor-i18n';
-  }
-  return 'vendor';
-}
-
-function getPageChunk(pageName: string): string {
-  if (pageName.includes('profile') || pageName.includes('edit')) {
-    return 'page-profile';
-  }
-  if (pageName.includes('auth') || pageName.includes('login')) {
-    return 'page-auth';
-  }
-  if (pageName.includes('message') || pageName.includes('chat')) {
-    return 'page-messaging';
-  }
-  if (pageName.includes('search') || pageName.includes('chart')) {
-    return 'page-discovery';
-  }
-  return 'page-' + pageName;
-}
-
-function getComponentChunk(id: string): string | undefined {
-  if (id.includes('/player/')) return 'component-player';
-  if (id.includes('/profile/')) return 'component-profile';
-  return undefined;
-}
-
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            return getVendorChunk(id);
-          }
-          if (id.includes('/pages/')) {
-            const match = id.match(/\/pages\/([^/]+)/);
-            if (match) {
-              const pageName = match[1].replace(/\.(tsx|ts)$/, '').toLowerCase();
-              return getPageChunk(pageName);
-            }
-          }
-          if (id.includes('/components/')) {
-            return getComponentChunk(id);
-          }
-          return undefined;
+        manualChunks: {
+          // React core - must load first
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // State management & data fetching
+          'vendor-state': ['zustand', '@supabase/supabase-js'],
+          // i18n
+          'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },
     },
