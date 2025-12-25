@@ -2002,7 +2002,7 @@ def _save_search_albums_to_db(albums: list, artist_browse_id: str) -> int:
             ).execute()
             saved_count += 1
         except Exception as e:
-            logger.debug(f"Album save skipped: {e}")
+            logger.warning(f"Album save failed for {browse_id}: {e}")
 
     return saved_count
 
@@ -2040,7 +2040,7 @@ def _save_search_tracks_to_db(songs: list, artist_browse_id: str) -> int:
             ).execute()
             saved_count += 1
         except Exception as e:
-            logger.debug(f"Track save skipped: {e}")
+            logger.warning(f"Track save failed for {video_id}: {e}")
 
     return saved_count
 
@@ -2083,7 +2083,7 @@ def _save_artist_relations_to_db(main_browse_id: str, similar_artists: list) -> 
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }, on_conflict="browse_id").execute()
         except Exception as e:
-            logger.debug(f"Relation save skipped: {e}")
+            logger.warning(f"Relation save failed for {main_browse_id} -> {related_id}: {e}")
 
     return saved_count
 
@@ -2206,10 +2206,10 @@ async def search_quick(request: Request, q: str, country: str = None):
         if artist_data and artist_data.get("browseId"):
             artist_browse_id = artist_data["browseId"]
             _save_artist_with_virtual_member(artist_data, songs_playlist_id)
-            _save_search_albums_to_db(albums, artist_browse_id)
-            _save_search_tracks_to_db(songs, artist_browse_id)
-            _save_artist_relations_to_db(artist_browse_id, similar_artists)
-            logger.info(f"Search data saved: {artist_data.get('name')} - {len(albums)} albums, {len(songs)} tracks")
+            saved_albums = _save_search_albums_to_db(albums, artist_browse_id)
+            saved_tracks = _save_search_tracks_to_db(songs, artist_browse_id)
+            saved_relations = _save_artist_relations_to_db(artist_browse_id, similar_artists)
+            logger.info(f"Search data saved: {artist_data.get('name')} - {saved_albums}/{len(albums)} albums, {saved_tracks}/{len(songs)} tracks, {saved_relations}/{len(similar_artists)} relations")
 
         response = {
             "artist": artist_data,
