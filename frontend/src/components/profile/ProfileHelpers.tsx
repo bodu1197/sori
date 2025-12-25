@@ -3,7 +3,7 @@
  * Extracted from ProfilePage.tsx to reduce cognitive complexity
  */
 import { useTranslation } from 'react-i18next';
-import { Play, Music, Grid, Heart, Shuffle } from 'lucide-react';
+import { Music, Grid, Heart, Shuffle } from 'lucide-react';
 
 // Types
 interface Thumbnail {
