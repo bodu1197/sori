@@ -228,54 +228,58 @@ export default function StoriesBar() {
             </div>
           )}
 
-          {displayGroups.map((group, index) => (
-            <div key={group.user_id} className="flex flex-col items-center flex-shrink-0 relative">
-              <button onClick={() => setSelectedGroupIndex(index)}>
-                <div
-                  className={`w-16 h-16 rounded-full p-0.5 ${
-                    group.hasUnviewed
-                      ? group.isArtist
-                        ? 'bg-gradient-to-tr from-blue-400 via-indigo-500 to-purple-600 shadow-md shadow-blue-500/30'
-                        : 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
-                >
-                  <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5 relative">
-                    <img
-                      src={group.avatar_url || DEFAULT_AVATAR}
-                      alt={group.username}
-                      className="w-full h-full rounded-full object-cover"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        if (target.src !== DEFAULT_AVATAR) {
-                          target.src = DEFAULT_AVATAR;
-                        } else {
-                          // If fallback also fails, use a transparent pixel or hide
-                          target.onerror = null; // Prevent infinite loop
-                          target.src =
-                            'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              </button>
+          {displayGroups.map((group, index) => {
+            const getGradientClass = () => {
+              if (!group.hasUnviewed) return 'bg-gray-300 dark:bg-gray-600';
+              if (group.isArtist)
+                return 'bg-gradient-to-tr from-blue-400 via-indigo-500 to-purple-600 shadow-md shadow-blue-500/30';
+              return 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600';
+            };
 
-              {/* Artist Name with Verified Badge */}
-              <div className="flex items-center gap-0.5 mt-1 max-w-[70px] justify-center">
-                <span className="text-xs text-black dark:text-white truncate text-center">
-                  {group.username}
-                </span>
-                {group.isArtist && (
-                  <BadgeCheck
-                    size={10}
-                    className="text-blue-500 flex-shrink-0 ml-0.5"
-                    fill="white"
-                  />
-                )}
+            return (
+              <div
+                key={group.user_id}
+                className="flex flex-col items-center flex-shrink-0 relative"
+              >
+                <button onClick={() => setSelectedGroupIndex(index)}>
+                  <div className={`w-16 h-16 rounded-full p-0.5 ${getGradientClass()}`}>
+                    <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5 relative">
+                      <img
+                        src={group.avatar_url || DEFAULT_AVATAR}
+                        alt={group.username}
+                        className="w-full h-full rounded-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (target.src !== DEFAULT_AVATAR) {
+                            target.src = DEFAULT_AVATAR;
+                          } else {
+                            // If fallback also fails, use a transparent pixel or hide
+                            target.onerror = null; // Prevent infinite loop
+                            target.src =
+                              'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </button>
+
+                {/* Artist Name with Verified Badge */}
+                <div className="flex items-center gap-0.5 mt-1 max-w-[70px] justify-center">
+                  <span className="text-xs text-black dark:text-white truncate text-center">
+                    {group.username}
+                  </span>
+                  {group.isArtist && (
+                    <BadgeCheck
+                      size={10}
+                      className="text-blue-500 flex-shrink-0 ml-0.5"
+                      fill="white"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

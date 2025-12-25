@@ -217,15 +217,17 @@ export default function ShareButton({
 
             {/* User List */}
             <div className="flex-1 overflow-y-auto">
-              {searching ? (
+              {searching && (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 size={24} className="animate-spin text-gray-400" />
                 </div>
-              ) : users.length === 0 ? (
+              )}
+              {!searching && users.length === 0 && (
                 <div className="py-8 text-center text-gray-500">
                   {searchQuery.trim() ? t('share.noUsersFound') : t('share.searchToShare')}
                 </div>
-              ) : (
+              )}
+              {!searching && users.length > 0 && (
                 <div>
                   {users.map((targetUser) => {
                     const isSent = sentTo.includes(targetUser.id);

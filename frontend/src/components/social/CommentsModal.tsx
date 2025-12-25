@@ -97,16 +97,18 @@ export default function CommentsModal({
 
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto px-4">
-          {loading ? (
+          {loading && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
             </div>
-          ) : comments.length === 0 ? (
+          )}
+          {!loading && comments.length === 0 && (
             <div className="py-12 text-center">
               <p className="text-lg font-semibold text-black dark:text-white">No comments yet</p>
               <p className="text-sm text-gray-500 mt-1">Start the conversation.</p>
             </div>
-          ) : (
+          )}
+          {!loading && comments.length > 0 && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {comments.map((comment) => (
                 <CommentCard

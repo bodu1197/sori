@@ -217,21 +217,25 @@ export default function StoryViewer({
       >
         {/* Progress bars */}
         <div className="absolute top-2 left-2 right-2 z-10 flex gap-1">
-          {currentGroup.stories.map((_, index) => (
-            <div key={index} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
+          {currentGroup.stories.map((_, index) => {
+            const getProgressWidth = () => {
+              if (index < currentStoryIndex) return '100%';
+              if (index === currentStoryIndex) return `${progress}%`;
+              return '0%';
+            };
+
+            return (
               <div
-                className="h-full bg-white rounded-full transition-all duration-100"
-                style={{
-                  width:
-                    index < currentStoryIndex
-                      ? '100%'
-                      : index === currentStoryIndex
-                        ? `${progress}%`
-                        : '0%',
-                }}
-              />
-            </div>
-          ))}
+                key={`story-progress-${index}`}
+                className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden"
+              >
+                <div
+                  className="h-full bg-white rounded-full transition-all duration-100"
+                  style={{ width: getProgressWidth() }}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {/* Header */}

@@ -452,11 +452,12 @@ export default function TrackListPanel({
 
         {/* Track List */}
         <div className="overflow-y-auto flex-1 scrollbar-hide">
-          {loading ? (
+          {loading && (
             <div className="flex justify-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
             </div>
-          ) : playlist && playlist.tracks.length > 0 ? (
+          )}
+          {!loading && playlist && playlist.tracks.length > 0 && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800 pb-[120px]">
               {playlist.tracks.map((track, index) => {
                 const isCurrentTrack = currentVideoId === track.videoId;
@@ -530,7 +531,8 @@ export default function TrackListPanel({
                 );
               })}
             </div>
-          ) : (
+          )}
+          {!loading && (!playlist || playlist.tracks.length === 0) && (
             <div className="py-10 text-center text-gray-500">No tracks available</div>
           )}
         </div>

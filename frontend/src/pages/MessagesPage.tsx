@@ -278,6 +278,65 @@ export default function MessagesPage() {
     return matchesParticipant || matchesMessage;
   });
 
+  // Helper functions to reduce nested ternaries
+  const renderUserSearchResults = () => {
+    if (searchingUsers) {
+      return (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 size={20} className="animate-spin text-gray-400" />
+        </div>
+      );
+    }
+    if (searchedUsers.length === 0) {
+      return <div className="px-4 py-3 text-sm text-gray-500">No users found</div>;
+    }
+    return (
+      <div>
+        {searchedUsers.map((searchedUser) => (
+          <button
+            type="button"
+            key={searchedUser.id}
+            onClick={() => navigate(`/profile/${searchedUser.id}`)}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
+          >
+            <img
+              src={searchedUser.avatar_url || DEFAULT_AVATAR}
+              alt={searchedUser.username || 'User'}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div>
+              <p className="font-semibold text-black dark:text-white">{searchedUser.username}</p>
+              {searchedUser.full_name && (
+                <p className="text-sm text-gray-500">{searchedUser.full_name}</p>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderEmptyState = () => {
+    if (searchQuery.trim()) {
+      return <div className="px-4 py-3 text-sm text-gray-500">No matching conversations</div>;
+    }
+    return (
+      <div className="py-16 text-center">
+        <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
+        <p className="text-gray-500">No messages yet</p>
+        <p className="text-sm text-gray-400 mt-1">Search for users above to start a conversation</p>
+      </div>
+    );
+  };
+
+  const getLastMessageText = (conversation: Conversation) => {
+    if (!conversation.lastMessage) return 'No messages yet';
+    if (user && conversation.lastMessage.sender_id === user.id) {
+      return `You: ${conversation.lastMessage.content}`;
+    }
+    return conversation.lastMessage.content;
+  };
+
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-black">
@@ -313,38 +372,7 @@ export default function MessagesPage() {
           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900">
             <p className="text-xs font-semibold text-gray-500 uppercase">Users</p>
           </div>
-          {searchingUsers ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 size={20} className="animate-spin text-gray-400" />
-            </div>
-          ) : searchedUsers.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-500">No users found</div>
-          ) : (
-            <div>
-              {searchedUsers.map((searchedUser) => (
-                <button
-                  type="button"
-                  key={searchedUser.id}
-                  onClick={() => navigate(`/profile/${searchedUser.id}`)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition w-full text-left"
-                >
-                  <img
-                    src={searchedUser.avatar_url || DEFAULT_AVATAR}
-                    alt={searchedUser.username || 'User'}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-semibold text-black dark:text-white">
-                      {searchedUser.username}
-                    </p>
-                    {searchedUser.full_name && (
-                      <p className="text-sm text-gray-500">{searchedUser.full_name}</p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+          {renderUserSearchResults()}
         </div>
       )}
 
@@ -354,23 +382,13 @@ export default function MessagesPage() {
           <p className="text-xs font-semibold text-gray-500 uppercase">Conversations</p>
         </div>
       )}
-      {loading || searching ? (
+      {(loading || searching) && (
         <div className="flex items-center justify-center py-16">
           <Loader2 size={32} className="animate-spin text-gray-400" />
         </div>
-      ) : filteredConversations.length === 0 ? (
-        searchQuery.trim() ? (
-          <div className="px-4 py-3 text-sm text-gray-500">No matching conversations</div>
-        ) : (
-          <div className="py-16 text-center">
-            <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500">No messages yet</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Search for users above to start a conversation
-            </p>
-          </div>
-        )
-      ) : (
+      )}
+      {!loading && !searching && filteredConversations.length === 0 && renderEmptyState()}
+      {!loading && !searching && filteredConversations.length > 0 && (
         <div>
           {filteredConversations.map((conversation) => {
             const otherUser = conversation.participants[0]?.profiles;
@@ -418,11 +436,7 @@ export default function MessagesPage() {
                         : 'text-gray-500'
                     }`}
                   >
-                    {conversation.lastMessage
-                      ? conversation.lastMessage.sender_id === user.id
-                        ? `You: ${conversation.lastMessage.content}`
-                        : conversation.lastMessage.content
-                      : 'No messages yet'}
+                    {getLastMessageText(conversation)}
                   </p>
                 </div>
               </button>

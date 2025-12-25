@@ -60,6 +60,11 @@ function getNotificationIcon(type: string) {
   }
 }
 
+function truncateMessage(message: string, maxLength: number = 50): string {
+  if (message.length <= maxLength) return message;
+  return `${message.slice(0, maxLength)}...`;
+}
+
 function getNotificationText(notification: Notification): string {
   const username = notification.actor?.username || 'Someone';
 
@@ -67,17 +72,19 @@ function getNotificationText(notification: Notification): string {
     case 'like':
       return `${username} liked your post`;
     case 'comment':
-      return notification.message
-        ? `${username} commented: "${notification.message.slice(0, 50)}${notification.message.length > 50 ? '...' : ''}"`
-        : `${username} commented on your post`;
+      if (notification.message) {
+        return `${username} commented: "${truncateMessage(notification.message)}"`;
+      }
+      return `${username} commented on your post`;
     case 'follow':
       return `${username} started following you`;
     case 'mention':
       return `${username} mentioned you in a comment`;
     case 'reply':
-      return notification.message
-        ? `${username} replied: "${notification.message.slice(0, 50)}${notification.message.length > 50 ? '...' : ''}"`
-        : `${username} replied to your comment`;
+      if (notification.message) {
+        return `${username} replied: "${truncateMessage(notification.message)}"`;
+      }
+      return `${username} replied to your comment`;
     default:
       return `${username} interacted with you`;
   }
@@ -291,11 +298,12 @@ export default function NotificationsPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
+      {loading && (
         <div className="flex items-center justify-center py-16">
           <Loader2 size={32} className="animate-spin text-gray-400" />
         </div>
-      ) : notifications.length === 0 ? (
+      )}
+      {!loading && notifications.length === 0 && (
         <div className="py-16 text-center">
           <Heart size={48} className="mx-auto mb-4 text-gray-300" />
           <p className="text-gray-500">No notifications yet</p>
@@ -303,7 +311,8 @@ export default function NotificationsPage() {
             When someone interacts with you, you will see it here.
           </p>
         </div>
-      ) : (
+      )}
+      {!loading && notifications.length > 0 && (
         <div>
           {Object.entries(groupedNotifications).map(([group, items]) => (
             <div key={group}>

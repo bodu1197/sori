@@ -104,6 +104,12 @@ export default function MiniPlayer() {
     );
   };
 
+  const getRepeatModeLabel = () => {
+    if (repeatMode === 'none') return 'Off';
+    if (repeatMode === 'all') return 'All';
+    return 'One';
+  };
+
   if (!currentTrack) return null;
 
   return (
@@ -237,7 +243,7 @@ export default function MiniPlayer() {
                   ? 'bg-gray-100 dark:bg-gray-800'
                   : 'hover:text-black dark:hover:text-white'
               }`}
-              title={`Repeat: ${repeatMode === 'none' ? 'Off' : repeatMode === 'all' ? 'All' : 'One'}`}
+              title={`Repeat: ${getRepeatModeLabel()}`}
             >
               {getRepeatIcon()}
             </button>

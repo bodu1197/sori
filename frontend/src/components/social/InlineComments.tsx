@@ -100,11 +100,12 @@ export default function InlineComments({
   return (
     <div className="px-3 pb-3 border-t border-gray-100 dark:border-gray-800">
       {/* Comments List */}
-      {loading ? (
+      {loading && (
         <div className="flex justify-center py-4">
           <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
         </div>
-      ) : comments.length > 0 ? (
+      )}
+      {!loading && comments.length > 0 && (
         <div className="divide-y divide-gray-50 dark:divide-gray-800/50">
           {visibleComments.map((comment) => (
             <CommentCard
@@ -136,7 +137,8 @@ export default function InlineComments({
             </button>
           )}
         </div>
-      ) : (
+      )}
+      {!loading && comments.length === 0 && (
         <p className="text-center text-sm text-gray-400 py-3">
           {t('comments.noComments', 'No comments yet')}
         </p>

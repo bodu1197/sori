@@ -101,15 +101,17 @@ export default function FollowersModal({ userId, type, isOpen, onClose }: Follow
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
+          {loading && (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
             </div>
-          ) : profiles.length === 0 ? (
+          )}
+          {!loading && profiles.length === 0 && (
             <div className="py-8 text-center text-gray-500">
               {type === 'followers' ? 'No followers yet' : 'Not following anyone'}
             </div>
-          ) : (
+          )}
+          {!loading && profiles.length > 0 && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {profiles.map((profile) => (
                 <div
