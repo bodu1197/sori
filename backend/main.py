@@ -182,6 +182,16 @@ def detect_artist_language(name: str, description: str = "") -> str:
 # Supabase DB 헬퍼 함수
 # =============================================================================
 
+def _try_create_virtual_member(browse_id: str, artist_name: str, thumbnail_url: str) -> None:
+    """Try to create virtual member if it doesn't exist."""
+    try:
+        existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
+        if not existing.data or len(existing.data) == 0:
+            create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
+    except Exception as vm_error:
+        logger.warning(f"Virtual member auto-creation skipped: {vm_error}")
+
+
 def db_save_artist(artist_data: dict) -> str | None:
     """아티스트를 DB에 저장 (upsert) + 자동 가상회원 생성 + 언어 자동 감지"""
     if not supabase_client:
@@ -196,8 +206,6 @@ def db_save_artist(artist_data: dict) -> str | None:
         artist_name = artist_data.get("name") or artist_data.get("artist") or ""
         description = artist_data.get("description") or ""
         thumbnail_url = get_best_thumbnail(thumbnails)
-
-        # 자동 언어 감지
         primary_language = detect_artist_language(artist_name, description)
 
         data = {
@@ -207,7 +215,7 @@ def db_save_artist(artist_data: dict) -> str | None:
             "thumbnail_url": thumbnail_url,
             "description": description,
             "subscribers": artist_data.get("subscribers") or "",
-            "primary_language": primary_language,  # 언어 자동 설정
+            "primary_language": primary_language,
             "last_updated": datetime.now(timezone.utc).isoformat()
         }
 
@@ -215,16 +223,8 @@ def db_save_artist(artist_data: dict) -> str | None:
             data, on_conflict="browse_id"
         ).execute()
 
-        # 자동 가상회원 생성 (비동기 백그라운드)
         if result.data:
-            try:
-                # Check if virtual member already exists
-                existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
-                if not existing.data or len(existing.data) == 0:
-                    # Create virtual member in background
-                    create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
-            except Exception as vm_error:
-                logger.warning(f"Virtual member auto-creation skipped: {vm_error}")
+            _try_create_virtual_member(browse_id, artist_name, thumbnail_url)
 
         if result.data and len(result.data) > 0:
             return result.data[0].get("id")

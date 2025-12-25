@@ -155,6 +155,81 @@ export default function ProfilePage() {
     startPlayback(formattedTracks, index);
   };
 
+  // Artist music handlers (extracted to reduce complexity)
+  const handleArtistPlaySong = (
+    songs: Array<{
+      videoId: string;
+      title: string;
+      artists?: Array<{ name: string }>;
+      thumbnails?: Array<{ url: string }>;
+    }>,
+    index: number
+  ) => {
+    const tracks = songs.map((s) => ({
+      videoId: s.videoId,
+      title: s.title,
+      artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
+      thumbnail: s.thumbnails?.[0]?.url,
+    }));
+    startPlayback(tracks, index);
+  };
+
+  const handleArtistShufflePlay = (
+    songs: Array<{
+      videoId: string;
+      title: string;
+      artists?: Array<{ name: string }>;
+      thumbnails?: Array<{ url: string }>;
+    }>
+  ) => {
+    const tracks = songs.map((s) => ({
+      videoId: s.videoId,
+      title: s.title,
+      artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
+      thumbnail: s.thumbnails?.[0]?.url,
+    }));
+    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    startPlayback(shuffled, 0);
+  };
+
+  const handleArtistPlayVideo = (video: {
+    videoId: string;
+    title: string;
+    artists?: Array<{ name: string }>;
+    thumbnails?: Array<{ url: string }>;
+  }) => {
+    setTrack({
+      videoId: video.videoId,
+      title: video.title,
+      artist: video.artists?.[0]?.name || profile?.full_name || 'Unknown',
+      thumbnail: video.thumbnails?.[0]?.url,
+    });
+  };
+
+  // User saved music handlers
+  const handleUserSavedPlayTrack = (track: LikedTrack, idx: number, songs: LikedTrack[]) => {
+    const tracks = songs.map((s) => ({
+      videoId: s.videoId,
+      title: s.title,
+      artist: s.artist,
+      thumbnail: s.thumbnail,
+      cover: s.cover,
+    }));
+    startPlayback(tracks, idx);
+  };
+
+  const handleUserSavedShufflePlay = (songs: LikedTrack[]) => {
+    const tracks = songs.map((s) => ({
+      videoId: s.videoId,
+      title: s.title,
+      artist: s.artist,
+      thumbnail: s.thumbnail,
+      cover: s.cover,
+    }));
+    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    startPlayback(shuffled, 0);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">{t('common.loading')}</div>
@@ -403,33 +478,9 @@ export default function ProfilePage() {
               showAllAlbums={showAllAlbums}
               onToggleShowAllSongs={() => setShowAllSongs(!showAllSongs)}
               onToggleShowAllAlbums={() => setShowAllAlbums(!showAllAlbums)}
-              onPlaySong={(songs, index) => {
-                const tracks = songs.map((s) => ({
-                  videoId: s.videoId,
-                  title: s.title,
-                  artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
-                  thumbnail: s.thumbnails?.[0]?.url,
-                }));
-                startPlayback(tracks, index);
-              }}
-              onShufflePlay={(songs) => {
-                const tracks = songs.map((s) => ({
-                  videoId: s.videoId,
-                  title: s.title,
-                  artist: s.artists?.[0]?.name || profile?.full_name || 'Unknown',
-                  thumbnail: s.thumbnails?.[0]?.url,
-                }));
-                const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-                startPlayback(shuffled, 0);
-              }}
-              onPlayVideo={(video) => {
-                setTrack({
-                  videoId: video.videoId,
-                  title: video.title,
-                  artist: video.artists?.[0]?.name || profile?.full_name || 'Unknown',
-                  thumbnail: video.thumbnails?.[0]?.url,
-                });
-              }}
+              onPlaySong={handleArtistPlaySong}
+              onShufflePlay={handleArtistShufflePlay}
+              onPlayVideo={handleArtistPlayVideo}
               onShowAlbum={fetchAndShowAlbum}
               onNavigateToArtist={(artistName) =>
                 navigate(`/search?q=${encodeURIComponent(artistName)}`)
@@ -442,27 +493,8 @@ export default function ProfilePage() {
               userSavedSongs={userSavedSongs}
               currentTrackVideoId={currentTrack?.videoId}
               isPlaying={isPlaying}
-              onPlayTrack={(track, idx, songs) => {
-                const tracks = songs.map((s) => ({
-                  videoId: s.videoId,
-                  title: s.title,
-                  artist: s.artist,
-                  thumbnail: s.thumbnail,
-                  cover: s.cover,
-                }));
-                startPlayback(tracks, idx);
-              }}
-              onShufflePlay={(songs) => {
-                const tracks = songs.map((s) => ({
-                  videoId: s.videoId,
-                  title: s.title,
-                  artist: s.artist,
-                  thumbnail: s.thumbnail,
-                  cover: s.cover,
-                }));
-                const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-                startPlayback(shuffled, 0);
-              }}
+              onPlayTrack={handleUserSavedPlayTrack}
+              onShufflePlay={handleUserSavedShufflePlay}
               t={t}
             />
           )}
