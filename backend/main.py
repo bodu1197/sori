@@ -2449,7 +2449,7 @@ async def get_playlist(playlist_id: str, country: str = "US", limit: int = None)
 # =============================================================================
 
 @app.delete("/api/cache/clear")
-async def clear_search_cache(secret: str = None):
+def clear_search_cache(secret: str = None):
     """검색 캐시 전체 삭제 (Supabase music_search_cache 테이블)"""
     # 간단한 보안 체크 (프로덕션에서는 더 강력한 인증 필요)
     admin_secret = os.getenv("ADMIN_SECRET", "sori-admin-2024")
