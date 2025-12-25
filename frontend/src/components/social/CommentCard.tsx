@@ -71,7 +71,8 @@ export default function CommentCard({
   const handleShareTwitter = () => {
     window.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
-      '_blank'
+      '_blank',
+      'noopener,noreferrer'
     );
     setShowShareMenu(false);
   };
@@ -79,18 +80,27 @@ export default function CommentCard({
   const handleShareFacebook = () => {
     window.open(
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
-      '_blank'
+      '_blank',
+      'noopener,noreferrer'
     );
     setShowShareMenu(false);
   };
 
   const handleShareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
     setShowShareMenu(false);
   };
 
   const handleShareKakao = () => {
-    window.open(`https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`, '_blank');
+    window.open(
+      `https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
     setShowShareMenu(false);
   };
 
