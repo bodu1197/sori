@@ -104,7 +104,7 @@ export const getHighResThumbnail = (videoId?: string, coverUrl?: string): string
     return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
   }
   if (coverUrl) {
-    const ytMatch = coverUrl.match(/https?:\/\/i\.ytimg\.com\/vi\/([^/]+)\//);
+    const ytMatch = /https?:\/\/i\.ytimg\.com\/vi\/([^/]+)\//.exec(coverUrl);
     if (ytMatch) {
       return `https://i.ytimg.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
     }
