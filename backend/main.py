@@ -1132,7 +1132,7 @@ def health():
 # =============================================================================
 
 @app.get("/api/search")
-async def search_music(
+def search_music(
     request: Request,
     q: str,
     filter: str = "songs",
@@ -1171,7 +1171,7 @@ async def search_music(
 # =============================================================================
 
 @app.get("/api/charts")
-async def get_charts(request: Request, country: str = None):
+def get_charts(request: Request, country: str = None):
     """국가별 인기 차트"""
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
@@ -1199,7 +1199,7 @@ async def get_charts(request: Request, country: str = None):
 # =============================================================================
 
 @app.get("/api/new-albums")
-async def get_new_albums(request: Request, country: str = None):
+def get_new_albums(request: Request, country: str = None):
     """국가별 신규 앨범"""
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
@@ -1227,7 +1227,7 @@ async def get_new_albums(request: Request, country: str = None):
 # =============================================================================
 
 @app.get("/api/moods")
-async def get_moods(request: Request, country: str = None):
+def get_moods(request: Request, country: str = None):
     """무드 & 장르 카테고리 목록"""
     if not country:
         country = request.headers.get("CF-IPCountry", "US")
@@ -1252,7 +1252,7 @@ async def get_moods(request: Request, country: str = None):
 
 
 @app.get("/api/mood-playlists")
-async def get_mood_playlists(params: str, country: str = None, request: Request = None):
+def get_mood_playlists(params: str, country: str = None, request: Request = None):
     """특정 무드/장르의 플레이리스트 목록"""
     if not country:
         country = request.headers.get("CF-IPCountry", "US") if request else "US"
@@ -1755,7 +1755,7 @@ async def search_summary_deprecated(
 # =============================================================================
 
 @app.get("/api/artist/{artist_id}/songs-playlist")
-async def get_artist_songs_playlist(artist_id: str, country: str = "US"):
+def get_artist_songs_playlist(artist_id: str, country: str = "US"):
     """
     아티스트의 "인기곡 모두 표시" 플레이리스트 ID 반환
 
@@ -4450,7 +4450,7 @@ def delete_virtual_member_posts():
 
 
 @app.post("/api/admin/migrate-artist-languages")
-async def migrate_artist_languages(request: Request):
+def migrate_artist_languages(request: Request):
     """
     마이그레이션: 기존 아티스트들의 primary_language 업데이트
 
@@ -4982,7 +4982,7 @@ async def check_artist_new_releases(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def _check_single_artist_releases(artist: dict) -> bool:
+def _check_single_artist_releases(artist: dict) -> bool:
     """Check releases for a single artist. Returns True if successful."""
     browse_id = artist.get("browse_id")
     if not browse_id:
@@ -5011,7 +5011,7 @@ async def _process_all_artist_releases(supabase):
             return
 
         for artist in artists_result.data:
-            await _check_single_artist_releases(artist)
+            _check_single_artist_releases(artist)
             await asyncio.sleep(0.5)
 
     except Exception as e:
