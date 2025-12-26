@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "VibeStation",
+    "tagline": "Red Social Global de K-POP"
+  },
+  "nav": {
+    "home": "Inicio",
+    "search": "Buscar",
+    "charts": "Rankings",
+    "profile": "Perfil",
+    "notifications": "Notificaciones",
+    "messages": "Mensajes",
+    "settings": "Configuración"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "signup": "Registrarse",
+    "email": "Correo",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "continueWithGoogle": "Continuar con Google",
+    "continueWithApple": "Continuar con Apple",
+    "orContinueWith": "o"
+  },
+  "feed": {
+    "newPost": "Nueva Publicación",
+    "whatsOnYourMind": "¿Qué estás pensando?",
+    "post": "Publicar",
+    "like": "Me gusta",
+    "comment": "Comentar",
+    "share": "Compartir",
+    "repost": "Republicar",
+    "comments": "{{count}} comentarios",
+    "likes": "{{count}} me gusta",
+    "noMorePosts": "No hay más publicaciones"
+  },
+  "search": {
+    "placeholder": "Buscar artistas, canciones, usuarios...",
+    "recent": "Búsquedas Recientes",
+    "trending": "Tendencias",
+    "results": "Resultados",
+    "noResults": "Sin resultados",
+    "songs": "Canciones",
+    "artists": "Artistas",
+    "albums": "Álbumes",
+    "playlists": "Listas",
+    "users": "Usuarios"
+  },
+  "charts": {
+    "title": "Rankings",
+    "trending": "En Tendencia",
+    "videos": "Videos Musicales Top",
+    "artists": "Artistas Top",
+    "country": "Rankings por País"
+  },
+  "player": {
+    "nowPlaying": "Reproduciendo",
+    "queue": "Cola",
+    "shuffle": "Aleatorio",
+    "repeat": "Repetir",
+    "repeatOne": "Repetir Una",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "volume": "Volumen"
+  },
+  "profile": {
+    "followers": "Seguidores",
+    "following": "Siguiendo",
+    "posts": "Publicaciones",
+    "editProfile": "Editar Perfil",
+    "follow": "Seguir",
+    "unfollow": "Dejar de Seguir",
+    "message": "Mensaje",
+    "bio": "Biografía"
+  },
+  "settings": {
+    "title": "Configuración",
+    "language": "Idioma",
+    "darkMode": "Modo Oscuro",
+    "notifications": "Notificaciones",
+    "privacy": "Privacidad",
+    "account": "Cuenta",
+    "about": "Acerca de",
+    "version": "Versión"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ocurrió un error",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "confirm": "Confirmar",
+    "back": "Atrás",
+    "close": "Cerrar",
+    "seeAll": "Ver Todo",
+    "more": "Más"
+  },
+  "time": {
+    "justNow": "Ahora mismo",
+    "minutesAgo": "hace {{count}}m",
+    "hoursAgo": "hace {{count}}h",
+    "daysAgo": "hace {{count}}d",
+    "weeksAgo": "hace {{count}}sem",
+    "monthsAgo": "hace {{count}}mes",
+    "yearsAgo": "hace {{count}}año"
+  }
+}

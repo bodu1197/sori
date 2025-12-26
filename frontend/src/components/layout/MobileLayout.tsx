@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import BottomNav from './BottomNav';
 import TopNav from './TopNav';
 import MiniPlayer from '../player/MiniPlayer';
+import YouTubePlayer from '../player/YouTubePlayer';
 import TrackListPanel from '../player/TrackListPanel';
 import usePlayerStore from '../../stores/usePlayerStore';
 import { secureShuffle } from '../../lib/shuffle';
@@ -74,6 +75,9 @@ export default function MobileLayout() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] dark:bg-black flex justify-center items-center font-sans">
+      {/* Hidden YouTube IFrame Player */}
+      <YouTubePlayer />
+
       <div className="w-full max-w-[470px] h-[100dvh] bg-white dark:bg-black relative shadow-2xl overflow-hidden flex flex-col border-x border-gray-200 dark:border-gray-800">
         <TopNav />
 

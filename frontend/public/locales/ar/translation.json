@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "VibeStation",
+    "tagline": "شبكة K-POP الاجتماعية العالمية"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "search": "بحث",
+    "charts": "التصنيفات",
+    "profile": "الملف الشخصي",
+    "notifications": "الإشعارات",
+    "messages": "الرسائل",
+    "settings": "الإعدادات"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "signup": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "continueWithGoogle": "المتابعة مع Google",
+    "continueWithApple": "المتابعة مع Apple",
+    "orContinueWith": "أو"
+  },
+  "feed": {
+    "newPost": "منشور جديد",
+    "whatsOnYourMind": "بماذا تفكر؟",
+    "post": "نشر",
+    "like": "إعجاب",
+    "comment": "تعليق",
+    "share": "مشاركة",
+    "repost": "إعادة نشر",
+    "comments": "{{count}} تعليقات",
+    "likes": "{{count}} إعجابات",
+    "noMorePosts": "لا توجد منشورات أخرى"
+  },
+  "search": {
+    "placeholder": "ابحث عن فنانين، أغاني، مستخدمين...",
+    "recent": "عمليات البحث الأخيرة",
+    "trending": "الأكثر رواجاً",
+    "results": "النتائج",
+    "noResults": "لا توجد نتائج",
+    "songs": "أغاني",
+    "artists": "فنانون",
+    "albums": "ألبومات",
+    "playlists": "قوائم التشغيل",
+    "users": "مستخدمون"
+  },
+  "charts": {
+    "title": "التصنيفات",
+    "trending": "الأكثر رواجاً",
+    "videos": "أفضل الفيديوهات",
+    "artists": "أفضل الفنانين",
+    "country": "التصنيفات حسب البلد"
+  },
+  "player": {
+    "nowPlaying": "قيد التشغيل",
+    "queue": "قائمة الانتظار",
+    "shuffle": "عشوائي",
+    "repeat": "تكرار",
+    "repeatOne": "تكرار أغنية",
+    "previous": "السابق",
+    "next": "التالي",
+    "play": "تشغيل",
+    "pause": "إيقاف مؤقت",
+    "volume": "مستوى الصوت"
+  },
+  "profile": {
+    "followers": "المتابعون",
+    "following": "المتابَعون",
+    "posts": "المنشورات",
+    "editProfile": "تعديل الملف الشخصي",
+    "follow": "متابعة",
+    "unfollow": "إلغاء المتابعة",
+    "message": "رسالة",
+    "bio": "نبذة"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "language": "اللغة",
+    "darkMode": "الوضع الداكن",
+    "notifications": "الإشعارات",
+    "privacy": "الخصوصية",
+    "account": "الحساب",
+    "about": "حول",
+    "version": "الإصدار"
+  },
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "retry": "إعادة المحاولة",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "confirm": "تأكيد",
+    "back": "رجوع",
+    "close": "إغلاق",
+    "seeAll": "عرض الكل",
+    "more": "المزيد"
+  },
+  "time": {
+    "justNow": "الآن",
+    "minutesAgo": "منذ {{count}} دقيقة",
+    "hoursAgo": "منذ {{count}} ساعة",
+    "daysAgo": "منذ {{count}} يوم",
+    "weeksAgo": "منذ {{count}} أسبوع",
+    "monthsAgo": "منذ {{count}} شهر",
+    "yearsAgo": "منذ {{count}} سنة"
+  }
+}

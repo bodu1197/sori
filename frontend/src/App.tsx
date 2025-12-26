@@ -1,5 +1,12 @@
-import { useEffect, ReactNode, useLayoutEffect } from 'react';
+import { useEffect, ReactNode, useLayoutEffect, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
+// Loading fallback for Suspense (used by i18n)
+const LoadingFallback = () => (
+  <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-black">
+    <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-black dark:border-t-white rounded-full" />
+  </div>
+);
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -58,35 +65,37 @@ function App() {
   }, [initializeAuth]);
 
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <Routes>
-        <Route path="/auth" element={<AuthPage />} />
+    <Suspense fallback={<LoadingFallback />}>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/auth" element={<AuthPage />} />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <MobileLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<FeedPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/charts" element={<ChartsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/:userId" element={<ProfilePage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/edit-profile" element={<EditProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/messages/:conversationId" element={<ChatPage />} />
-          <Route path="/hashtag/:tag" element={<HashtagPage />} />
-          <Route path="/create" element={<CreatePostPage />} />
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          <Route
+            element={
+              <ProtectedRoute>
+                <MobileLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<FeedPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/charts" element={<ChartsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/:userId" element={<ProfilePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/edit-profile" element={<EditProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/messages/:conversationId" element={<ChatPage />} />
+            <Route path="/hashtag/:tag" element={<HashtagPage />} />
+            <Route path="/create" element={<CreatePostPage />} />
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </Suspense>
   );
 }
 

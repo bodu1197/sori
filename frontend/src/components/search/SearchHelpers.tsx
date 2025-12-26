@@ -10,8 +10,8 @@ import { secureShuffle } from '../../lib/shuffle';
 import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
+// VibeStation Internal API (Python serverless on Vercel)
+const API_BASE_URL = '';
 
 // Types (Exported)
 export interface Thumbnail {

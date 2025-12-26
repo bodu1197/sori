@@ -1,9 +1,47 @@
 {
   "framework": "vite",
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.12"
+    }
+  },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/music/search",
+      "destination": "/api/music/search.py"
+    },
+    {
+      "source": "/api/music/artist",
+      "destination": "/api/music/artist.py"
+    },
+    {
+      "source": "/api/music/charts",
+      "destination": "/api/music/charts.py"
+    },
+    {
+      "source": "/api/music/moods",
+      "destination": "/api/music/moods.py"
+    },
+    {
+      "source": "/api/music/song",
+      "destination": "/api/music/song.py"
+    },
+    {
+      "source": "/api/music/home",
+      "destination": "/api/music/home.py"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" }
+      ]
     }
   ],
   "crons": [

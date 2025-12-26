@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "VibeStation",
+    "tagline": "Wereldwijd K-POP Sociaal Netwerk"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Zoeken",
+    "charts": "Hitlijsten",
+    "profile": "Profiel",
+    "notifications": "Meldingen",
+    "messages": "Berichten",
+    "settings": "Instellingen"
+  },
+  "auth": {
+    "login": "Inloggen",
+    "logout": "Uitloggen",
+    "signup": "Registreren",
+    "email": "E-mail",
+    "password": "Wachtwoord",
+    "confirmPassword": "Bevestig wachtwoord",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "continueWithGoogle": "Doorgaan met Google",
+    "continueWithApple": "Doorgaan met Apple",
+    "orContinueWith": "of"
+  },
+  "feed": {
+    "newPost": "Nieuwe post",
+    "whatsOnYourMind": "Wat denk je?",
+    "post": "Posten",
+    "like": "Vind ik leuk",
+    "comment": "Reageren",
+    "share": "Delen",
+    "repost": "Reposten",
+    "comments": "{{count}} reacties",
+    "likes": "{{count}} likes",
+    "noMorePosts": "Geen berichten meer"
+  },
+  "search": {
+    "placeholder": "Zoek artiesten, nummers, gebruikers...",
+    "recent": "Recente zoekopdrachten",
+    "trending": "Trending",
+    "results": "Resultaten",
+    "noResults": "Geen resultaten",
+    "songs": "Nummers",
+    "artists": "Artiesten",
+    "albums": "Albums",
+    "playlists": "Afspeellijsten",
+    "users": "Gebruikers"
+  },
+  "charts": {
+    "title": "Hitlijsten",
+    "trending": "Trending",
+    "videos": "Top Muziekvideo's",
+    "artists": "Top Artiesten",
+    "country": "Hitlijsten per Land"
+  },
+  "player": {
+    "nowPlaying": "Nu aan het spelen",
+    "queue": "Wachtrij",
+    "shuffle": "Willekeurig",
+    "repeat": "Herhalen",
+    "repeatOne": "Een herhalen",
+    "previous": "Vorige",
+    "next": "Volgende",
+    "play": "Afspelen",
+    "pause": "Pauzeren",
+    "volume": "Volume"
+  },
+  "profile": {
+    "followers": "Volgers",
+    "following": "Volgend",
+    "posts": "Berichten",
+    "editProfile": "Profiel bewerken",
+    "follow": "Volgen",
+    "unfollow": "Ontvolgen",
+    "message": "Bericht",
+    "bio": "Bio"
+  },
+  "settings": {
+    "title": "Instellingen",
+    "language": "Taal",
+    "darkMode": "Donkere modus",
+    "notifications": "Meldingen",
+    "privacy": "Privacy",
+    "account": "Account",
+    "about": "Over",
+    "version": "Versie"
+  },
+  "common": {
+    "loading": "Laden...",
+    "error": "Er is een fout opgetreden",
+    "retry": "Opnieuw proberen",
+    "cancel": "Annuleren",
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "confirm": "Bevestigen",
+    "back": "Terug",
+    "close": "Sluiten",
+    "seeAll": "Alles bekijken",
+    "more": "Meer"
+  },
+  "time": {
+    "justNow": "Zojuist",
+    "minutesAgo": "{{count}} min geleden",
+    "hoursAgo": "{{count}} uur geleden",
+    "daysAgo": "{{count}} dagen geleden",
+    "weeksAgo": "{{count}} weken geleden",
+    "monthsAgo": "{{count}} maanden geleden",
+    "yearsAgo": "{{count}} jaar geleden"
+  }
+}

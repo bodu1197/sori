@@ -18,66 +18,9 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { SUPPORTED_LANGUAGES } from '../i18n/index';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../stores/useAuthStore';
-
-// Supported languages with native names (Based on translations.ts)
-const LANGUAGES = [
-  // Major Global Languages
-  { code: 'en', name: 'English', nativeName: 'English' },
-  { code: 'ko', name: 'Korean', nativeName: '한국어' },
-  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
-  { code: 'zh', name: 'Chinese (Simplified)', nativeName: '简体中文' },
-  { code: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文' },
-  { code: 'es', name: 'Spanish', nativeName: 'Español' },
-  { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
-  { code: 'fr', name: 'French', nativeName: 'Français' },
-  { code: 'de', name: 'German', nativeName: 'Deutsch' },
-  { code: 'it', name: 'Italian', nativeName: 'Italiano' },
-  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands' },
-  { code: 'ru', name: 'Russian', nativeName: 'Русский' },
-  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe' },
-  { code: 'pl', name: 'Polish', nativeName: 'Polski' },
-  { code: 'sv', name: 'Swedish', nativeName: 'Svenska' },
-  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia' },
-  { code: 'th', name: 'Thai', nativeName: 'ไทย' },
-  { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt' },
-  { code: 'ms', name: 'Malay', nativeName: 'Bahasa Melayu' },
-  { code: 'fil', name: 'Filipino', nativeName: 'Filipino' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
-  { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
-  // Indian Subcontinent Languages
-  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
-  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
-  { code: 'ur', name: 'Urdu', nativeName: 'اردو' },
-  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
-  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
-  // European Languages
-  { code: 'uk', name: 'Ukrainian', nativeName: 'Українська' },
-  { code: 'ro', name: 'Romanian', nativeName: 'Română' },
-  { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
-  { code: 'cs', name: 'Czech', nativeName: 'Čeština' },
-  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar' },
-  { code: 'fi', name: 'Finnish', nativeName: 'Suomi' },
-  { code: 'da', name: 'Danish', nativeName: 'Dansk' },
-  { code: 'no', name: 'Norwegian', nativeName: 'Norsk' },
-  { code: 'bg', name: 'Bulgarian', nativeName: 'Български' },
-  { code: 'hr', name: 'Croatian', nativeName: 'Hrvatski' },
-  { code: 'sr', name: 'Serbian', nativeName: 'Српски' },
-  { code: 'sk', name: 'Slovak', nativeName: 'Slovenčina' },
-  { code: 'sl', name: 'Slovenian', nativeName: 'Slovenščina' },
-  { code: 'ca', name: 'Catalan', nativeName: 'Català' },
-  // Middle East & Africa
-  { code: 'he', name: 'Hebrew', nativeName: 'עברית' },
-  { code: 'fa', name: 'Persian', nativeName: 'فارسی' },
-  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili' },
-  // Other Asian Languages
-  { code: 'my', name: 'Burmese', nativeName: 'မြန်မာဘာသာ' },
-];
 
 interface SettingItemProps {
   readonly icon: React.ReactNode;
@@ -153,7 +96,8 @@ export default function SettingsPage() {
 
   // Get current language info (handle locale codes like ko-KR)
   const currentLanguage =
-    LANGUAGES.find((lang) => i18n.language.startsWith(lang.code)) || LANGUAGES[0];
+    SUPPORTED_LANGUAGES.find((lang) => i18n.language.startsWith(lang.code)) ||
+    SUPPORTED_LANGUAGES[0];
 
   // Handle language change
   const handleLanguageChange = (langCode: string) => {
@@ -351,7 +295,7 @@ export default function SettingsPage() {
 
             {/* Language List */}
             <div className="flex-1 overflow-y-auto">
-              {LANGUAGES.map((lang) => (
+              {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   onClick={() => handleLanguageChange(lang.code)}

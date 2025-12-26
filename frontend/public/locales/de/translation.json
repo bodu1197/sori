@@ -1,0 +1,113 @@
+{
+  "app": {
+    "name": "VibeStation",
+    "tagline": "Globales K-POP Fandom Netzwerk"
+  },
+  "nav": {
+    "home": "Startseite",
+    "search": "Suche",
+    "charts": "Charts",
+    "profile": "Profil",
+    "notifications": "Benachrichtigungen",
+    "messages": "Nachrichten",
+    "settings": "Einstellungen"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "signup": "Registrieren",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "forgotPassword": "Passwort vergessen?",
+    "continueWithGoogle": "Mit Google fortfahren",
+    "continueWithApple": "Mit Apple fortfahren",
+    "orContinueWith": "oder"
+  },
+  "feed": {
+    "newPost": "Neuer Beitrag",
+    "whatsOnYourMind": "Was denkst du gerade?",
+    "post": "Posten",
+    "like": "Gefällt mir",
+    "comment": "Kommentieren",
+    "share": "Teilen",
+    "repost": "Reposten",
+    "comments": "{{count}} Kommentare",
+    "likes": "{{count}} Likes",
+    "noMorePosts": "Keine weiteren Beiträge"
+  },
+  "search": {
+    "placeholder": "Künstler, Songs, Nutzer suchen...",
+    "recent": "Letzte Suchen",
+    "trending": "Trends",
+    "results": "Ergebnisse",
+    "noResults": "Keine Ergebnisse",
+    "songs": "Songs",
+    "artists": "Künstler",
+    "albums": "Alben",
+    "playlists": "Playlists",
+    "users": "Nutzer"
+  },
+  "charts": {
+    "title": "Charts",
+    "trending": "Im Trend",
+    "videos": "Top Musikvideos",
+    "artists": "Top Künstler",
+    "country": "Charts nach Land"
+  },
+  "player": {
+    "nowPlaying": "Wird gespielt",
+    "queue": "Warteschlange",
+    "shuffle": "Zufällig",
+    "repeat": "Wiederholen",
+    "repeatOne": "Einen Wiederholen",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "play": "Abspielen",
+    "pause": "Pause",
+    "volume": "Lautstärke"
+  },
+  "profile": {
+    "followers": "Follower",
+    "following": "Folge ich",
+    "posts": "Beiträge",
+    "editProfile": "Profil bearbeiten",
+    "follow": "Folgen",
+    "unfollow": "Entfolgen",
+    "message": "Nachricht",
+    "bio": "Bio"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "darkMode": "Dunkelmodus",
+    "notifications": "Benachrichtigungen",
+    "privacy": "Datenschutz",
+    "account": "Konto",
+    "about": "Über",
+    "version": "Version"
+  },
+  "common": {
+    "loading": "Lädt...",
+    "error": "Ein Fehler ist aufgetreten",
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "confirm": "Bestätigen",
+    "back": "Zurück",
+    "close": "Schließen",
+    "seeAll": "Alle anzeigen",
+    "more": "Mehr"
+  },
+  "time": {
+    "justNow": "Gerade eben",
+    "minutesAgo": "vor {{count}}Min",
+    "hoursAgo": "vor {{count}}Std",
+    "daysAgo": "vor {{count}}T",
+    "weeksAgo": "vor {{count}}W",
+    "monthsAgo": "vor {{count}}Mon",
+    "yearsAgo": "vor {{count}}J"
+  }
+}

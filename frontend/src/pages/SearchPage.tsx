@@ -41,8 +41,8 @@ import {
   UserProfileItem,
 } from '../components/search/SearchHelpers';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'https://musicgram-api-89748215794.us-central1.run.app';
+// VibeStation Internal API (Python serverless on Vercel)
+const API_BASE_URL = '';
 
 const T_SEARCH_TOP_TRACKS = 'search.topTracks';
 
