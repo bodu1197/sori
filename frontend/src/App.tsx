@@ -1,7 +1,7 @@
-import { useEffect, ReactNode, useLayoutEffect, Suspense } from 'react';
+import { useEffect, ReactNode, useLayoutEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
-// Loading fallback for Suspense (used by i18n)
+// Loading fallback for Suspense (used by i18n and lazy loading)
 const LoadingFallback = () => (
   <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-black">
     <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-black dark:border-t-white rounded-full" />
@@ -18,19 +18,22 @@ const ScrollToTop = () => {
 
   return null;
 };
-import MobileLayout from './components/layout/MobileLayout';
-import FeedPage from './pages/FeedPage';
-import ProfilePage from './pages/ProfilePage';
-import SearchPage from './pages/SearchPage';
-import ChartsPage from './pages/ChartsPage';
-import AuthPage from './pages/AuthPage';
-import NotificationsPage from './pages/NotificationsPage';
-import EditProfilePage from './pages/EditProfilePage';
-import SettingsPage from './pages/SettingsPage';
-import MessagesPage from './pages/MessagesPage';
-import ChatPage from './pages/ChatPage';
-import HashtagPage from './pages/HashtagPage';
-import CreatePostPage from './pages/CreatePostPage';
+
+// Lazy loaded components for code splitting
+const MobileLayout = lazy(() => import('./components/layout/MobileLayout'));
+const FeedPage = lazy(() => import('./pages/FeedPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const ChartsPage = lazy(() => import('./pages/ChartsPage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage'));
+const ChatPage = lazy(() => import('./pages/ChatPage'));
+const HashtagPage = lazy(() => import('./pages/HashtagPage'));
+const CreatePostPage = lazy(() => import('./pages/CreatePostPage'));
+
 import useAuthStore from './stores/useAuthStore';
 
 interface ProtectedRouteProps {

@@ -8,13 +8,39 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // React core - must load first
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // State management & data fetching
-          'vendor-state': ['zustand', '@supabase/supabase-js'],
+        manualChunks: (id) => {
+          // React core
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'vendor-react';
+          }
+          // Router
+          if (id.includes('node_modules/react-router')) {
+            return 'vendor-router';
+          }
+          // State management
+          if (id.includes('node_modules/zustand')) {
+            return 'vendor-zustand';
+          }
+          // Supabase
+          if (id.includes('node_modules/@supabase')) {
+            return 'vendor-supabase';
+          }
           // i18n
-          'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) {
+            return 'vendor-i18n';
+          }
+          // Icons
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+          // Tanstack Query
+          if (id.includes('node_modules/@tanstack')) {
+            return 'vendor-query';
+          }
+          // Axios
+          if (id.includes('node_modules/axios')) {
+            return 'vendor-axios';
+          }
         },
       },
     },
