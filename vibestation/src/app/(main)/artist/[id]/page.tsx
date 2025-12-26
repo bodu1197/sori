@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Play, ArrowLeft, Users, Music } from 'lucide-react';
+import { Loader2, Play, ArrowLeft, Users, Music, Video, UserPlus } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface ArtistSong {
@@ -21,14 +21,32 @@ interface ArtistAlbum {
   type?: string;
 }
 
+interface ArtistVideo {
+  videoId?: string;
+  title: string;
+  thumbnails?: Array<{ url: string }>;
+  views?: string;
+}
+
+interface RelatedArtist {
+  browseId?: string;
+  title: string;
+  thumbnails?: Array<{ url: string }>;
+  subscribers?: string;
+}
+
 interface ArtistData {
   name?: string;
   description?: string;
   thumbnails?: Array<{ url: string }>;
   subscribers?: string;
+  views?: string;
+  monthlyListeners?: string;
   songs?: { results?: ArtistSong[] };
   albums?: { results?: ArtistAlbum[]; browseId?: string };
   singles?: { results?: ArtistAlbum[]; browseId?: string };
+  videos?: { results?: ArtistVideo[]; browseId?: string };
+  related?: { results?: RelatedArtist[]; browseId?: string };
 }
 
 export default function ArtistPage() {
@@ -66,6 +84,8 @@ export default function ArtistPage() {
   const songs = artist.songs?.results || [];
   const albums = artist.albums?.results || [];
   const singles = artist.singles?.results || [];
+  const videos = artist.videos?.results || [];
+  const related = artist.related?.results || [];
 
   return (
     <div className="space-y-8">
@@ -188,6 +208,73 @@ export default function ArtistPage() {
                 </div>
                 <p className="font-medium text-sm truncate">{single.title}</p>
                 {single.year && <p className="text-xs text-zinc-400">{single.year}</p>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Videos */}
+      {videos.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Video className="h-5 w-5 text-purple-400" />
+            Videos
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {videos.slice(0, 6).map((video, i) => (
+              <Link
+                key={i}
+                href={video.videoId ? `/watch/${video.videoId}` : '#'}
+                className="group"
+              >
+                <div className="aspect-video rounded-lg overflow-hidden bg-zinc-800 mb-2 relative">
+                  {video.thumbnails?.[0]?.url && (
+                    <img
+                      src={video.thumbnails[0].url}
+                      alt={video.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="h-12 w-12 text-white" fill="white" />
+                  </div>
+                </div>
+                <p className="font-medium text-sm truncate">{video.title}</p>
+                {video.views && <p className="text-xs text-zinc-400">{video.views} views</p>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Related Artists */}
+      {related.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-purple-400" />
+            Fans Also Like
+          </h2>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            {related.slice(0, 12).map((artist, i) => (
+              <Link
+                key={i}
+                href={artist.browseId ? `/artist/${artist.browseId}` : '#'}
+                className="flex flex-col items-center gap-2 group"
+              >
+                <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden bg-zinc-800 ring-2 ring-transparent group-hover:ring-purple-500 transition-all">
+                  {artist.thumbnails?.[0]?.url && (
+                    <img
+                      src={artist.thumbnails[0].url}
+                      alt={artist.title}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+                <p className="font-medium text-sm text-center truncate w-full">{artist.title}</p>
+                {artist.subscribers && (
+                  <p className="text-xs text-zinc-500">{artist.subscribers}</p>
+                )}
               </Link>
             ))}
           </div>
