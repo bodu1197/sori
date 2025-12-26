@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd vibestation && npm run build",
-  "outputDirectory": "vibestation/.next",
-  "installCommand": "cd vibestation && npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install"
 }

@@ -1,2 +1,0 @@
-# VibeStation Python API Dependencies
-ytmusicapi==1.9.1
