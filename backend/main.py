@@ -33,95 +33,140 @@ def root():
 @app.get("/api/home")
 async def get_home(limit: int = 5):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_home, limit)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_home, limit)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/search")
 async def search(q: str, filter: str = None):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.search, q, filter)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.search, q, filter)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/search/suggestions")
 async def get_suggestions(q: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_search_suggestions, q)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_search_suggestions, q)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/explore")
 async def get_explore():
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_explore)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_explore)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": {}, "error": str(e)}
 
 @app.get("/api/charts")
 async def get_charts(country: str = "ZZ"):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_charts, country)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_charts, country)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": {}, "error": str(e)}
 
 @app.get("/api/moods")
 async def get_moods():
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_mood_categories)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_mood_categories)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": {}, "error": str(e)}
 
 @app.get("/api/mood-playlists")
 async def get_mood_playlists(params: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_mood_playlists, params)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_mood_playlists, params)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/artist/{artist_id}")
 async def get_artist(artist_id: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_artist, artist_id)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_artist, artist_id)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
 
 @app.get("/api/artist/{artist_id}/albums")
 async def get_artist_albums(artist_id: str):
     ytmusic = get_ytmusic()
-    artist = await run_in_thread(ytmusic.get_artist, artist_id)
-    if artist and "albums" in artist and "params" in artist["albums"]:
-        data = await run_in_thread(ytmusic.get_artist_albums, artist_id, artist["albums"]["params"])
-        return {"success": True, "data": data}
-    return {"success": True, "data": []}
+    try:
+        artist = await run_in_thread(ytmusic.get_artist, artist_id)
+        if artist and "albums" in artist and "params" in artist["albums"]:
+            data = await run_in_thread(ytmusic.get_artist_albums, artist_id, artist["albums"]["params"])
+            return {"success": True, "data": data}
+        return {"success": True, "data": []}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/album/{album_id}")
 async def get_album(album_id: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_album, album_id)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_album, album_id)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
 
 @app.get("/api/playlist/{playlist_id}")
 async def get_playlist(playlist_id: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_playlist, playlist_id)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_playlist, playlist_id)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
 
 @app.get("/api/song/{video_id}")
 async def get_song(video_id: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_song, video_id)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_song, video_id)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
 
 @app.get("/api/watch")
 async def get_watch(videoId: str = None, playlistId: str = None):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_watch_playlist, videoId=videoId, playlistId=playlistId)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_watch_playlist, videoId=videoId, playlistId=playlistId)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
 
 @app.get("/api/lyrics/{browse_id}")
 async def get_lyrics(browse_id: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_lyrics, browse_id)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_lyrics, browse_id)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
 
 @app.get("/api/related/{browse_id}")
 async def get_related(browse_id: str):
     ytmusic = get_ytmusic()
-    data = await run_in_thread(ytmusic.get_song_related, browse_id)
-    return {"success": True, "data": data}
+    try:
+        data = await run_in_thread(ytmusic.get_song_related, browse_id)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/podcast/{playlist_id}")
 async def get_podcast(playlist_id: str):
