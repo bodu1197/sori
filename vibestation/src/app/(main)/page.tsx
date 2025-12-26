@@ -25,10 +25,23 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getHome(6).then((data) => {
+    // Detect country first, then fetch home data
+    const fetchData = async () => {
+      let country = 'US';
+      try {
+        const geoRes = await fetch('https://ipapi.co/json/');
+        const geoData = await geoRes.json();
+        country = geoData.country_code || 'US';
+      } catch {
+        // Fallback to US
+      }
+
+      const data = await api.getHome(6, country);
       if (data.success) setSections(data.data || []);
       setLoading(false);
-    });
+    };
+
+    fetchData();
   }, []);
 
   if (loading) {
@@ -48,7 +61,9 @@ export default function HomePage() {
           <h2 className="text-xl font-bold mb-4">{section.title}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {section.contents?.slice(0, 12).map((item, i) => {
-              const thumbnail = item.thumbnails?.[0]?.url || '';
+              // Use largest thumbnail and request higher resolution
+              const rawThumb = item.thumbnails?.[item.thumbnails.length - 1]?.url || '';
+              const thumbnail = rawThumb.replace(/=s\d+/, '=s400').replace(/=w\d+-h\d+/, '=w400-h400');
               const artistName = item.artists?.[0]?.name || item.subtitle || '';
               const href = item.videoId
                 ? `/watch/${item.videoId}`

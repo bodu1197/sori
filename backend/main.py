@@ -8,7 +8,9 @@ from concurrent.futures import ThreadPoolExecutor
 # Thread pool for blocking ytmusicapi calls
 executor = ThreadPoolExecutor(max_workers=4)
 
-def get_ytmusic(language="en"):
+def get_ytmusic(language="en", location=None):
+    if location:
+        return YTMusic(language=language, location=location)
     return YTMusic(language=language)
 
 async def run_in_thread(func, *args, **kwargs):
@@ -161,8 +163,8 @@ def root():
     return {"service": "VibeStation API", "status": "ok"}
 
 @app.get("/api/home")
-async def get_home(limit: int = 5):
-    ytmusic = get_ytmusic()
+async def get_home(limit: int = 5, country: str = None):
+    ytmusic = get_ytmusic(location=country)
     try:
         data = await run_in_thread(ytmusic.get_home, limit)
         return {"success": True, "data": data}

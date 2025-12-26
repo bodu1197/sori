@@ -15,7 +15,7 @@ export async function fetchAPI(endpoint: string) {
 
 export const api = {
   // Home
-  getHome: (limit = 5) => fetchAPI(`/api/home?limit=${limit}`),
+  getHome: (limit = 5, country?: string) => fetchAPI(`/api/home?limit=${limit}${country ? `&country=${country}` : ''}`),
 
   // Search
   search: (query: string, filter?: string) =>
