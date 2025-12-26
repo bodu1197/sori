@@ -137,6 +137,7 @@ export default function ExplorePage() {
                   return (
                     <div
                       key={song.videoId || index}
+                      onClick={() => song.videoId && window.open(`https://music.youtube.com/watch?v=${song.videoId}`, '_blank')}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       <span className="w-6 text-center text-zinc-500 font-medium">

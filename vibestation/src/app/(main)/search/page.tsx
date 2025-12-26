@@ -59,13 +59,14 @@ export default function SearchPage() {
       {!query && !results.length && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: Music, label: 'Songs', color: 'from-purple-500 to-pink-500' },
-            { icon: User, label: 'Artists', color: 'from-blue-500 to-cyan-500' },
-            { icon: Disc, label: 'Albums', color: 'from-orange-500 to-red-500' },
-            { icon: Search, label: 'Playlists', color: 'from-green-500 to-teal-500' },
+            { icon: Music, label: 'Songs', color: 'from-purple-500 to-pink-500', search: 'Top songs 2024' },
+            { icon: User, label: 'Artists', color: 'from-blue-500 to-cyan-500', search: 'Popular artists' },
+            { icon: Disc, label: 'Albums', color: 'from-orange-500 to-red-500', search: 'New albums 2024' },
+            { icon: Search, label: 'Playlists', color: 'from-green-500 to-teal-500', search: 'Top playlists' },
           ].map((cat) => (
             <button
               key={cat.label}
+              onClick={() => { setQuery(cat.search); }}
               className={`relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br ${cat.color} p-4 flex flex-col items-start justify-end hover:scale-105 transition-transform`}
             >
               <cat.icon className="absolute top-4 right-4 h-8 w-8 opacity-50" />
@@ -121,6 +122,7 @@ export default function SearchPage() {
               return (
                 <div
                   key={item.videoId || index}
+                  onClick={() => item.videoId && window.open(`https://music.youtube.com/watch?v=${item.videoId}`, '_blank')}
                   className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800">

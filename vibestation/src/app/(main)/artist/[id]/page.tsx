@@ -136,15 +136,24 @@ export default function ArtistPage({ params }: ArtistPageProps) {
             </p>
           )}
           <div className="flex gap-3 mt-4 justify-center md:justify-start">
-            <button className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors">
+            <button
+              onClick={() => alert('Play All feature coming soon!')}
+              className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors"
+            >
               <Play className="h-4 w-4" fill="white" />
               Play All
             </button>
-            <button className="flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition-colors">
+            <button
+              onClick={() => alert('Shuffle feature coming soon!')}
+              className="flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition-colors"
+            >
               <Shuffle className="h-4 w-4" />
               Shuffle
             </button>
-            <button className="flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition-colors">
+            <button
+              onClick={() => alert('Follow feature coming soon!')}
+              className="flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition-colors"
+            >
               <UserPlus className="h-4 w-4" />
               Follow
             </button>
@@ -166,6 +175,7 @@ export default function ArtistPage({ params }: ArtistPageProps) {
               return (
                 <div
                   key={song.videoId || index}
+                  onClick={() => song.videoId && window.open(`https://music.youtube.com/watch?v=${song.videoId}`, '_blank')}
                   className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   <span className="w-6 text-center text-zinc-500 font-medium">

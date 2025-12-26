@@ -153,13 +153,16 @@ export default function FeedPage() {
                       <p className="text-xs text-zinc-500">{item.sectionTitle}</p>
                     </div>
                   </div>
-                  <button className="p-2 hover:bg-zinc-800 rounded-full">
+                  <button onClick={() => alert('Menu coming soon!')} className="p-2 hover:bg-zinc-800 rounded-full">
                     <MoreHorizontal className="h-5 w-5 text-zinc-400" />
                   </button>
                 </div>
 
                 {/* Post Image */}
-                <div className="aspect-square bg-zinc-800">
+                <div
+                  className="aspect-square bg-zinc-800 cursor-pointer"
+                  onClick={() => item.videoId && window.open(`https://music.youtube.com/watch?v=${item.videoId}`, '_blank')}
+                >
                   {thumbnail && (
                     <img
                       src={thumbnail}
@@ -180,10 +183,10 @@ export default function FeedPage() {
                         className={`h-6 w-6 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`}
                       />
                     </button>
-                    <button className="hover:scale-110 transition-transform">
+                    <button onClick={() => alert('Comments coming soon!')} className="hover:scale-110 transition-transform">
                       <MessageCircle className="h-6 w-6" />
                     </button>
-                    <button className="hover:scale-110 transition-transform">
+                    <button onClick={() => alert('Share coming soon!')} className="hover:scale-110 transition-transform">
                       <Share2 className="h-6 w-6" />
                     </button>
                   </div>
@@ -197,7 +200,7 @@ export default function FeedPage() {
                     <span className="text-zinc-300">{item.title}</span>
                   </p>
 
-                  <button className="text-sm text-zinc-500 hover:text-zinc-300">
+                  <button onClick={() => alert('Comments coming soon!')} className="text-sm text-zinc-500 hover:text-zinc-300">
                     View all {Math.floor(Math.random() * 500 + 50)} comments
                   </button>
                 </div>
