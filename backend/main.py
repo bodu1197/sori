@@ -267,14 +267,21 @@ async def get_playlist(playlist_id: str):
             # Use get_watch_playlist to get tracks from album playlist
             watch_data = await run_in_thread(ytmusic.get_watch_playlist, playlistId=playlist_id)
             if watch_data:
+                tracks = watch_data.get("tracks", [])
+                # Convert thumbnail to thumbnails for each track
+                for track in tracks:
+                    if track.get("thumbnail") and not track.get("thumbnails"):
+                        track["thumbnails"] = track["thumbnail"]
+
                 data = {
-                    "title": watch_data.get("playlistId", playlist_id),
-                    "tracks": watch_data.get("tracks", []),
-                    "trackCount": len(watch_data.get("tracks", []))
+                    "title": playlist_id,
+                    "tracks": tracks,
+                    "trackCount": len(tracks),
+                    "thumbnails": tracks[0].get("thumbnails") if tracks else None
                 }
                 # Try to get title from first track's album
-                if data["tracks"] and data["tracks"][0].get("album"):
-                    data["title"] = data["tracks"][0]["album"].get("name", "Album")
+                if tracks and tracks[0].get("album"):
+                    data["title"] = tracks[0]["album"].get("name", "Album")
             else:
                 data = None
         else:
