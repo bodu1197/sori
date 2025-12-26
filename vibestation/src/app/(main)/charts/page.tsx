@@ -16,12 +16,10 @@ const countries = [
   { code: 'BR', name: 'Brazil' },
 ];
 
-interface ChartItem {
-  videoId?: string;
+interface ChartPlaylist {
+  playlistId?: string;
   title: string;
-  artists?: Array<{ name: string; id?: string }>;
   thumbnails?: Array<{ url: string }>;
-  views?: string;
 }
 
 interface ChartArtist {
@@ -30,20 +28,21 @@ interface ChartArtist {
   name?: string;
   thumbnails?: Array<{ url: string }>;
   subscribers?: string;
+  rank?: string | null;
 }
 
 export default function ChartsPage() {
   const [country, setCountry] = useState('ZZ');
-  const [songs, setSongs] = useState<ChartItem[]>([]);
+  const [playlists, setPlaylists] = useState<ChartPlaylist[]>([]);
   const [artists, setArtists] = useState<ChartArtist[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     api.getCharts(country).then((data) => {
-      if (data.success) {
-        setSongs(data.data?.videos || data.data?.songs?.items || data.data?.trending || []);
-        setArtists(data.data?.artists?.items || []);
+      if (data.success && data.data) {
+        setPlaylists(data.data.videos || []);
+        setArtists(data.data.artists || []);
       }
       setLoading(false);
     });
@@ -73,33 +72,26 @@ export default function ChartsPage() {
         </div>
       ) : (
         <>
-          {/* Top Songs */}
-          {songs.length > 0 && (
+          {/* Top Playlists */}
+          {playlists.length > 0 && (
             <section className="bg-zinc-900 rounded-xl p-6">
               <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
                 <TrendingUp className="h-5 w-5 text-purple-400" />
-                Top Songs
+                Top Charts
               </h2>
-              <div className="space-y-2">
-                {songs.slice(0, 20).map((song, i) => (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {playlists.map((playlist, i) => (
                   <Link
                     key={i}
-                    href={song.videoId ? `/watch/${song.videoId}` : '#'}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors"
+                    href={playlist.playlistId ? `/playlist/${playlist.playlistId}` : '#'}
+                    className="group"
                   >
-                    <span className="w-6 text-center text-zinc-500 font-medium">{i + 1}</span>
-                    <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0">
-                      {song.thumbnails?.[0]?.url && (
-                        <img src={song.thumbnails[0].url} alt={song.title} className="w-full h-full object-cover" />
+                    <div className="aspect-square rounded-lg overflow-hidden bg-zinc-800 mb-2">
+                      {playlist.thumbnails?.[0]?.url && (
+                        <img src={playlist.thumbnails[0].url} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{song.title}</p>
-                      <p className="text-sm text-zinc-400 truncate">
-                        {song.artists?.map((a) => a.name).join(', ')}
-                      </p>
-                    </div>
-                    {song.views && <span className="text-sm text-zinc-500 hidden md:block">{song.views}</span>}
+                    <p className="font-medium text-sm truncate">{playlist.title}</p>
                   </Link>
                 ))}
               </div>
