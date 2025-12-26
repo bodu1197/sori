@@ -399,7 +399,7 @@ async function searchFromSupabase(query: string): Promise<{
 }
 
 /**
- * Fetch from backend API
+ * Fetch from backend API - uses new /api/search/smart (1 API call, fast!)
  */
 async function searchFromAPI(query: string): Promise<{
   artist: SearchArtist | null;
@@ -408,7 +408,7 @@ async function searchFromAPI(query: string): Promise<{
 } | null> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/search/quick?q=${encodeURIComponent(query.trim())}`
+      `${API_BASE_URL}/api/search/smart?q=${encodeURIComponent(query.trim())}`
     );
 
     if (!response.ok) return null;
@@ -418,36 +418,34 @@ async function searchFromAPI(query: string): Promise<{
     const artist = data.artist
       ? {
           browseId: data.artist.browseId,
-          artist: data.artist.name,
+          artist: data.artist.artist,
           thumbnails: data.artist.thumbnail ? [{ url: data.artist.thumbnail }] : [],
           songsPlaylistId: data.artist.songsPlaylistId,
           related: (data.similarArtists || []).map(
-            (a: { browseId: string; name: string; thumbnail: string }) => ({
+            (a: { browseId: string; artist: string; thumbnail: string }) => ({
               browseId: a.browseId,
-              title: a.name,
+              title: a.artist,
               thumbnails: a.thumbnail ? [{ url: a.thumbnail }] : [],
             })
           ),
         }
       : null;
 
-    interface AlbumResponse {
-      browseId?: string;
-      title: string;
-      artists?: Artist[];
-      thumbnails?: Thumbnail[];
-      year?: string;
-      type?: string;
-    }
-
-    const albums: SearchAlbum[] = (data.albums || []).map((a: AlbumResponse) => ({
-      browseId: a.browseId,
-      title: a.title,
-      artists: a.artists,
-      thumbnails: a.thumbnails,
-      year: a.year,
-      type: a.type || 'Album',
-    }));
+    const albums: SearchAlbum[] = (data.albums || []).map(
+      (a: {
+        browseId?: string;
+        title: string;
+        thumbnails?: Thumbnail[];
+        year?: string;
+        type?: string;
+      }) => ({
+        browseId: a.browseId,
+        title: a.title,
+        thumbnails: a.thumbnails,
+        year: a.year,
+        type: a.type || 'Album',
+      })
+    );
 
     return { artist, albums, songs: data.songs || [] };
   } catch {

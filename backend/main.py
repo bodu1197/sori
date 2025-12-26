@@ -1228,7 +1228,7 @@ async def get_search_suggestions(q: str, limit: int = 10):
 
 @app.get("/api/search/smart")
 async def smart_search(request: Request, q: str, country: str = None, limit: int = 20):
-    """스마트 검색 - Supabase 우선, YouTube 보조, 결과 저장"""
+    """스마트 검색 - 1번의 API 호출로 모든 결과 반환"""
     if not q or len(q.strip()) < 1:
         raise HTTPException(status_code=400, detail="Query required")
     
@@ -1239,122 +1239,137 @@ async def smart_search(request: Request, q: str, country: str = None, limit: int
     artists = []
     songs = []
     albums = []
+    similar_artists = []
     source = "supabase"
+    top_artist = None
     
     # 1. Supabase에서 먼저 검색 (빠름: ~0.1초)
     if supabase_client:
         try:
             # 아티스트 검색
             artist_results = supabase_client.table("music_artists").select(
-                "browse_id, name, thumbnails, subscribers"
-            ).ilike("name_normalized", f"%{query}%").limit(10).execute()
+                "browse_id, name, thumbnail_url, thumbnails, subscribers"
+            ).ilike("name", f"%{q.strip()}%").limit(10).execute()
             
-            artists = [{
-                "browseId": a.get("browse_id"),
-                "artist": a.get("name"),
-                "thumbnails": a.get("thumbnails") or [],
-                "subscribers": a.get("subscribers")
-            } for a in (artist_results.data or [])]
+            for a in (artist_results.data or []):
+                artists.append({
+                    "browseId": a.get("browse_id"),
+                    "artist": a.get("name"),
+                    "thumbnail": a.get("thumbnail_url") or (a.get("thumbnails", [{}])[0].get("url") if a.get("thumbnails") else ""),
+                    "subscribers": a.get("subscribers")
+                })
             
             # 트랙 검색
             track_results = supabase_client.table("music_tracks").select(
                 "video_id, title, artist_name, thumbnail_url, duration"
-            ).ilike("title_normalized", f"%{query}%").limit(limit).execute()
+            ).ilike("title", f"%{q.strip()}%").limit(limit).execute()
             
-            songs = [{
-                "videoId": t.get("video_id"),
-                "title": t.get("title"),
-                "artists": [{"name": t.get("artist_name")}] if t.get("artist_name") else [],
-                "thumbnails": [{"url": t.get("thumbnail_url")}] if t.get("thumbnail_url") else [],
-                "duration": t.get("duration")
-            } for t in (track_results.data or [])]
+            for t in (track_results.data or []):
+                songs.append({
+                    "videoId": t.get("video_id"),
+                    "title": t.get("title"),
+                    "artists": [{"name": t.get("artist_name")}] if t.get("artist_name") else [],
+                    "thumbnails": [{"url": t.get("thumbnail_url")}] if t.get("thumbnail_url") else [],
+                    "duration": t.get("duration")
+                })
             
             # 앨범 검색
             album_results = supabase_client.table("music_albums").select(
                 "browse_id, title, thumbnail_url, year, type"
-            ).ilike("title_normalized", f"%{query}%").limit(10).execute()
+            ).ilike("title", f"%{q.strip()}%").limit(10).execute()
             
-            albums = [{
-                "browseId": a.get("browse_id"),
-                "title": a.get("title"),
-                "thumbnails": [{"url": a.get("thumbnail_url")}] if a.get("thumbnail_url") else [],
-                "year": a.get("year"),
-                "type": a.get("type")
-            } for a in (album_results.data or [])]
-            
+            for a in (album_results.data or []):
+                albums.append({
+                    "browseId": a.get("browse_id"),
+                    "title": a.get("title"),
+                    "thumbnails": [{"url": a.get("thumbnail_url")}] if a.get("thumbnail_url") else [],
+                    "year": a.get("year"),
+                    "type": a.get("type") or "Album"
+                })
+                
         except Exception as e:
             logger.warning(f"Supabase search error: {e}")
     
-    # 2. Supabase 결과가 부족하면 YouTube API 호출
-    if len(artists) < 3 and len(songs) < 5:
-        source = "youtube"
-        try:
-            ytmusic = get_ytmusic(country)
+    # 2. Supabase 결과가 충분하면 바로 반환! (0.1초)
+    if len(artists) >= 1 and len(songs) >= 3:
+        if artists:
+            top_artist = artists[0]
+            similar_artists = artists[1:6]
+        return {
+            "artist": top_artist,
+            "songs": songs[:limit],
+            "albums": albums[:10],
+            "similarArtists": similar_artists,
+            "source": source,
+            "query": q.strip()
+        }
+    
+    # 3. Supabase 결과가 부족하면 YouTube API 1번 호출
+    source = "youtube"
+    try:
+        ytmusic = get_ytmusic(country)
+        
+        # ★ 핵심: filter 없이 검색하면 모든 타입을 한번에 반환!
+        all_results = await run_in_thread(ytmusic.search, q.strip(), limit=50)
+        
+        # 결과를 타입별로 분류
+        for item in (all_results or []):
+            result_type = item.get("resultType")
             
-            # 병렬 검색
-            artist_future = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=5)
-            songs_future = run_in_thread(ytmusic.search, q.strip(), filter="songs", limit=limit)
-            albums_future = run_in_thread(ytmusic.search, q.strip(), filter="albums", limit=10)
+            if result_type == "artist":
+                artist_data = {
+                    "browseId": item.get("browseId"),
+                    "artist": item.get("artist"),
+                    "thumbnail": get_best_thumbnail(item.get("thumbnails", [])),
+                    "subscribers": item.get("subscribers")
+                }
+                if artist_data["browseId"] and not any(x.get("browseId") == artist_data["browseId"] for x in artists):
+                    artists.append(artist_data)
+                    # 가상회원 자동 생성!
+                    _save_artist_to_supabase(artist_data)
             
-            yt_artists, yt_songs, yt_albums = await asyncio.gather(
-                artist_future, songs_future, albums_future, return_exceptions=True
-            )
+            elif result_type == "song":
+                song_data = {
+                    "videoId": item.get("videoId"),
+                    "title": item.get("title"),
+                    "artists": item.get("artists", []),
+                    "thumbnails": item.get("thumbnails", []),
+                    "duration": item.get("duration"),
+                    "album": item.get("album")
+                }
+                if song_data["videoId"] and not any(x.get("videoId") == song_data["videoId"] for x in songs):
+                    songs.append(song_data)
+                    _save_track_to_supabase(song_data)
             
-            # 아티스트 결과 처리 및 저장
-            if isinstance(yt_artists, list):
-                for a in yt_artists:
-                    artist_data = {
-                        "browseId": a.get("browseId"),
-                        "artist": a.get("artist"),
-                        "thumbnails": a.get("thumbnails", []),
-                        "subscribers": a.get("subscribers")
-                    }
-                    if artist_data["browseId"] and not any(x["browseId"] == artist_data["browseId"] for x in artists):
-                        artists.append(artist_data)
-                        # Supabase에 저장
-                        _save_artist_to_supabase(artist_data)
-            
-            # 노래 결과 처리 및 저장
-            if isinstance(yt_songs, list):
-                for s in yt_songs:
-                    song_data = {
-                        "videoId": s.get("videoId"),
-                        "title": s.get("title"),
-                        "artists": s.get("artists", []),
-                        "thumbnails": s.get("thumbnails", []),
-                        "duration": s.get("duration"),
-                        "album": s.get("album")
-                    }
-                    if song_data["videoId"] and not any(x["videoId"] == song_data["videoId"] for x in songs):
-                        songs.append(song_data)
-                        # Supabase에 저장
-                        _save_track_to_supabase(song_data)
-            
-            # 앨범 결과 처리 및 저장
-            if isinstance(yt_albums, list):
-                for a in yt_albums:
-                    album_data = {
-                        "browseId": a.get("browseId"),
-                        "title": a.get("title"),
-                        "thumbnails": a.get("thumbnails", []),
-                        "year": a.get("year"),
-                        "type": a.get("type")
-                    }
-                    if album_data["browseId"] and not any(x["browseId"] == album_data["browseId"] for x in albums):
-                        albums.append(album_data)
-                        # Supabase에 저장
-                        _save_album_to_supabase(album_data)
-                        
-        except Exception as e:
-            logger.error(f"YouTube search error: {e}")
+            elif result_type == "album":
+                album_data = {
+                    "browseId": item.get("browseId"),
+                    "title": item.get("title"),
+                    "thumbnails": item.get("thumbnails", []),
+                    "year": item.get("year"),
+                    "type": item.get("type") or "Album"
+                }
+                if album_data["browseId"] and not any(x.get("browseId") == album_data["browseId"] for x in albums):
+                    albums.append(album_data)
+                    _save_album_to_supabase(album_data)
+                    
+    except Exception as e:
+        logger.error(f"YouTube search error: {e}")
+    
+    # 첫 번째 아티스트를 top_artist로
+    if artists:
+        top_artist = artists[0]
+        similar_artists = artists[1:6]
     
     return {
-        "artists": artists[:10],
+        "artist": top_artist,
         "songs": songs[:limit],
         "albums": albums[:10],
+        "similarArtists": similar_artists,
         "source": source,
         "query": q.strip()
     }
+
 
 
 def _save_artist_to_supabase(artist_data: dict):
