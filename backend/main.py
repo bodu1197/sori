@@ -1099,18 +1099,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정 (프론트엔드 허용)
-allowed_origins = [
-    "https://sori-nine.vercel.app",
-    "https://sori-frontend.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "*"
-]
+# CORS 설정 (모든 origin 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
