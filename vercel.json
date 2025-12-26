@@ -5,11 +5,5 @@
       "src": "vibestation/package.json",
       "use": "@vercel/next"
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/vibestation/$1"
-    }
   ]
 }
