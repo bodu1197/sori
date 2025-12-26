@@ -5585,6 +5585,154 @@ async def detect_language_endpoint(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =============================================================================
+# ytmusicapi Non-Auth API Endpoints (추가)
+# =============================================================================
+
+@app.get("/api/explore")
+async def get_explore_data():
+    """
+    Get explore page data.
+    Uses ytmusicapi.get_explore()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        explore = await run_in_thread(ytmusic.get_explore)
+        return {"success": True, "data": explore}
+    except Exception as e:
+        logger.error(f"Explore fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/song/{video_id}")
+async def get_song_data(video_id: str):
+    """
+    Get song metadata.
+    Uses ytmusicapi.get_song()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        song = await run_in_thread(ytmusic.get_song, video_id)
+        return {"success": True, "data": song}
+    except Exception as e:
+        logger.error(f"Song fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/watch")
+async def get_watch_data(videoId: str = None, playlistId: str = None, radio: bool = False, shuffle: bool = False):
+    """
+    Get watch playlist (next songs queue).
+    Uses ytmusicapi.get_watch_playlist()
+    """
+    try:
+        if not videoId and not playlistId:
+            return {"success": False, "error": "videoId or playlistId required"}
+
+        ytmusic = get_ytmusic("US")
+        watch = await run_in_thread(
+            ytmusic.get_watch_playlist,
+            videoId=videoId,
+            playlistId=playlistId,
+            radio=radio,
+            shuffle=shuffle
+        )
+        return {"success": True, "data": watch}
+    except Exception as e:
+        logger.error(f"Watch playlist fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/lyrics/{browse_id}")
+async def get_lyrics_data(browse_id: str):
+    """
+    Get song lyrics.
+    Uses ytmusicapi.get_lyrics()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        lyrics = await run_in_thread(ytmusic.get_lyrics, browse_id)
+        return {"success": True, "data": lyrics}
+    except Exception as e:
+        logger.error(f"Lyrics fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/related/{browse_id}")
+async def get_related_songs(browse_id: str):
+    """
+    Get related songs.
+    Uses ytmusicapi.get_song_related()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        related = await run_in_thread(ytmusic.get_song_related, browse_id)
+        return {"success": True, "data": related}
+    except Exception as e:
+        logger.error(f"Related songs fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/podcast/{playlist_id}")
+async def get_podcast_data(playlist_id: str):
+    """
+    Get podcast details.
+    Uses ytmusicapi.get_podcast()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        podcast = await run_in_thread(ytmusic.get_podcast, playlist_id)
+        return {"success": True, "data": podcast}
+    except Exception as e:
+        logger.error(f"Podcast fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/episode/{video_id}")
+async def get_episode_data(video_id: str):
+    """
+    Get podcast episode details.
+    Uses ytmusicapi.get_episode()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        episode = await run_in_thread(ytmusic.get_episode, video_id)
+        return {"success": True, "data": episode}
+    except Exception as e:
+        logger.error(f"Episode fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/channel/{channel_id}")
+async def get_channel_data(channel_id: str):
+    """
+    Get podcast channel info.
+    Uses ytmusicapi.get_channel()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        channel = await run_in_thread(ytmusic.get_channel, channel_id)
+        return {"success": True, "data": channel}
+    except Exception as e:
+        logger.error(f"Channel fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/episodes-playlist")
+async def get_episodes_playlist_data():
+    """
+    Get new episodes playlist.
+    Uses ytmusicapi.get_episodes_playlist()
+    """
+    try:
+        ytmusic = get_ytmusic("US")
+        episodes = await run_in_thread(ytmusic.get_episodes_playlist)
+        return {"success": True, "data": episodes}
+    except Exception as e:
+        logger.error(f"Episodes playlist fetch error: {e}")
+        return {"success": False, "error": str(e)}
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))

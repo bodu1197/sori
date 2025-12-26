@@ -2,29 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Loader2, Play } from 'lucide-react';
+import { Play, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-interface ExploreItem {
+interface ContentItem {
+  videoId?: string;
+  browseId?: string;
+  playlistId?: string;
   title: string;
-  contents?: Array<{
-    videoId?: string;
-    browseId?: string;
-    playlistId?: string;
-    title: string;
-    thumbnails?: Array<{ url: string }>;
-    artists?: Array<{ name: string }>;
-    subtitle?: string;
-  }>;
+  thumbnails?: Array<{ url: string }>;
+  artists?: Array<{ name: string; id?: string }>;
+  subtitle?: string;
 }
 
-export default function ExplorePage() {
-  const [data, setData] = useState<ExploreItem[]>([]);
+interface HomeSection {
+  title: string;
+  contents?: ContentItem[];
+}
+
+export default function HomePage() {
+  const [sections, setSections] = useState<HomeSection[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getExplore().then((res) => {
-      if (res.success) setData(res.data || []);
+    api.getHome(6).then((data) => {
+      if (data.success) setSections(data.data || []);
       setLoading(false);
     });
   }, []);
@@ -39,9 +41,9 @@ export default function ExplorePage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Explore</h1>
+      <h1 className="text-3xl font-bold">Welcome to VibeStation</h1>
 
-      {data.map((section, idx) => (
+      {sections.map((section, idx) => (
         <section key={idx}>
           <h2 className="text-xl font-bold mb-4">{section.title}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -51,7 +53,7 @@ export default function ExplorePage() {
               const href = item.videoId
                 ? `/watch/${item.videoId}`
                 : item.browseId
-                ? `/album/${item.browseId}`
+                ? `/artist/${item.browseId}`
                 : item.playlistId
                 ? `/album/${item.playlistId}`
                 : '#';

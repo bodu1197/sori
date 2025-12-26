@@ -1,158 +1,159 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Music, User, Disc } from 'lucide-react';
+import { Search, Loader2, Music, User, Disc, ListMusic } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface SearchResult {
   videoId?: string;
   browseId?: string;
+  playlistId?: string;
   title?: string;
+  name?: string;
   thumbnails?: Array<{ url: string }>;
   artists?: Array<{ name: string; id?: string }>;
   resultType?: string;
 }
 
+const filters = [
+  { key: '', label: 'All', icon: Search },
+  { key: 'songs', label: 'Songs', icon: Music },
+  { key: 'artists', label: 'Artists', icon: User },
+  { key: 'albums', label: 'Albums', icon: Disc },
+  { key: 'playlists', label: 'Playlists', icon: ListMusic },
+];
+
 export default function SearchPage() {
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      if (data.success) {
-        setResults(data.data || []);
-      }
-    } catch {
-      console.error('Search failed');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (query.length > 1) {
+      api.getSuggestions(query).then((data) => {
+        if (data.success) setSuggestions(data.data || []);
+      });
+    } else {
+      setSuggestions([]);
     }
+  }, [query]);
+
+  const handleSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    setLoading(true);
+    setSuggestions([]);
+    const data = await api.search(searchQuery, filter || undefined);
+    if (data.success) setResults(data.data || []);
+    setLoading(false);
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 py-4">
-      <div>
-        <h1 className="text-3xl font-bold">Search</h1>
-        <p className="text-zinc-400">Find your favorite music</p>
-      </div>
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Search</h1>
 
-      {/* Search Form */}
-      <form onSubmit={handleSearch} className="relative">
+      {/* Search Input */}
+      <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
         <input
           type="text"
-          placeholder="Search for songs, artists, albums..."
+          placeholder="Search songs, artists, albums..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-4 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
+          className="w-full pl-12 pr-4 py-4 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
         />
-      </form>
 
-      {/* Quick Categories */}
-      {!query && !results.length && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: Music, label: 'Songs', color: 'from-purple-500 to-pink-500', search: 'Top songs 2024' },
-            { icon: User, label: 'Artists', color: 'from-blue-500 to-cyan-500', search: 'Popular artists' },
-            { icon: Disc, label: 'Albums', color: 'from-orange-500 to-red-500', search: 'New albums 2024' },
-            { icon: Search, label: 'Playlists', color: 'from-green-500 to-teal-500', search: 'Top playlists' },
-          ].map((cat) => (
-            <button
-              key={cat.label}
-              onClick={() => { setQuery(cat.search); }}
-              className={`relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br ${cat.color} p-4 flex flex-col items-start justify-end hover:scale-105 transition-transform`}
-            >
-              <cat.icon className="absolute top-4 right-4 h-8 w-8 opacity-50" />
-              <span className="font-bold text-lg">{cat.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
+        {/* Suggestions */}
+        {suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden z-10">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setQuery(s);
+                  handleSearch(s);
+                }}
+                className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition-colors"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* Loading State */}
+      {/* Filters */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-colors ${
+              filter === f.key
+                ? 'bg-purple-600 text-white'
+                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+            }`}
+          >
+            <f.icon className="h-4 w-4" />
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Loading */}
       {loading && (
-        <div className="text-center py-12">
-          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-zinc-400">Searching...</p>
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
         </div>
       )}
 
       {/* Results */}
-      {results.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Results</h2>
-          <div className="space-y-2">
-            {results.map((item, index) => {
-              const artistNames = item.artists?.map(a => a.name).join(', ') || '';
-              const thumbnail = item.thumbnails?.[0]?.url || '';
-              const isArtist = item.resultType === 'artist' && item.browseId;
+      {!loading && results.length > 0 && (
+        <div className="space-y-2">
+          {results.map((item, i) => {
+            const thumbnail = item.thumbnails?.[0]?.url || '';
+            const title = item.title || item.name || '';
+            const artistName = item.artists?.map((a) => a.name).join(', ') || item.resultType || '';
+            const isArtist = item.resultType === 'artist';
+            const href = item.videoId
+              ? `/watch/${item.videoId}`
+              : item.browseId
+              ? isArtist
+                ? `/artist/${item.browseId}`
+                : `/album/${item.browseId}`
+              : item.playlistId
+              ? `/album/${item.playlistId}`
+              : '#';
 
-              if (isArtist) {
-                return (
-                  <Link
-                    key={item.browseId || index}
-                    href={`/artist/${item.browseId}`}
-                    className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
-                  >
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800">
-                      {thumbnail && (
-                        <img
-                          src={thumbnail}
-                          alt={item.title || 'Artist'}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{item.title}</p>
-                      <p className="text-sm text-zinc-400 truncate">Artist</p>
-                    </div>
-                    <User className="h-5 w-5 text-zinc-500" />
-                  </Link>
-                );
-              }
-
-              return (
-                <div
-                  key={item.videoId || index}
-                  onClick={() => item.videoId && window.open(`https://music.youtube.com/watch?v=${item.videoId}`, '_blank')}
-                  className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800">
-                    {thumbnail && (
-                      <img
-                        src={thumbnail}
-                        alt={item.title || 'Result'}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.title}</p>
-                    <p className="text-sm text-zinc-400 truncate">
-                      {artistNames || item.resultType}
-                    </p>
-                  </div>
+            return (
+              <Link
+                key={i}
+                href={href}
+                className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
+              >
+                <div className={`w-14 h-14 ${isArtist ? 'rounded-full' : 'rounded'} overflow-hidden bg-zinc-800 flex-shrink-0`}>
+                  {thumbnail && (
+                    <img src={thumbnail} alt={title} className="w-full h-full object-cover" />
+                  )}
                 </div>
-              );
-            })}
-          </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{title}</p>
+                  <p className="text-sm text-zinc-400 truncate">{artistName}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
 
-      {/* No Results */}
-      {query && !loading && results.length === 0 && (
+      {/* Empty State */}
+      {!loading && query && results.length === 0 && (
         <div className="text-center py-12 text-zinc-500">
           <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p>No results found for &quot;{query}&quot;</p>
-          <p className="text-sm mt-2">Try different keywords</p>
         </div>
       )}
     </div>
