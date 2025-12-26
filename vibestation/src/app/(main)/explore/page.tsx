@@ -3,12 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCharts } from '@/hooks/useMusic';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { usePlayerStore } from '@/stores/usePlayerStore';
-import { Play, TrendingUp, Music2, User, Globe } from 'lucide-react';
+import { Play, TrendingUp, Music2, User, Globe, Heart } from 'lucide-react';
 
 const COUNTRY_OPTIONS = [
   { code: 'ZZ', name: 'Global' },
@@ -16,42 +11,45 @@ const COUNTRY_OPTIONS = [
   { code: 'US', name: 'USA' },
   { code: 'JP', name: 'Japan' },
   { code: 'GB', name: 'UK' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
+];
+
+// Placeholder data
+const mockSongs = [
+  { id: '1', title: 'APT.', artist: 'ROSE & Bruno Mars', plays: '125M', imageUrl: 'https://i.ytimg.com/vi/ekr2nIex040/mqdefault.jpg' },
+  { id: '2', title: 'Die With A Smile', artist: 'Lady Gaga, Bruno Mars', plays: '98M', imageUrl: 'https://i.ytimg.com/vi/kPa7bsKwL-c/mqdefault.jpg' },
+  { id: '3', title: 'Whiplash', artist: 'aespa', plays: '87M', imageUrl: 'https://i.ytimg.com/vi/jWQx2f-CErU/mqdefault.jpg' },
+  { id: '4', title: 'DRIP', artist: 'BABYMONSTER', plays: '76M', imageUrl: 'https://i.ytimg.com/vi/a4KqMXdlVEQ/mqdefault.jpg' },
+  { id: '5', title: 'Supernatural', artist: 'NewJeans', plays: '65M', imageUrl: 'https://i.ytimg.com/vi/ZncbtRo7RXs/mqdefault.jpg' },
+];
+
+const mockArtists = [
+  { id: '1', name: 'aespa', followers: '25M', imageUrl: 'https://yt3.googleusercontent.com/cm8QQWLV4_y3aJJmFWCTYWnMb_1FjIpFVMsYwAXJVPTKsNLADmY8oYhBFQr0pNtMy8QVxTw9sQ=s176-c-k-c0x00ffffff-no-rj' },
+  { id: '2', name: 'NewJeans', followers: '20M', imageUrl: 'https://yt3.googleusercontent.com/QGmv5S9DyJXxPcR1GF2sVnvq9uGh_yCqnUqPVAYMbAhxMPvGhZbKu8qmMQvRlJyEJWYBxH8R=s176-c-k-c0x00ffffff-no-rj' },
+  { id: '3', name: 'BLACKPINK', followers: '90M', imageUrl: 'https://yt3.googleusercontent.com/MsU3GxEHAz1nNq9RJyVkwvvG0vFjlPXd2bk1Ty3ey0pMnQuCdM0wnD1R_M7xpNpBBqRjGVw9=s176-c-k-c0x00ffffff-no-rj' },
+  { id: '4', name: 'BTS', followers: '75M', imageUrl: 'https://yt3.googleusercontent.com/dWaG0YrS6FxJPn_aVrB3LqPr3FWTpWFdNvXN4XVWmFWWrQ3_3HGGQQ0v_W9gNNrjVqEYPNQx=s176-c-k-c0x00ffffff-no-rj' },
+  { id: '5', name: 'TWICE', followers: '35M', imageUrl: 'https://yt3.googleusercontent.com/8F1DXDIuMH9iLrxqJwGqQqOAKfF2W8P8wT0K8Fc0aZYh0z6HMNT1wZ9ckRqLKQTqRYrEY0c=s176-c-k-c0x00ffffff-no-rj' },
+  { id: '6', name: 'IVE', followers: '15M', imageUrl: 'https://yt3.googleusercontent.com/fL-Yzq5J6F4G0F6G2bE3qNJMxNJCDTz0E3U5TqQZ0G3FqQpJ5m6bYsYGbQVJbCqQB8FYXQ=s176-c-k-c0x00ffffff-no-rj' },
 ];
 
 export default function ExplorePage() {
   const [country, setCountry] = useState('ZZ');
-  const { data: charts, isLoading, error } = useCharts(country);
-  const setTrack = usePlayerStore((state) => state.setTrack);
-
-  const handlePlayTrack = (item: { title: string; videoId?: string; artists?: Array<{ name: string; id?: string }>; thumbnails?: Array<{ url: string }> }) => {
-    if (item.videoId) {
-      setTrack({
-        videoId: item.videoId,
-        title: item.title,
-        artists: item.artists?.map(a => ({ name: a.name, id: a.id || '' })) || [{ name: 'Unknown Artist', id: '' }],
-        thumbnail: item.thumbnails?.[0]?.url || '',
-      });
-    }
-  };
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 py-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Explore</h1>
-          <p className="text-muted-foreground">Discover trending music from around the world</p>
+          <p className="text-zinc-400">Discover trending music from around the world</p>
         </div>
 
         {/* Country Selector */}
         <div className="flex items-center gap-2">
-          <Globe className="h-5 w-5 text-muted-foreground" />
+          <Globe className="h-5 w-5 text-zinc-400" />
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="bg-background border rounded-md px-3 py-2 text-sm"
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             {COUNTRY_OPTIONS.map((opt) => (
               <option key={opt.code} value={opt.code}>
@@ -62,178 +60,100 @@ export default function ExplorePage() {
         </div>
       </div>
 
-      {error && (
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-destructive">Failed to load charts: {error.message}</p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Top Songs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Top Songs
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-12 w-12 rounded" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-              ))}
+      <section className="bg-zinc-900 rounded-xl p-6">
+        <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
+          <TrendingUp className="h-5 w-5 text-purple-400" />
+          Top Songs
+        </h2>
+        <div className="space-y-2">
+          {mockSongs.map((song, index) => (
+            <div
+              key={song.id}
+              className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors group cursor-pointer"
+            >
+              <span className="w-6 text-center text-zinc-500 font-medium">
+                {index + 1}
+              </span>
+              <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-800">
+                <Image
+                  src={song.imageUrl}
+                  alt={song.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{song.title}</p>
+                <p className="text-sm text-zinc-400 truncate">{song.artist}</p>
+              </div>
+              <span className="text-sm text-zinc-500 hidden md:block">{song.plays}</span>
+              <button className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                <Play className="h-4 w-4" fill="white" />
+              </button>
             </div>
-          ) : charts?.songs?.items ? (
-            <div className="space-y-2">
-              {charts.songs.items.slice(0, 10).map((item, index) => (
-                <div
-                  key={item.videoId || index}
-                  className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
-                >
-                  <span className="w-6 text-center text-muted-foreground font-medium">
-                    {index + 1}
-                  </span>
-                  {item.thumbnails?.[0] && (
-                    <Image
-                      src={item.thumbnails[0].url}
-                      alt={item.title}
-                      width={48}
-                      height={48}
-                      className="rounded object-cover"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.title}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {item.artists?.map(a => a.name).join(', ')}
-                    </p>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => handlePlayTrack(item)}
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">No songs available</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Trending Videos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Music2 className="h-5 w-5 text-primary" />
-            Trending Videos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="aspect-video rounded-lg" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : charts?.videos?.items || charts?.trending?.items ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {(charts.videos?.items || charts.trending?.items)?.slice(0, 8).map((item, index) => (
-                <div
-                  key={item.videoId || index}
-                  className="group cursor-pointer"
-                  onClick={() => handlePlayTrack(item)}
-                >
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                    {item.thumbnails?.[0] && (
-                      <Image
-                        src={item.thumbnails[0].url}
-                        alt={item.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="h-10 w-10 text-white" />
-                    </div>
-                  </div>
-                  <p className="mt-2 font-medium truncate">{item.title}</p>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {item.artists?.map(a => a.name).join(', ')}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">No videos available</p>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </section>
 
       {/* Top Artists */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            Top Artists
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-2">
-                  <Skeleton className="h-24 w-24 rounded-full" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              ))}
+      <section className="bg-zinc-900 rounded-xl p-6">
+        <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
+          <User className="h-5 w-5 text-purple-400" />
+          Top Artists
+        </h2>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+          {mockArtists.map((artist) => (
+            <Link
+              key={artist.id}
+              href={`/artist/${artist.id}`}
+              className="flex flex-col items-center gap-2 group"
+            >
+              <div className="relative h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden bg-zinc-800 ring-2 ring-transparent group-hover:ring-purple-500 transition-all">
+                <Image
+                  src={artist.imageUrl}
+                  alt={artist.name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform"
+                />
+              </div>
+              <p className="font-medium text-center text-sm truncate w-full">{artist.name}</p>
+              <p className="text-xs text-zinc-500">{artist.followers}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Featured Playlists */}
+      <section className="bg-zinc-900 rounded-xl p-6">
+        <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
+          <Music2 className="h-5 w-5 text-purple-400" />
+          Featured Playlists
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {['K-Pop Hits', 'Chill Vibes', 'Workout Mix', 'Study Focus'].map((playlist, i) => (
+            <div
+              key={i}
+              className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-600 to-pink-500 cursor-pointer group"
+            >
+              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <p className="font-bold text-lg">{playlist}</p>
+                <p className="text-sm text-white/70">Curated by VibeStation</p>
+              </div>
+              <button className="absolute top-4 right-4 p-2 rounded-full bg-white/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                <Heart className="h-5 w-5" />
+              </button>
             </div>
-          ) : charts?.artists?.items ? (
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-              {charts.artists.items.slice(0, 6).map((artist, index) => (
-                <Link
-                  key={artist.browseId || index}
-                  href={`/artist/${artist.browseId}`}
-                  className="flex flex-col items-center gap-2 group"
-                >
-                  <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted">
-                    {artist.thumbnails?.[0] && (
-                      <Image
-                        src={artist.thumbnails[0].url}
-                        alt={artist.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                      />
-                    )}
-                  </div>
-                  <p className="font-medium text-center truncate w-full">{artist.title}</p>
-                  {artist.subscribers && (
-                    <p className="text-xs text-muted-foreground">{artist.subscribers}</p>
-                  )}
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">No artists available</p>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Coming Soon */}
+      <div className="text-center py-8 text-zinc-500">
+        <p>Live data integration coming soon!</p>
+        <p className="text-sm">Connect to YouTube Music API for real-time charts.</p>
+      </div>
     </div>
   );
 }
