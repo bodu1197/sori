@@ -16,8 +16,8 @@ interface Track {
 }
 
 interface PlaylistData {
-  id: string;
-  title: string;
+  id?: string;
+  title?: string;
   description?: string;
   thumbnails?: Array<{ url: string }>;
   author?: { name: string; id?: string };
@@ -37,8 +37,10 @@ export default function PlaylistPage() {
     if (playlistId) {
       setLoading(true);
       setError(null);
+      console.log('Fetching playlist:', playlistId);
       api.getPlaylist(playlistId)
         .then((data) => {
+          console.log('Playlist API response:', data);
           if (data.success && data.data) {
             setPlaylist(data.data);
           } else {
@@ -46,6 +48,7 @@ export default function PlaylistPage() {
           }
         })
         .catch((err) => {
+          console.error('Playlist fetch error:', err);
           setError(err.message || 'Network error');
         })
         .finally(() => {
@@ -89,7 +92,7 @@ export default function PlaylistPage() {
         </div>
         <div className="flex flex-col justify-end">
           <p className="text-sm text-zinc-400 uppercase mb-2">Playlist</p>
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">{playlist.title}</h1>
+          <h1 className="text-3xl md:text-5xl font-bold mb-4">{playlist.title || 'Playlist'}</h1>
           {playlist.description && (
             <p className="text-zinc-400 mb-2">{playlist.description}</p>
           )}
