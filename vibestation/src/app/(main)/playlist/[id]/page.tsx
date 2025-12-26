@@ -31,13 +31,26 @@ export default function PlaylistPage() {
   const playlistId = params.id as string;
   const [playlist, setPlaylist] = useState<PlaylistData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (playlistId) {
-      api.getPlaylist(playlistId).then((data) => {
-        if (data.success && data.data) setPlaylist(data.data);
-        setLoading(false);
-      });
+      setLoading(true);
+      setError(null);
+      api.getPlaylist(playlistId)
+        .then((data) => {
+          if (data.success && data.data) {
+            setPlaylist(data.data);
+          } else {
+            setError(data.error || 'Failed to load playlist');
+          }
+        })
+        .catch((err) => {
+          setError(err.message || 'Network error');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [playlistId]);
 
@@ -53,7 +66,8 @@ export default function PlaylistPage() {
     return (
       <div className="text-center py-20">
         <Music2 className="h-16 w-16 mx-auto mb-4 text-zinc-600" />
-        <p className="text-zinc-400">Playlist not found</p>
+        <p className="text-zinc-400">{error || 'Playlist not found'}</p>
+        <p className="text-xs text-zinc-600 mt-2">ID: {playlistId}</p>
       </div>
     );
   }
