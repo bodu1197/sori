@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://sori-backend.vercel.app';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://backend-psi-sable-33.vercel.app';
 
 export async function fetchAPI(endpoint: string) {
   const res = await fetch(`${API_BASE}${endpoint}`);
