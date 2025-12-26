@@ -45,7 +45,7 @@ export default function MoodsPage() {
           <h2 className="text-xl font-bold mb-4">{categoryName}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {items.map((item, i) => {
-              const href = `/mood/${encodeURIComponent(item.params)}`;
+              const href = `/mood/${encodeURIComponent(item.params)}?title=${encodeURIComponent(item.title)}`;
               const gradients = [
                 'from-purple-600 to-pink-500',
                 'from-blue-600 to-cyan-500',
