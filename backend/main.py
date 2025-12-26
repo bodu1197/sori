@@ -257,7 +257,15 @@ async def get_album(album_id: str):
 async def get_playlist(playlist_id: str):
     ytmusic = get_ytmusic()
     try:
-        data = await run_in_thread(ytmusic.get_playlist, playlist_id)
+        # OLAK IDs are album IDs, use get_album instead
+        if playlist_id.startswith("OLAK") or playlist_id.startswith("MPRE"):
+            data = await run_in_thread(ytmusic.get_album, playlist_id)
+            # Convert album format to playlist-like format
+            if data:
+                data["tracks"] = data.get("tracks", [])
+                data["trackCount"] = len(data.get("tracks", []))
+        else:
+            data = await run_in_thread(ytmusic.get_playlist, playlist_id)
         return {"success": True, "data": data}
     except Exception as e:
         return {"success": False, "data": None, "error": str(e)}
