@@ -268,10 +268,12 @@ async def get_playlist(playlist_id: str):
             watch_data = await run_in_thread(ytmusic.get_watch_playlist, playlistId=playlist_id)
             if watch_data:
                 tracks = watch_data.get("tracks", [])
-                # Convert thumbnail to thumbnails for each track
+                # Convert fields for each track
                 for track in tracks:
                     if track.get("thumbnail") and not track.get("thumbnails"):
                         track["thumbnails"] = track["thumbnail"]
+                    if track.get("length") and not track.get("duration"):
+                        track["duration"] = track["length"]
 
                 data = {
                     "title": playlist_id,
