@@ -177,7 +177,7 @@ export default function ChartsPage() {
                 {playlists.map((playlist, i) => (
                   <Link
                     key={i}
-                    href={playlist.playlistId ? `/playlist/${playlist.playlistId}` : '#'}
+                    href={playlist.playlistId ? `/playlist/${playlist.playlistId}?title=${encodeURIComponent(playlist.title)}` : '#'}
                     className="group relative overflow-hidden rounded-xl"
                   >
                     <div className="aspect-[2/1] bg-zinc-800 relative">

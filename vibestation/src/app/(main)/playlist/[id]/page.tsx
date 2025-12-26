@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Play, Clock, Music2 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -28,7 +28,9 @@ interface PlaylistData {
 
 export default function PlaylistPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const playlistId = params.id as string;
+  const queryTitle = searchParams.get('title');
   const [playlist, setPlaylist] = useState<PlaylistData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export default function PlaylistPage() {
         </div>
         <div className="flex flex-col justify-end">
           <p className="text-sm text-zinc-400 uppercase mb-2">Playlist</p>
-          <h1 className="text-3xl md:text-5xl font-bold mb-4">{playlist.title || 'Playlist'}</h1>
+          <h1 className="text-3xl md:text-5xl font-bold mb-4">{queryTitle || playlist.title || 'Playlist'}</h1>
           {playlist.description && (
             <p className="text-zinc-400 mb-2">{playlist.description}</p>
           )}
