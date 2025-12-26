@@ -1170,6 +1170,272 @@ def search_music(
         logger.error(f"Search error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/api/search/suggestions")
+async def get_search_suggestions(q: str, limit: int = 10):
+    """검색 자동완성 - Supabase 우선, YouTube 보조"""
+    if not q or len(q.strip()) < 1:
+        return {"suggestions": []}
+    
+    query = q.strip().lower()
+    suggestions = []
+    
+    # 1. Supabase에서 아티스트/트랙 검색 (빠름)
+    if supabase_client:
+        try:
+            # 아티스트 검색
+            artists = supabase_client.table("music_artists").select(
+                "browse_id, name, thumbnails"
+            ).ilike("name_normalized", f"%{query}%").limit(5).execute()
+            
+            for artist in (artists.data or []):
+                suggestions.append({
+                    "type": "artist",
+                    "text": artist.get("name"),
+                    "browseId": artist.get("browse_id"),
+                    "thumbnail": artist.get("thumbnails", [{}])[0].get("url") if artist.get("thumbnails") else None
+                })
+            
+            # 트랙 검색
+            tracks = supabase_client.table("music_tracks").select(
+                "video_id, title, artist_name, thumbnail_url"
+            ).ilike("title_normalized", f"%{query}%").limit(5).execute()
+            
+            for track in (tracks.data or []):
+                suggestions.append({
+                    "type": "song",
+                    "text": f"{track.get('title')} - {track.get('artist_name', '')}",
+                    "videoId": track.get("video_id"),
+                    "thumbnail": track.get("thumbnail_url")
+                })
+                
+        except Exception as e:
+            logger.warning(f"Supabase suggestions error: {e}")
+    
+    # 2. Supabase 결과가 부족하면 YouTube API 호출
+    if len(suggestions) < 5:
+        try:
+            ytmusic = get_ytmusic("US")
+            yt_suggestions = ytmusic.get_search_suggestions(q)
+            for text in yt_suggestions[:limit - len(suggestions)]:
+                if not any(s["text"].lower() == text.lower() for s in suggestions):
+                    suggestions.append({"type": "query", "text": text})
+        except Exception as e:
+            logger.warning(f"YouTube suggestions error: {e}")
+    
+    return {"suggestions": suggestions[:limit]}
+
+
+@app.get("/api/search/smart")
+async def smart_search(request: Request, q: str, country: str = None, limit: int = 20):
+    """스마트 검색 - Supabase 우선, YouTube 보조, 결과 저장"""
+    if not q or len(q.strip()) < 1:
+        raise HTTPException(status_code=400, detail="Query required")
+    
+    if not country:
+        country = request.headers.get("CF-IPCountry", "US")
+    
+    query = q.strip().lower()
+    artists = []
+    songs = []
+    albums = []
+    source = "supabase"
+    
+    # 1. Supabase에서 먼저 검색 (빠름: ~0.1초)
+    if supabase_client:
+        try:
+            # 아티스트 검색
+            artist_results = supabase_client.table("music_artists").select(
+                "browse_id, name, thumbnails, subscribers"
+            ).ilike("name_normalized", f"%{query}%").limit(10).execute()
+            
+            artists = [{
+                "browseId": a.get("browse_id"),
+                "artist": a.get("name"),
+                "thumbnails": a.get("thumbnails") or [],
+                "subscribers": a.get("subscribers")
+            } for a in (artist_results.data or [])]
+            
+            # 트랙 검색
+            track_results = supabase_client.table("music_tracks").select(
+                "video_id, title, artist_name, thumbnail_url, duration"
+            ).ilike("title_normalized", f"%{query}%").limit(limit).execute()
+            
+            songs = [{
+                "videoId": t.get("video_id"),
+                "title": t.get("title"),
+                "artists": [{"name": t.get("artist_name")}] if t.get("artist_name") else [],
+                "thumbnails": [{"url": t.get("thumbnail_url")}] if t.get("thumbnail_url") else [],
+                "duration": t.get("duration")
+            } for t in (track_results.data or [])]
+            
+            # 앨범 검색
+            album_results = supabase_client.table("music_albums").select(
+                "browse_id, title, thumbnail_url, year, type"
+            ).ilike("title_normalized", f"%{query}%").limit(10).execute()
+            
+            albums = [{
+                "browseId": a.get("browse_id"),
+                "title": a.get("title"),
+                "thumbnails": [{"url": a.get("thumbnail_url")}] if a.get("thumbnail_url") else [],
+                "year": a.get("year"),
+                "type": a.get("type")
+            } for a in (album_results.data or [])]
+            
+        except Exception as e:
+            logger.warning(f"Supabase search error: {e}")
+    
+    # 2. Supabase 결과가 부족하면 YouTube API 호출
+    if len(artists) < 3 and len(songs) < 5:
+        source = "youtube"
+        try:
+            ytmusic = get_ytmusic(country)
+            
+            # 병렬 검색
+            artist_future = run_in_thread(ytmusic.search, q.strip(), filter="artists", limit=5)
+            songs_future = run_in_thread(ytmusic.search, q.strip(), filter="songs", limit=limit)
+            albums_future = run_in_thread(ytmusic.search, q.strip(), filter="albums", limit=10)
+            
+            yt_artists, yt_songs, yt_albums = await asyncio.gather(
+                artist_future, songs_future, albums_future, return_exceptions=True
+            )
+            
+            # 아티스트 결과 처리 및 저장
+            if isinstance(yt_artists, list):
+                for a in yt_artists:
+                    artist_data = {
+                        "browseId": a.get("browseId"),
+                        "artist": a.get("artist"),
+                        "thumbnails": a.get("thumbnails", []),
+                        "subscribers": a.get("subscribers")
+                    }
+                    if artist_data["browseId"] and not any(x["browseId"] == artist_data["browseId"] for x in artists):
+                        artists.append(artist_data)
+                        # Supabase에 저장
+                        _save_artist_to_supabase(artist_data)
+            
+            # 노래 결과 처리 및 저장
+            if isinstance(yt_songs, list):
+                for s in yt_songs:
+                    song_data = {
+                        "videoId": s.get("videoId"),
+                        "title": s.get("title"),
+                        "artists": s.get("artists", []),
+                        "thumbnails": s.get("thumbnails", []),
+                        "duration": s.get("duration"),
+                        "album": s.get("album")
+                    }
+                    if song_data["videoId"] and not any(x["videoId"] == song_data["videoId"] for x in songs):
+                        songs.append(song_data)
+                        # Supabase에 저장
+                        _save_track_to_supabase(song_data)
+            
+            # 앨범 결과 처리 및 저장
+            if isinstance(yt_albums, list):
+                for a in yt_albums:
+                    album_data = {
+                        "browseId": a.get("browseId"),
+                        "title": a.get("title"),
+                        "thumbnails": a.get("thumbnails", []),
+                        "year": a.get("year"),
+                        "type": a.get("type")
+                    }
+                    if album_data["browseId"] and not any(x["browseId"] == album_data["browseId"] for x in albums):
+                        albums.append(album_data)
+                        # Supabase에 저장
+                        _save_album_to_supabase(album_data)
+                        
+        except Exception as e:
+            logger.error(f"YouTube search error: {e}")
+    
+    return {
+        "artists": artists[:10],
+        "songs": songs[:limit],
+        "albums": albums[:10],
+        "source": source,
+        "query": q.strip()
+    }
+
+
+def _save_artist_to_supabase(artist_data: dict):
+    """아티스트를 Supabase에 저장 + 가상회원 자동 생성"""
+    if not supabase_client or not artist_data.get("browseId"):
+        return
+    
+    browse_id = artist_data["browseId"]
+    artist_name = artist_data.get("artist", "")
+    thumbnails = artist_data.get("thumbnails", [])
+    thumbnail_url = thumbnails[0].get("url", "") if thumbnails else ""
+    
+    try:
+        # 1. music_artists 테이블에 저장
+        supabase_client.table("music_artists").upsert({
+            "browse_id": browse_id,
+            "name": artist_name,
+            "name_normalized": artist_name.lower(),
+            "thumbnail_url": thumbnail_url,
+            "thumbnails": thumbnails,
+            "subscribers": artist_data.get("subscribers"),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }, on_conflict="browse_id").execute()
+        
+        # 2. 가상회원 자동 생성 (없으면)
+        existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
+        if not existing.data or len(existing.data) == 0:
+            create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
+            logger.info(f"Virtual member auto-created via smart search: {artist_name}")
+            
+    except Exception as e:
+        logger.warning(f"Save artist error: {e}")
+
+
+
+def _save_track_to_supabase(track_data: dict):
+    """트랙을 Supabase에 저장 (비동기 안전)"""
+    if not supabase_client or not track_data.get("videoId"):
+        return
+    try:
+        artist_name = ""
+        if track_data.get("artists") and len(track_data["artists"]) > 0:
+            artist_name = track_data["artists"][0].get("name", "")
+        
+        thumbnail_url = ""
+        if track_data.get("thumbnails") and len(track_data["thumbnails"]) > 0:
+            thumbnail_url = track_data["thumbnails"][0].get("url", "")
+            
+        supabase_client.table("music_tracks").upsert({
+            "video_id": track_data["videoId"],
+            "title": track_data.get("title", ""),
+            "title_normalized": (track_data.get("title") or "").lower(),
+            "artist_name": artist_name,
+            "thumbnail_url": thumbnail_url,
+            "duration": track_data.get("duration")
+        }, on_conflict="video_id").execute()
+    except Exception as e:
+        logger.warning(f"Save track error: {e}")
+
+
+def _save_album_to_supabase(album_data: dict):
+    """앨범을 Supabase에 저장 (비동기 안전)"""
+    if not supabase_client or not album_data.get("browseId"):
+        return
+    try:
+        thumbnail_url = ""
+        if album_data.get("thumbnails") and len(album_data["thumbnails"]) > 0:
+            thumbnail_url = album_data["thumbnails"][0].get("url", "")
+            
+        supabase_client.table("music_albums").upsert({
+            "browse_id": album_data["browseId"],
+            "title": album_data.get("title", ""),
+            "title_normalized": (album_data.get("title") or "").lower(),
+            "thumbnail_url": thumbnail_url,
+            "year": album_data.get("year"),
+            "type": album_data.get("type")
+        }, on_conflict="browse_id").execute()
+    except Exception as e:
+        logger.warning(f"Save album error: {e}")
+
+
 # =============================================================================
 # 차트 API
 # =============================================================================

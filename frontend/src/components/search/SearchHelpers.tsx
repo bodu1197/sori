@@ -3,11 +3,11 @@
  * Extracted from SearchPage.tsx to reduce cognitive complexity
  */
 /* eslint-disable react-refresh/only-export-components */
-import { useState, useCallback, useEffect } from 'react';
+import { ChevronDown, ChevronUp, Heart, Play, Shuffle } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Heart, ChevronDown, ChevronUp, Shuffle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { secureShuffle } from '../../lib/shuffle';
+import { supabase } from '../../lib/supabase';
 import useAuthStore from '../../stores/useAuthStore';
 
 const API_BASE_URL =
@@ -108,6 +108,103 @@ export function albumTracksToPlaylist(tracks: AlbumTrack[], album: SearchAlbum) 
 }
 
 // Custom Hooks
+
+// Debounce utility
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// Suggestion type for auto-complete
+export interface Suggestion {
+  type: 'artist' | 'song' | 'query';
+  text: string;
+  browseId?: string;
+  videoId?: string;
+  thumbnail?: string;
+}
+
+/**
+ * Hook for search auto-suggestions with debounce
+ */
+export function useSearchSuggestions(debounceMs: number = 300) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const debouncedQuery = useDebounce(query, debounceMs);
+
+  useEffect(() => {
+    if (!debouncedQuery || debouncedQuery.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const fetchSuggestions = async () => {
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/search/suggestions?q=${encodeURIComponent(debouncedQuery)}&limit=8`,
+          { signal: abortControllerRef.current.signal }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setSuggestions(data.suggestions || []);
+          setShowSuggestions(true);
+        }
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Suggestions fetch error:', err);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSuggestions();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [debouncedQuery]);
+
+  const clearSuggestions = useCallback(() => {
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }, []);
+
+  const hideSuggestions = useCallback(() => {
+    setShowSuggestions(false);
+  }, []);
+
+  return {
+    query,
+    setQuery,
+    suggestions,
+    loading,
+    showSuggestions,
+    clearSuggestions,
+    hideSuggestions,
+  };
+}
 
 /**
  * Hook for managing artist follow state
