@@ -34,9 +34,9 @@ interface ChartArtist {
 }
 
 interface ChartsData {
-  videos?: { items: ChartItem[] };
-  artists?: { items: ChartArtist[] };
-  trending?: { items: ChartItem[] };
+  videos?: ChartItem[];
+  artists?: ChartArtist[];
+  trending?: ChartItem[];
 }
 
 export default function ExplorePage() {
@@ -70,8 +70,8 @@ export default function ExplorePage() {
     fetchCharts();
   }, [country]);
 
-  const songs = charts?.videos?.items || charts?.trending?.items || [];
-  const artists = charts?.artists?.items || [];
+  const songs = charts?.videos || charts?.trending || [];
+  const artists = charts?.artists || [];
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-4">
