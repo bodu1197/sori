@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Loader2, Globe, TrendingUp, User, MapPin, Play, Music } from 'lucide-react';
+import { Loader2, Globe, TrendingUp, User, MapPin, Play } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const countries = [
@@ -85,20 +85,10 @@ interface ChartArtist {
   rank?: string | null;
 }
 
-interface TrendingTrack {
-  videoId?: string;
-  title: string;
-  artists?: Array<{ name: string; id?: string }>;
-  thumbnails?: Array<{ url: string }>;
-  album?: { name: string };
-}
-
 export default function ChartsPage() {
   const [country, setCountry] = useState('');
   const [playlists, setPlaylists] = useState<ChartPlaylist[]>([]);
   const [artists, setArtists] = useState<ChartArtist[]>([]);
-  const [trendingSongs, setTrendingSongs] = useState<TrendingTrack[]>([]);
-  const [trendingTitle, setTrendingTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
 
@@ -131,31 +121,10 @@ export default function ChartsPage() {
     if (!country) return;
 
     setLoading(true);
-    setTrendingSongs([]);
-    setTrendingTitle('');
-
-    api.getCharts(country).then(async (data) => {
+    api.getCharts(country).then((data) => {
       if (data.success && data.data) {
-        const videos = data.data.videos || [];
-        setPlaylists(videos);
+        setPlaylists(data.data.videos || []);
         setArtists(data.data.artists || []);
-
-        // Find first valid playlist (starts with PL) to get trending songs
-        const validPlaylist = videos.find((v: ChartPlaylist) =>
-          v.playlistId?.startsWith('PL')
-        );
-
-        if (validPlaylist?.playlistId) {
-          try {
-            const playlistData = await api.getPlaylist(validPlaylist.playlistId);
-            if (playlistData.success && playlistData.data?.tracks) {
-              setTrendingSongs(playlistData.data.tracks.slice(0, 20));
-              setTrendingTitle(playlistData.data.title || 'Trending');
-            }
-          } catch {
-            // Silently fail if playlist fetch fails
-          }
-        }
       }
       setLoading(false);
     });
@@ -197,61 +166,38 @@ export default function ChartsPage() {
         </div>
       ) : (
         <>
-          {/* Trending Songs */}
-          {trendingSongs.length > 0 && (
-            <section className="bg-zinc-900 rounded-xl p-6">
-              <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
-                <Music className="h-5 w-5 text-purple-400" />
-                {trendingTitle || 'Trending'}
-              </h2>
-              <div className="space-y-2">
-                {trendingSongs.map((track, i) => (
-                  <Link
-                    key={i}
-                    href={track.videoId ? `/watch/${track.videoId}` : '#'}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors group"
-                  >
-                    <span className="w-6 text-center text-zinc-500 font-medium">{i + 1}</span>
-                    <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0 relative">
-                      {track.thumbnails?.[0]?.url && (
-                        <img src={track.thumbnails[0].url} alt={track.title} className="w-full h-full object-cover" />
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-5 w-5 text-white" fill="white" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{track.title}</p>
-                      <p className="text-sm text-zinc-400 truncate">
-                        {track.artists?.map(a => a.name).join(', ')}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Top Playlists */}
+          {/* Top Charts Banners */}
           {playlists.length > 0 && (
             <section className="bg-zinc-900 rounded-xl p-6">
               <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
                 <TrendingUp className="h-5 w-5 text-purple-400" />
                 Top Charts
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {playlists.map((playlist, i) => (
                   <Link
                     key={i}
                     href={playlist.playlistId ? `/playlist/${playlist.playlistId}` : '#'}
-                    className="group"
+                    className="group relative overflow-hidden rounded-xl"
                   >
-                    <div className="aspect-square rounded-lg overflow-hidden bg-zinc-800 mb-2">
+                    <div className="aspect-[2/1] bg-zinc-800 relative">
                       {playlist.thumbnails?.[0]?.url && (
-                        <img src={playlist.thumbnails[0].url} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <img
+                          src={playlist.thumbnails[0].url}
+                          alt={playlist.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-full bg-purple-500 flex items-center justify-center">
+                          <Play className="h-7 w-7 text-white ml-1" fill="white" />
+                        </div>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <p className="font-bold text-lg text-white drop-shadow-lg">{playlist.title}</p>
+                      </div>
                     </div>
-                    <p className="font-medium text-sm truncate">{playlist.title}</p>
                   </Link>
                 ))}
               </div>
