@@ -1,8 +1,16 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://backend-psi-sable-33.vercel.app';
 
 export async function fetchAPI(endpoint: string) {
-  const res = await fetch(`${API_BASE}${endpoint}`);
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`);
+    if (!res.ok) {
+      return { success: false, data: [] };
+    }
+    return res.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, data: [] };
+  }
 }
 
 export const api = {
