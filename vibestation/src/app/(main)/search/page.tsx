@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { Search, Play, Music, User, Disc } from 'lucide-react';
-import { usePlayer } from '@/context/PlayerContext';
+import { Search, Music, User, Disc } from 'lucide-react';
 
 interface SearchResult {
   videoId?: string;
@@ -19,7 +17,6 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const player = usePlayer();
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +62,7 @@ export default function SearchPage() {
             { icon: Music, label: 'Songs', color: 'from-purple-500 to-pink-500' },
             { icon: User, label: 'Artists', color: 'from-blue-500 to-cyan-500' },
             { icon: Disc, label: 'Albums', color: 'from-orange-500 to-red-500' },
-            { icon: Play, label: 'Playlists', color: 'from-green-500 to-teal-500' },
+            { icon: Search, label: 'Playlists', color: 'from-green-500 to-teal-500' },
           ].map((cat) => (
             <button
               key={cat.label}
@@ -94,35 +91,21 @@ export default function SearchPage() {
             {results.map((item, index) => {
               const artistNames = item.artists?.map(a => a.name).join(', ') || '';
               const thumbnail = item.thumbnails?.[0]?.url || '';
-              const isSong = item.resultType === 'song' || item.videoId;
               const isArtist = item.resultType === 'artist' && item.browseId;
-
-              const handlePlay = () => {
-                if (item.videoId) {
-                  player.play({
-                    videoId: item.videoId,
-                    title: item.title || 'Unknown',
-                    artist: artistNames,
-                    thumbnail,
-                  });
-                }
-              };
 
               if (isArtist) {
                 return (
                   <Link
                     key={item.browseId || index}
                     href={`/artist/${item.browseId}`}
-                    className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer group"
+                    className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
                   >
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-zinc-800">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800">
                       {thumbnail && (
-                        <Image
+                        <img
                           src={thumbnail}
                           alt={item.title || 'Artist'}
-                          fill
-                          className="object-cover"
-                          unoptimized
+                          className="w-full h-full object-cover"
                         />
                       )}
                     </div>
@@ -138,17 +121,14 @@ export default function SearchPage() {
               return (
                 <div
                   key={item.videoId || index}
-                  className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer group"
-                  onClick={isSong ? handlePlay : undefined}
+                  className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-800">
+                  <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800">
                     {thumbnail && (
-                      <Image
+                      <img
                         src={thumbnail}
                         alt={item.title || 'Result'}
-                        fill
-                        className="object-cover"
-                        unoptimized
+                        className="w-full h-full object-cover"
                       />
                     )}
                   </div>
@@ -158,14 +138,6 @@ export default function SearchPage() {
                       {artistNames || item.resultType}
                     </p>
                   </div>
-                  {isSong && (
-                    <button
-                      className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); handlePlay(); }}
-                    >
-                      <Play className="h-4 w-4" fill="white" />
-                    </button>
-                  )}
                 </div>
               );
             })}

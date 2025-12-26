@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Play, TrendingUp, User, Globe, Loader2 } from 'lucide-react';
-import { usePlayer } from '@/context/PlayerContext';
+import { TrendingUp, User, Globe, Loader2 } from 'lucide-react';
 
 const COUNTRY_OPTIONS = [
   { code: 'ZZ', name: 'Global' },
@@ -15,8 +13,6 @@ const COUNTRY_OPTIONS = [
   { code: 'DE', name: 'Germany' },
   { code: 'FR', name: 'France' },
   { code: 'BR', name: 'Brazil' },
-  { code: 'MX', name: 'Mexico' },
-  { code: 'IN', name: 'India' },
   { code: 'NG', name: 'Nigeria' },
   { code: 'ZA', name: 'South Africa' },
 ];
@@ -27,7 +23,6 @@ interface ChartItem {
   artists?: Array<{ name: string; id?: string }>;
   thumbnails?: Array<{ url: string; width: number; height: number }>;
   views?: string;
-  playlistId?: string;
 }
 
 interface ChartArtist {
@@ -49,7 +44,6 @@ export default function ExplorePage() {
   const [charts, setCharts] = useState<ChartsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const player = usePlayer();
 
   useEffect(() => {
     async function fetchCharts() {
@@ -80,7 +74,7 @@ export default function ExplorePage() {
   const artists = charts?.artists?.items || [];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-4 px-4">
+    <div className="max-w-6xl mx-auto space-y-8 py-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -140,34 +134,20 @@ export default function ExplorePage() {
                   const thumbnail = song.thumbnails?.[0]?.url || '';
                   const artistNames = song.artists?.map(a => a.name).join(', ') || 'Unknown Artist';
 
-                  const handlePlay = () => {
-                    if (song.videoId) {
-                      player.play({
-                        videoId: song.videoId,
-                        title: song.title,
-                        artist: artistNames,
-                        thumbnail,
-                      });
-                    }
-                  };
-
                   return (
                     <div
                       key={song.videoId || index}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors group cursor-pointer"
-                      onClick={handlePlay}
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
                     >
                       <span className="w-6 text-center text-zinc-500 font-medium">
                         {index + 1}
                       </span>
-                      <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0">
+                      <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0">
                         {thumbnail && (
-                          <Image
+                          <img
                             src={thumbnail}
                             alt={song.title}
-                            fill
-                            className="object-cover"
-                            unoptimized
+                            className="w-full h-full object-cover"
                           />
                         )}
                       </div>
@@ -178,12 +158,6 @@ export default function ExplorePage() {
                       {song.views && (
                         <span className="text-sm text-zinc-500 hidden md:block">{song.views}</span>
                       )}
-                      <button
-                        className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => { e.stopPropagation(); handlePlay(); }}
-                      >
-                        <Play className="h-4 w-4" fill="white" />
-                      </button>
                     </div>
                   );
                 })}
@@ -210,14 +184,12 @@ export default function ExplorePage() {
                       href={browseId ? `/artist/${browseId}` : '#'}
                       className="flex flex-col items-center gap-2 group"
                     >
-                      <div className="relative h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden bg-zinc-800 ring-2 ring-transparent group-hover:ring-purple-500 transition-all flex-shrink-0">
+                      <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden bg-zinc-800 ring-2 ring-transparent group-hover:ring-purple-500 transition-all flex-shrink-0">
                         {thumbnail && (
-                          <Image
+                          <img
                             src={thumbnail}
                             alt={name}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform"
-                            unoptimized
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
                         )}
                       </div>

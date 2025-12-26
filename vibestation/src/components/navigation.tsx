@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import { Home, Search, Compass, User } from 'lucide-react';
 
 const navItems = [
@@ -15,7 +13,6 @@ const navItems = [
 
 export function Navigation() {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-50 md:top-0 md:bottom-auto md:border-t-0 md:border-b">
@@ -52,33 +49,12 @@ export function Navigation() {
 
           {/* Auth Section - desktop only */}
           <div className="hidden md:flex items-center gap-3">
-            {loading ? (
-              <div className="w-8 h-8 rounded-full bg-zinc-700 animate-pulse" />
-            ) : user ? (
-              <Link href="/profile" className="flex items-center gap-2">
-                {user.user_metadata?.avatar_url ? (
-                  <Image
-                    src={user.user_metadata.avatar_url}
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-sm font-medium">
-                    {(user.email || 'U')[0].toUpperCase()}
-                  </div>
-                )}
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-sm font-medium transition-colors"
-              >
-                Sign In
-              </Link>
-            )}
+            <Link
+              href="/login"
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-sm font-medium transition-colors"
+            >
+              Sign In
+            </Link>
           </div>
         </div>
       </div>

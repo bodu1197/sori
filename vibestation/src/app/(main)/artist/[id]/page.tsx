@@ -1,10 +1,8 @@
 'use client';
 
 import { use, useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Pause, Shuffle, UserPlus, Music2, ArrowLeft, Loader2 } from 'lucide-react';
-import { usePlayer } from '@/context/PlayerContext';
+import { Play, Shuffle, UserPlus, Music2, ArrowLeft, Loader2 } from 'lucide-react';
 
 interface ArtistPageProps {
   params: Promise<{ id: string }>;
@@ -41,7 +39,6 @@ export default function ArtistPage({ params }: ArtistPageProps) {
   const [artist, setArtist] = useState<ArtistData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const player = usePlayer();
 
   useEffect(() => {
     async function fetchArtist() {
@@ -78,7 +75,7 @@ export default function ArtistPage({ params }: ArtistPageProps) {
 
   if (error || !artist) {
     return (
-      <div className="max-w-6xl mx-auto py-4 px-4">
+      <div className="max-w-6xl mx-auto py-4">
         <Link
           href="/explore"
           className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-8"
@@ -103,46 +100,8 @@ export default function ArtistPage({ params }: ArtistPageProps) {
   const songs = artist.songs?.results || [];
   const albums = artist.albums?.results || [];
 
-  const playAll = () => {
-    if (songs.length > 0) {
-      const tracks = songs.map(song => ({
-        videoId: song.videoId,
-        title: song.title,
-        artist: artist.name,
-        thumbnail: song.thumbnails?.[0]?.url,
-      }));
-      player.setQueue(tracks);
-    }
-  };
-
-  const shufflePlay = () => {
-    if (songs.length > 0) {
-      const tracks = songs.map(song => ({
-        videoId: song.videoId,
-        title: song.title,
-        artist: artist.name,
-        thumbnail: song.thumbnails?.[0]?.url,
-      }));
-      // Shuffle array
-      for (let i = tracks.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
-      }
-      player.setQueue(tracks);
-    }
-  };
-
-  const playSong = (song: Song) => {
-    player.play({
-      videoId: song.videoId,
-      title: song.title,
-      artist: artist.name,
-      thumbnail: song.thumbnails?.[0]?.url,
-    });
-  };
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-4 px-4">
+    <div className="max-w-6xl mx-auto space-y-8 py-4">
       {/* Back Button */}
       <Link
         href="/explore"
@@ -154,14 +113,12 @@ export default function ArtistPage({ params }: ArtistPageProps) {
 
       {/* Artist Header */}
       <div className="flex flex-col md:flex-row gap-6 items-center md:items-end">
-        <div className="relative h-48 w-48 rounded-full overflow-hidden bg-zinc-800 shrink-0 ring-4 ring-purple-500/20">
+        <div className="h-48 w-48 rounded-full overflow-hidden bg-zinc-800 shrink-0 ring-4 ring-purple-500/20">
           {thumbnail && (
-            <Image
+            <img
               src={thumbnail}
               alt={artist.name}
-              fill
-              className="object-cover"
-              unoptimized
+              className="w-full h-full object-cover"
             />
           )}
         </div>
@@ -179,17 +136,11 @@ export default function ArtistPage({ params }: ArtistPageProps) {
             </p>
           )}
           <div className="flex gap-3 mt-4 justify-center md:justify-start">
-            <button
-              onClick={playAll}
-              className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors"
-            >
+            <button className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors">
               <Play className="h-4 w-4" fill="white" />
               Play All
             </button>
-            <button
-              onClick={shufflePlay}
-              className="flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition-colors"
-            >
+            <button className="flex items-center gap-2 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full font-medium transition-colors">
               <Shuffle className="h-4 w-4" />
               Shuffle
             </button>
@@ -211,33 +162,21 @@ export default function ArtistPage({ params }: ArtistPageProps) {
           <div className="space-y-2">
             {songs.slice(0, 10).map((song, index) => {
               const songThumb = song.thumbnails?.[0]?.url || '';
-              const isCurrentlyPlaying = player.currentTrack?.videoId === song.videoId && player.isPlaying;
 
               return (
                 <div
                   key={song.videoId || index}
-                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors group cursor-pointer"
-                  onClick={() => playSong(song)}
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   <span className="w-6 text-center text-zinc-500 font-medium">
-                    {isCurrentlyPlaying ? (
-                      <div className="flex gap-0.5 justify-center">
-                        <span className="w-1 h-3 bg-purple-500 rounded-full animate-pulse" />
-                        <span className="w-1 h-4 bg-purple-500 rounded-full animate-pulse delay-75" />
-                        <span className="w-1 h-2 bg-purple-500 rounded-full animate-pulse delay-150" />
-                      </div>
-                    ) : (
-                      index + 1
-                    )}
+                    {index + 1}
                   </span>
-                  <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0">
+                  <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0">
                     {songThumb ? (
-                      <Image
+                      <img
                         src={songThumb}
                         alt={song.title}
-                        fill
-                        className="object-cover"
-                        unoptimized
+                        className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
@@ -246,9 +185,7 @@ export default function ArtistPage({ params }: ArtistPageProps) {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium truncate ${isCurrentlyPlaying ? 'text-purple-400' : ''}`}>
-                      {song.title}
-                    </p>
+                    <p className="font-medium truncate">{song.title}</p>
                     {song.album?.name && (
                       <p className="text-sm text-zinc-400 truncate">{song.album.name}</p>
                     )}
@@ -259,16 +196,6 @@ export default function ArtistPage({ params }: ArtistPageProps) {
                   {song.duration && (
                     <span className="text-sm text-zinc-500">{song.duration}</span>
                   )}
-                  <button
-                    className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); playSong(song); }}
-                  >
-                    {isCurrentlyPlaying ? (
-                      <Pause className="h-4 w-4" fill="white" />
-                    ) : (
-                      <Play className="h-4 w-4" fill="white" />
-                    )}
-                  </button>
                 </div>
               );
             })}
@@ -289,14 +216,12 @@ export default function ArtistPage({ params }: ArtistPageProps) {
                   key={album.browseId || index}
                   className="group cursor-pointer"
                 >
-                  <div className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 mb-2">
+                  <div className="aspect-square rounded-lg overflow-hidden bg-zinc-800 mb-2">
                     {albumThumb ? (
-                      <Image
+                      <img
                         src={albumThumb}
                         alt={album.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform"
-                        unoptimized
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
