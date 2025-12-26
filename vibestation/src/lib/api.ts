@@ -4,12 +4,12 @@ export async function fetchAPI(endpoint: string) {
   try {
     const res = await fetch(`${API_BASE}${endpoint}`);
     if (!res.ok) {
-      return { success: false, data: [] };
+      return { success: false, data: null, error: `HTTP ${res.status}` };
     }
     return res.json();
   } catch (error) {
     console.error('API Error:', error);
-    return { success: false, data: [] };
+    return { success: false, data: null, error: String(error) };
   }
 }
 
