@@ -257,13 +257,26 @@ async def get_album(album_id: str):
 async def get_playlist(playlist_id: str):
     ytmusic = get_ytmusic()
     try:
-        # OLAK IDs are album IDs, use get_album instead
-        if playlist_id.startswith("OLAK") or playlist_id.startswith("MPRE"):
+        # MPRE IDs are album browseIds
+        if playlist_id.startswith("MPRE"):
             data = await run_in_thread(ytmusic.get_album, playlist_id)
-            # Convert album format to playlist-like format
             if data:
-                data["tracks"] = data.get("tracks", [])
                 data["trackCount"] = len(data.get("tracks", []))
+        # OLAK IDs need special handling - try get_watch_playlist
+        elif playlist_id.startswith("OLAK"):
+            # Use get_watch_playlist to get tracks from album playlist
+            watch_data = await run_in_thread(ytmusic.get_watch_playlist, playlistId=playlist_id)
+            if watch_data:
+                data = {
+                    "title": watch_data.get("playlistId", playlist_id),
+                    "tracks": watch_data.get("tracks", []),
+                    "trackCount": len(watch_data.get("tracks", []))
+                }
+                # Try to get title from first track's album
+                if data["tracks"] and data["tracks"][0].get("album"):
+                    data["title"] = data["tracks"][0]["album"].get("name", "Album")
+            else:
+                data = None
         else:
             data = await run_in_thread(ytmusic.get_playlist, playlist_id)
         return {"success": True, "data": data}
