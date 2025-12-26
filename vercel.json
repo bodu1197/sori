@@ -1,6 +1,15 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "cd vibestation && npm run build",
-  "outputDirectory": "vibestation/.next",
-  "installCommand": "cd vibestation && npm install"
+  "version": 2,
+  "builds": [
+    {
+      "src": "vibestation/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/vibestation/$1"
+    }
+  ]
 }
