@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { User, LogIn, Loader2 } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -18,28 +19,36 @@ interface Profile {
   posts_count: number;
 }
 
+interface AuthUser {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    avatar_url?: string;
+    full_name?: string;
+  };
+}
+
 export default function ProfilePage() {
-  const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
       const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
 
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push('/login');
+      if (!authUser) {
+        setLoading(false);
         return;
       }
+
+      setUser(authUser);
 
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single();
 
       setProfile(profileData);
@@ -47,51 +56,36 @@ export default function ProfilePage() {
     }
 
     loadProfile();
-  }, [router]);
-
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
-  }
-
-  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!profile) return;
-
-    setSaving(true);
-
-    const formData = new FormData(e.currentTarget);
-    const updates = {
-      display_name: formData.get('display_name') as string,
-      bio: formData.get('bio') as string,
-    };
-
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', profile.id);
-
-    if (!error) {
-      setProfile({ ...profile, ...updates });
-      setEditing(false);
-    }
-
-    setSaving(false);
-  }
+  }, []);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
       </div>
     );
   }
 
-  if (!profile) {
-    return null;
+  // Not logged in state
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <div className="bg-zinc-900 rounded-xl p-8">
+          <User className="h-16 w-16 mx-auto mb-4 text-zinc-600" />
+          <h1 className="text-2xl font-bold mb-2">Sign in to see your profile</h1>
+          <p className="text-zinc-400 mb-6">
+            Create an account or sign in to access your profile, playlists, and more.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-colors"
+          >
+            <LogIn className="h-5 w-5" />
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const levelColors: Record<string, string> = {
@@ -103,17 +97,13 @@ export default function ProfilePage() {
     vip: 'text-purple-400',
   };
 
+  const displayName = profile?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+  const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url || '';
+  const username = profile?.username || user.email?.split('@')[0] || 'user';
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-white">Profile</h1>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors"
-        >
-          Sign Out
-        </button>
-      </div>
+      <h1 className="text-3xl font-bold text-white mb-8">Profile</h1>
 
       {/* Profile Card */}
       <div className="bg-zinc-900 rounded-xl overflow-hidden">
@@ -123,104 +113,59 @@ export default function ProfilePage() {
         <div className="px-6 pb-6">
           {/* Avatar */}
           <div className="relative -mt-16 mb-4">
-            {profile.avatar_url ? (
+            {avatarUrl ? (
               <Image
-                src={profile.avatar_url}
-                alt={profile.display_name || profile.username}
+                src={avatarUrl}
+                alt={displayName}
                 width={128}
                 height={128}
                 className="rounded-full border-4 border-zinc-900"
+                unoptimized
               />
             ) : (
               <div className="w-32 h-32 bg-zinc-700 rounded-full border-4 border-zinc-900 flex items-center justify-center text-4xl text-zinc-400">
-                {(profile.display_name || profile.username)[0].toUpperCase()}
+                {displayName[0].toUpperCase()}
               </div>
             )}
           </div>
 
-          {editing ? (
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1">Display Name</label>
-                <input
-                  type="text"
-                  name="display_name"
-                  defaultValue={profile.display_name || ''}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1">Bio</label>
-                <textarea
-                  name="bio"
-                  rows={3}
-                  defaultValue={profile.bio || ''}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white resize-none focus:outline-none focus:border-purple-500"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-white">
-                  {profile.display_name || profile.username}
-                </h2>
-                <span className={`text-sm font-medium ${levelColors[profile.level] || 'text-zinc-400'}`}>
-                  {profile.level.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-zinc-500 mb-4">@{profile.username}</p>
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-2xl font-bold text-white">{displayName}</h2>
+            {profile?.level && (
+              <span className={`text-sm font-medium ${levelColors[profile.level] || 'text-zinc-400'}`}>
+                {profile.level.toUpperCase()}
+              </span>
+            )}
+          </div>
+          <p className="text-zinc-500 mb-4">@{username}</p>
 
-              {profile.bio && (
-                <p className="text-zinc-300 mb-4">{profile.bio}</p>
-              )}
-
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
-              >
-                Edit Profile
-              </button>
-            </>
+          {profile?.bio && (
+            <p className="text-zinc-300 mb-4">{profile.bio}</p>
           )}
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mt-6">
-        <div className="bg-zinc-900 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-white">{profile.posts_count}</p>
-          <p className="text-zinc-500 text-sm">Posts</p>
+      {profile && (
+        <div className="grid grid-cols-4 gap-4 mt-6">
+          <div className="bg-zinc-900 rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-white">{profile.posts_count || 0}</p>
+            <p className="text-zinc-500 text-sm">Posts</p>
+          </div>
+          <div className="bg-zinc-900 rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-white">{profile.followers_count || 0}</p>
+            <p className="text-zinc-500 text-sm">Followers</p>
+          </div>
+          <div className="bg-zinc-900 rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-white">{profile.following_count || 0}</p>
+            <p className="text-zinc-500 text-sm">Following</p>
+          </div>
+          <div className="bg-zinc-900 rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-purple-400">{profile.points || 0}</p>
+            <p className="text-zinc-500 text-sm">VP</p>
+          </div>
         </div>
-        <div className="bg-zinc-900 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-white">{profile.followers_count}</p>
-          <p className="text-zinc-500 text-sm">Followers</p>
-        </div>
-        <div className="bg-zinc-900 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-white">{profile.following_count}</p>
-          <p className="text-zinc-500 text-sm">Following</p>
-        </div>
-        <div className="bg-zinc-900 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-purple-400">{profile.points}</p>
-          <p className="text-zinc-500 text-sm">VP</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

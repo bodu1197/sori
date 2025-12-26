@@ -1,124 +1,141 @@
 'use client';
 
-import { useState } from 'react';
-import { TrendingUp, Users, Globe, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { TrendingUp, Music2, Play, Loader2 } from 'lucide-react';
 
-type FeedType = 'all' | 'following' | 'trending';
+interface ContentItem {
+  videoId?: string;
+  playlistId?: string;
+  title: string;
+  thumbnails?: Array<{ url: string }>;
+  artists?: Array<{ name: string }>;
+  subtitle?: string;
+}
 
-// Placeholder posts
-const mockPosts = [
-  {
-    id: '1',
-    user: { name: 'Music Fan', avatar: null },
-    content: 'Just discovered this amazing track! The vibe is unreal.',
-    likes: 42,
-    comments: 5,
-    timestamp: '2h ago',
-  },
-  {
-    id: '2',
-    user: { name: 'K-Pop Lover', avatar: null },
-    content: 'New album drop! Who else is hyped?',
-    likes: 128,
-    comments: 23,
-    timestamp: '4h ago',
-  },
-  {
-    id: '3',
-    user: { name: 'Indie Vibes', avatar: null },
-    content: 'Found this hidden gem on VibeStation. You need to check it out!',
-    likes: 67,
-    comments: 12,
-    timestamp: '6h ago',
-  },
-];
+interface HomeSection {
+  title: string;
+  contents?: ContentItem[];
+}
 
 export default function FeedPage() {
-  const [feedType, setFeedType] = useState<FeedType>('all');
+  const [sections, setSections] = useState<HomeSection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchHome() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch('/api/music/home');
+        const data = await res.json();
+
+        if (data.success && data.data) {
+          setSections(data.data);
+        } else {
+          setError(data.error || 'Failed to load content');
+        }
+      } catch (err) {
+        setError('Failed to connect to server');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchHome();
+  }, []);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8 py-4 px-4">
       <div>
         <h1 className="text-3xl font-bold">Feed</h1>
-        <p className="text-zinc-400">See what the community is sharing</p>
+        <p className="text-zinc-400">Discover music curated for you</p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 p-1 bg-zinc-900 rounded-lg">
-        <button
-          onClick={() => setFeedType('all')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-            feedType === 'all'
-              ? 'bg-purple-600 text-white'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-          }`}
-        >
-          <Globe className="h-4 w-4" />
-          For You
-        </button>
-        <button
-          onClick={() => setFeedType('following')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-            feedType === 'following'
-              ? 'bg-purple-600 text-white'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          Following
-        </button>
-        <button
-          onClick={() => setFeedType('trending')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-            feedType === 'trending'
-              ? 'bg-purple-600 text-white'
-              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-          }`}
-        >
-          <TrendingUp className="h-4 w-4" />
-          Trending
-        </button>
-      </div>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+        </div>
+      )}
 
-      {/* Posts */}
-      <div className="space-y-4">
-        {mockPosts.map((post) => (
-          <div
-            key={post.id}
-            className="bg-zinc-900 rounded-xl p-4 space-y-3"
+      {/* Error State */}
+      {error && !loading && (
+        <div className="text-center py-20">
+          <p className="text-red-400">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-medium">
-                {post.user.name[0]}
-              </div>
-              <div>
-                <p className="font-medium">{post.user.name}</p>
-                <p className="text-sm text-zinc-500">{post.timestamp}</p>
-              </div>
-            </div>
-            <p className="text-zinc-200">{post.content}</p>
-            <div className="flex items-center gap-6 pt-2">
-              <button className="flex items-center gap-2 text-zinc-400 hover:text-pink-500 transition-colors">
-                <Heart className="h-5 w-5" />
-                <span className="text-sm">{post.likes}</span>
-              </button>
-              <button className="flex items-center gap-2 text-zinc-400 hover:text-purple-400 transition-colors">
-                <MessageCircle className="h-5 w-5" />
-                <span className="text-sm">{post.comments}</span>
-              </button>
-              <button className="flex items-center gap-2 text-zinc-400 hover:text-blue-400 transition-colors">
-                <Share2 className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+            Retry
+          </button>
+        </div>
+      )}
 
-      {/* Coming Soon Notice */}
-      <div className="text-center py-8 text-zinc-500">
-        <p>More feed features coming soon!</p>
-        <p className="text-sm">Connect with your Supabase account to post and interact.</p>
-      </div>
+      {/* Content Sections */}
+      {!loading && !error && sections.length > 0 && (
+        <div className="space-y-8">
+          {sections.map((section, sectionIndex) => (
+            <section key={sectionIndex} className="bg-zinc-900 rounded-xl p-6">
+              <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
+                {sectionIndex === 0 ? (
+                  <TrendingUp className="h-5 w-5 text-purple-400" />
+                ) : (
+                  <Music2 className="h-5 w-5 text-purple-400" />
+                )}
+                {section.title}
+              </h2>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {section.contents?.slice(0, 8).map((item, itemIndex) => {
+                  const thumbnail = item.thumbnails?.[0]?.url || '';
+                  const artistNames = item.artists?.map(a => a.name).join(', ') || item.subtitle || '';
+
+                  return (
+                    <div
+                      key={item.videoId || item.playlistId || itemIndex}
+                      className="group cursor-pointer"
+                    >
+                      <div className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 mb-2">
+                        {thumbnail && (
+                          <Image
+                            src={thumbnail}
+                            alt={item.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                            unoptimized
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                          <button className="p-3 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity transform scale-90 group-hover:scale-100">
+                            <Play className="h-5 w-5" fill="white" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="font-medium text-sm truncate">{item.title}</p>
+                      {artistNames && (
+                        <p className="text-xs text-zinc-500 truncate">{artistNames}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* No Content */}
+      {!loading && !error && sections.length === 0 && (
+        <div className="text-center py-20 text-zinc-500">
+          <Music2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>No content available.</p>
+          <p className="text-sm mt-2">Check back later for new music.</p>
+        </div>
+      )}
     </div>
   );
 }
