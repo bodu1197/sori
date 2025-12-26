@@ -31,6 +31,7 @@ export default function PlaylistPage() {
   const searchParams = useSearchParams();
   const playlistId = params.id as string;
   const queryTitle = searchParams.get('title');
+  const queryThumbnail = searchParams.get('thumbnail');
   const [playlist, setPlaylist] = useState<PlaylistData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export default function PlaylistPage() {
     );
   }
 
-  const thumbnail = playlist.thumbnails?.[playlist.thumbnails.length - 1]?.url || '';
+  const thumbnail = queryThumbnail || playlist.thumbnails?.[playlist.thumbnails.length - 1]?.url || '';
 
   return (
     <div className="space-y-8">
