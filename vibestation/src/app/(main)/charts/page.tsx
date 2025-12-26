@@ -2,18 +2,72 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Loader2, Globe, TrendingUp, User } from 'lucide-react';
+import { Loader2, Globe, TrendingUp, User, MapPin } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const countries = [
   { code: 'ZZ', name: 'Global' },
-  { code: 'US', name: 'USA' },
-  { code: 'KR', name: 'Korea' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'GB', name: 'UK' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
+  { code: 'AR', name: 'Argentina' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'AT', name: 'Austria' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'BO', name: 'Bolivia' },
   { code: 'BR', name: 'Brazil' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'CL', name: 'Chile' },
+  { code: 'CO', name: 'Colombia' },
+  { code: 'CR', name: 'Costa Rica' },
+  { code: 'CZ', name: 'Czech Republic' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'DO', name: 'Dominican Republic' },
+  { code: 'EC', name: 'Ecuador' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'SV', name: 'El Salvador' },
+  { code: 'EE', name: 'Estonia' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'GT', name: 'Guatemala' },
+  { code: 'HN', name: 'Honduras' },
+  { code: 'HU', name: 'Hungary' },
+  { code: 'IS', name: 'Iceland' },
+  { code: 'IN', name: 'India' },
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'IE', name: 'Ireland' },
+  { code: 'IL', name: 'Israel' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KE', name: 'Kenya' },
+  { code: 'KR', name: 'Korea' },
+  { code: 'LU', name: 'Luxembourg' },
+  { code: 'MX', name: 'Mexico' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'NZ', name: 'New Zealand' },
+  { code: 'NI', name: 'Nicaragua' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'PA', name: 'Panama' },
+  { code: 'PY', name: 'Paraguay' },
+  { code: 'PE', name: 'Peru' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'RO', name: 'Romania' },
+  { code: 'RU', name: 'Russia' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'RS', name: 'Serbia' },
+  { code: 'ZA', name: 'South Africa' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'TZ', name: 'Tanzania' },
+  { code: 'TR', name: 'Turkey' },
+  { code: 'UG', name: 'Uganda' },
+  { code: 'UA', name: 'Ukraine' },
+  { code: 'AE', name: 'United Arab Emirates' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'US', name: 'United States' },
+  { code: 'UY', name: 'Uruguay' },
+  { code: 'ZW', name: 'Zimbabwe' },
 ];
 
 interface ChartPlaylist {
@@ -32,12 +86,40 @@ interface ChartArtist {
 }
 
 export default function ChartsPage() {
-  const [country, setCountry] = useState('ZZ');
+  const [country, setCountry] = useState('');
   const [playlists, setPlaylists] = useState<ChartPlaylist[]>([]);
   const [artists, setArtists] = useState<ChartArtist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
 
+  // Detect user's country on mount
   useEffect(() => {
+    const detectCountry = async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        const countryCode = data.country_code;
+
+        // Check if the detected country is supported
+        const isSupported = countries.some(c => c.code === countryCode);
+        if (isSupported) {
+          setDetectedCountry(countryCode);
+          setCountry(countryCode);
+        } else {
+          setCountry('ZZ'); // Fallback to Global
+        }
+      } catch {
+        setCountry('ZZ'); // Fallback to Global on error
+      }
+    };
+
+    detectCountry();
+  }, []);
+
+  // Fetch charts when country changes
+  useEffect(() => {
+    if (!country) return;
+
     setLoading(true);
     api.getCharts(country).then((data) => {
       if (data.success && data.data) {
@@ -48,19 +130,31 @@ export default function ChartsPage() {
     });
   }, [country]);
 
+  const currentCountryName = countries.find(c => c.code === country)?.name || 'Global';
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-3xl font-bold">Charts</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Charts</h1>
+          {detectedCountry && country === detectedCountry && (
+            <p className="text-sm text-zinc-400 flex items-center gap-1 mt-1">
+              <MapPin className="h-3 w-3" />
+              자동 감지: {currentCountryName}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-zinc-400" />
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm min-w-[180px]"
           >
             {countries.map((c) => (
-              <option key={c.code} value={c.code}>{c.name}</option>
+              <option key={c.code} value={c.code}>
+                {c.name} {c.code === detectedCountry ? '📍' : ''}
+              </option>
             ))}
           </select>
         </div>
