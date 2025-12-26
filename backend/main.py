@@ -1379,29 +1379,40 @@ def _save_artist_to_supabase(artist_data: dict):
     
     browse_id = artist_data["browseId"]
     artist_name = artist_data.get("artist", "")
-    thumbnails = artist_data.get("thumbnails", [])
-    thumbnail_url = thumbnails[0].get("url", "") if thumbnails else ""
+    
+    # thumbnail이 문자열일 수도 있고 배열일 수도 있음
+    thumbnail_url = ""
+    if artist_data.get("thumbnail"):
+        thumbnail_url = artist_data["thumbnail"]  # 문자열
+    elif artist_data.get("thumbnails") and len(artist_data["thumbnails"]) > 0:
+        thumbnail_url = artist_data["thumbnails"][0].get("url", "")  # 배열
+    
+    logger.info(f"[SAVE] Saving artist: {artist_name} ({browse_id}), thumbnail: {thumbnail_url[:50] if thumbnail_url else 'none'}...")
     
     try:
         # 1. music_artists 테이블에 저장
         supabase_client.table("music_artists").upsert({
             "browse_id": browse_id,
             "name": artist_name,
-            "name_normalized": artist_name.lower(),
+            "name_normalized": artist_name.lower() if artist_name else "",
             "thumbnail_url": thumbnail_url,
-            "thumbnails": thumbnails,
             "subscribers": artist_data.get("subscribers"),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }, on_conflict="browse_id").execute()
+        
+        logger.info(f"[SAVE] Artist saved to music_artists: {artist_name}")
         
         # 2. 가상회원 자동 생성 (없으면)
         existing = supabase_client.table("profiles").select("id").eq("artist_browse_id", browse_id).execute()
         if not existing.data or len(existing.data) == 0:
             create_virtual_member_sync(browse_id, artist_name, thumbnail_url)
-            logger.info(f"Virtual member auto-created via smart search: {artist_name}")
+            logger.info(f"[SAVE] Virtual member auto-created: {artist_name}")
+        else:
+            logger.info(f"[SAVE] Virtual member already exists: {artist_name}")
             
     except Exception as e:
-        logger.warning(f"Save artist error: {e}")
+        logger.error(f"[SAVE] Save artist error: {e}")
+
 
 
 
