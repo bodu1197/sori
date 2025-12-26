@@ -1,0 +1,33 @@
+from http.server import BaseHTTPRequestHandler
+import json
+from urllib.parse import parse_qs, urlparse
+from ytmusicapi import YTMusic
+
+ytmusic = YTMusic()
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        try:
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+
+            browse_id = params.get('id', [''])[0]
+
+            if not browse_id:
+                self.send_error(400, 'Lyrics browse ID is required')
+                return
+
+            lyrics = ytmusic.get_lyrics(browse_id)
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=604800')
+            self.end_headers()
+            self.wfile.write(json.dumps({'success': True, 'data': lyrics}).encode())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'success': False, 'error': str(e)}).encode())

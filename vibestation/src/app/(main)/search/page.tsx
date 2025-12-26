@@ -2,12 +2,24 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Search, Play, Music, User, Disc } from 'lucide-react';
+import { usePlayer } from '@/context/PlayerContext';
+
+interface SearchResult {
+  videoId?: string;
+  browseId?: string;
+  title?: string;
+  thumbnails?: Array<{ url: string }>;
+  artists?: Array<{ name: string; id?: string }>;
+  resultType?: string;
+}
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<unknown[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const player = usePlayer();
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,32 +91,84 @@ export default function SearchPage() {
         <div className="space-y-4">
           <h2 className="text-xl font-bold">Results</h2>
           <div className="space-y-2">
-            {(results as Array<Record<string, unknown>>).map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer group"
-              >
-                <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-800">
-                  {(item as { thumbnails?: Array<{ url: string }> }).thumbnails?.[0] && (
-                    <Image
-                      src={(item as { thumbnails: Array<{ url: string }> }).thumbnails[0].url}
-                      alt={(item as { title?: string }).title || 'Result'}
-                      fill
-                      className="object-cover"
-                    />
+            {results.map((item, index) => {
+              const artistNames = item.artists?.map(a => a.name).join(', ') || '';
+              const thumbnail = item.thumbnails?.[0]?.url || '';
+              const isSong = item.resultType === 'song' || item.videoId;
+              const isArtist = item.resultType === 'artist' && item.browseId;
+
+              const handlePlay = () => {
+                if (item.videoId) {
+                  player.play({
+                    videoId: item.videoId,
+                    title: item.title || 'Unknown',
+                    artist: artistNames,
+                    thumbnail,
+                  });
+                }
+              };
+
+              if (isArtist) {
+                return (
+                  <Link
+                    key={item.browseId || index}
+                    href={`/artist/${item.browseId}`}
+                    className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer group"
+                  >
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-zinc-800">
+                      {thumbnail && (
+                        <Image
+                          src={thumbnail}
+                          alt={item.title || 'Artist'}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{item.title}</p>
+                      <p className="text-sm text-zinc-400 truncate">Artist</p>
+                    </div>
+                    <User className="h-5 w-5 text-zinc-500" />
+                  </Link>
+                );
+              }
+
+              return (
+                <div
+                  key={item.videoId || index}
+                  className="flex items-center gap-4 p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer group"
+                  onClick={isSong ? handlePlay : undefined}
+                >
+                  <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-800">
+                    {thumbnail && (
+                      <Image
+                        src={thumbnail}
+                        alt={item.title || 'Result'}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{item.title}</p>
+                    <p className="text-sm text-zinc-400 truncate">
+                      {artistNames || item.resultType}
+                    </p>
+                  </div>
+                  {isSong && (
+                    <button
+                      className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); handlePlay(); }}
+                    >
+                      <Play className="h-4 w-4" fill="white" />
+                    </button>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{(item as { title?: string }).title}</p>
-                  <p className="text-sm text-zinc-400 truncate">
-                    {(item as { artists?: Array<{ name: string }> }).artists?.map((a) => a.name).join(', ') || (item as { resultType?: string }).resultType}
-                  </p>
-                </div>
-                <button className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Play className="h-4 w-4" fill="white" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

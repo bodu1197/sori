@@ -4,13 +4,21 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Play, TrendingUp, User, Globe, Loader2 } from 'lucide-react';
+import { usePlayer } from '@/context/PlayerContext';
 
 const COUNTRY_OPTIONS = [
-  { code: 'KR', name: 'Korea' },
+  { code: 'ZZ', name: 'Global' },
   { code: 'US', name: 'USA' },
-  { code: 'JP', name: 'Japan' },
   { code: 'GB', name: 'UK' },
+  { code: 'KR', name: 'Korea' },
+  { code: 'JP', name: 'Japan' },
   { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'MX', name: 'Mexico' },
+  { code: 'IN', name: 'India' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'ZA', name: 'South Africa' },
 ];
 
 interface ChartItem {
@@ -37,10 +45,11 @@ interface ChartsData {
 }
 
 export default function ExplorePage() {
-  const [country, setCountry] = useState('KR');
+  const [country, setCountry] = useState('ZZ');
   const [charts, setCharts] = useState<ChartsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const player = usePlayer();
 
   useEffect(() => {
     async function fetchCharts() {
@@ -131,10 +140,22 @@ export default function ExplorePage() {
                   const thumbnail = song.thumbnails?.[0]?.url || '';
                   const artistNames = song.artists?.map(a => a.name).join(', ') || 'Unknown Artist';
 
+                  const handlePlay = () => {
+                    if (song.videoId) {
+                      player.play({
+                        videoId: song.videoId,
+                        title: song.title,
+                        artist: artistNames,
+                        thumbnail,
+                      });
+                    }
+                  };
+
                   return (
                     <div
                       key={song.videoId || index}
                       className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors group cursor-pointer"
+                      onClick={handlePlay}
                     >
                       <span className="w-6 text-center text-zinc-500 font-medium">
                         {index + 1}
@@ -157,7 +178,10 @@ export default function ExplorePage() {
                       {song.views && (
                         <span className="text-sm text-zinc-500 hidden md:block">{song.views}</span>
                       )}
-                      <button className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        className="p-2 rounded-full bg-purple-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); handlePlay(); }}
+                      >
                         <Play className="h-4 w-4" fill="white" />
                       </button>
                     </div>
