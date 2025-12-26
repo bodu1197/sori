@@ -122,13 +122,17 @@ echo ""
 
 cd ..
 
-# Check if sonar-scanner is available
-if command -v sonar-scanner &> /dev/null; then
+# Check if SONAR_TOKEN is available for local analysis
+if [ -z "$SONAR_TOKEN" ]; then
+    echo "⚠️  SONAR_TOKEN not set locally."
+    echo "   SonarCloud analysis will run via GitHub Actions."
+    echo "   Note: Push will proceed, but CI may fail if quality gate fails."
+elif command -v sonar-scanner &> /dev/null; then
     echo "Running SonarQube Scanner..."
     sonar-scanner \
         -Dsonar.qualitygate.wait=true \
         -Dsonar.qualitygate.timeout=300
-    
+
     SONAR_EXIT=$?
     if [ $SONAR_EXIT -ne 0 ]; then
         echo ""
