@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Loader2, Globe, TrendingUp, User, MapPin } from 'lucide-react';
+import { Loader2, Globe, TrendingUp, User, MapPin, Play, Music } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const countries = [
@@ -85,10 +85,20 @@ interface ChartArtist {
   rank?: string | null;
 }
 
+interface TrendingTrack {
+  videoId?: string;
+  title: string;
+  artists?: Array<{ name: string; id?: string }>;
+  thumbnails?: Array<{ url: string }>;
+  album?: { name: string };
+}
+
 export default function ChartsPage() {
   const [country, setCountry] = useState('');
   const [playlists, setPlaylists] = useState<ChartPlaylist[]>([]);
   const [artists, setArtists] = useState<ChartArtist[]>([]);
+  const [trendingSongs, setTrendingSongs] = useState<TrendingTrack[]>([]);
+  const [trendingTitle, setTrendingTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
 
@@ -121,10 +131,31 @@ export default function ChartsPage() {
     if (!country) return;
 
     setLoading(true);
-    api.getCharts(country).then((data) => {
+    setTrendingSongs([]);
+    setTrendingTitle('');
+
+    api.getCharts(country).then(async (data) => {
       if (data.success && data.data) {
-        setPlaylists(data.data.videos || []);
+        const videos = data.data.videos || [];
+        setPlaylists(videos);
         setArtists(data.data.artists || []);
+
+        // Find first valid playlist (starts with PL) to get trending songs
+        const validPlaylist = videos.find((v: ChartPlaylist) =>
+          v.playlistId?.startsWith('PL')
+        );
+
+        if (validPlaylist?.playlistId) {
+          try {
+            const playlistData = await api.getPlaylist(validPlaylist.playlistId);
+            if (playlistData.success && playlistData.data?.tracks) {
+              setTrendingSongs(playlistData.data.tracks.slice(0, 20));
+              setTrendingTitle(playlistData.data.title || 'Trending');
+            }
+          } catch {
+            // Silently fail if playlist fetch fails
+          }
+        }
       }
       setLoading(false);
     });
@@ -166,6 +197,41 @@ export default function ChartsPage() {
         </div>
       ) : (
         <>
+          {/* Trending Songs */}
+          {trendingSongs.length > 0 && (
+            <section className="bg-zinc-900 rounded-xl p-6">
+              <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
+                <Music className="h-5 w-5 text-purple-400" />
+                {trendingTitle || 'Trending'}
+              </h2>
+              <div className="space-y-2">
+                {trendingSongs.map((track, i) => (
+                  <Link
+                    key={i}
+                    href={track.videoId ? `/watch/${track.videoId}` : '#'}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-zinc-800 transition-colors group"
+                  >
+                    <span className="w-6 text-center text-zinc-500 font-medium">{i + 1}</span>
+                    <div className="w-12 h-12 rounded overflow-hidden bg-zinc-800 flex-shrink-0 relative">
+                      {track.thumbnails?.[0]?.url && (
+                        <img src={track.thumbnails[0].url} alt={track.title} className="w-full h-full object-cover" />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-5 w-5 text-white" fill="white" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{track.title}</p>
+                      <p className="text-sm text-zinc-400 truncate">
+                        {track.artists?.map(a => a.name).join(', ')}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Top Playlists */}
           {playlists.length > 0 && (
             <section className="bg-zinc-900 rounded-xl p-6">
