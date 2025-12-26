@@ -1352,6 +1352,20 @@ async def smart_search(request: Request, q: str, country: str = None, limit: int
                 if album_data["browseId"] and not any(x.get("browseId") == album_data["browseId"] for x in albums):
                     albums.append(album_data)
                     _save_album_to_supabase(album_data)
+            
+            # 동영상도 노래와 동일하게 처리 (videoId가 있음)
+            elif result_type == "video":
+                video_data = {
+                    "videoId": item.get("videoId"),
+                    "title": item.get("title"),
+                    "artists": item.get("artists", []),
+                    "thumbnails": item.get("thumbnails", []),
+                    "duration": item.get("duration"),
+                    "views": item.get("views")
+                }
+                if video_data["videoId"] and not any(x.get("videoId") == video_data["videoId"] for x in songs):
+                    songs.append(video_data)  # 비디오도 songs에 포함 (재생 가능)
+                    _save_track_to_supabase(video_data)
                     
     except Exception as e:
         logger.error(f"YouTube search error: {e}")
@@ -1369,6 +1383,7 @@ async def smart_search(request: Request, q: str, country: str = None, limit: int
         "source": source,
         "query": q.strip()
     }
+
 
 
 
