@@ -9,16 +9,16 @@ export default function HomePage() {
         <h1 className="text-2xl font-bold text-white">VibeStation</h1>
         <div className="flex gap-4">
           <Link
-            href="/login"
+            href="/explore"
             className="px-4 py-2 text-white hover:text-purple-200 transition"
           >
-            Login
+            Explore
           </Link>
           <Link
-            href="/signup"
+            href="/login"
             className="px-4 py-2 bg-white text-purple-900 rounded-full font-medium hover:bg-purple-100 transition"
           >
-            Sign Up
+            Sign In
           </Link>
         </div>
       </header>
@@ -36,11 +36,11 @@ export default function HomePage() {
             The ultimate platform for music lovers.
           </p>
           <Link
-            href="/signup"
+            href="/explore"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-purple-900 rounded-full text-lg font-semibold hover:bg-purple-100 transition"
           >
             <Zap className="h-5 w-5" />
-            Get Started Free
+            Start Exploring
           </Link>
         </div>
 
