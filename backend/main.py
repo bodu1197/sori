@@ -196,8 +196,8 @@ async def get_charts(country: str = "ZZ"):
         return {"success": False, "data": {}, "error": str(e)}
 
 @app.get("/api/moods")
-async def get_moods():
-    ytmusic = get_ytmusic()
+async def get_moods(country: str = None):
+    ytmusic = get_ytmusic(location=country)
     try:
         data = await run_in_thread(ytmusic.get_mood_categories)
         return {"success": True, "data": data}
