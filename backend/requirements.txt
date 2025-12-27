@@ -2,3 +2,4 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 ytmusicapi @ git+https://github.com/sigma67/ytmusicapi.git@main
 python-dotenv==1.0.1
+yt-dlp>=2024.12.23

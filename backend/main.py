@@ -366,3 +366,213 @@ async def get_episodes_playlist(country: str = None):
         return {"success": True, "data": episodes}
     except Exception as e:
         return {"success": False, "data": [], "error": str(e)}
+
+# yt-dlp endpoints for Shorts and Videos
+import yt_dlp
+
+def get_ydl_opts(extract_flat=True):
+    """Get yt-dlp options for metadata extraction only (no download)"""
+    return {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': extract_flat,
+        'skip_download': True,
+        'ignoreerrors': True,
+    }
+
+def extract_short_info(entry):
+    """Extract relevant info from a short/video entry"""
+    if not entry:
+        return None
+    return {
+        'id': entry.get('id'),
+        'title': entry.get('title'),
+        'thumbnail': entry.get('thumbnail') or (entry.get('thumbnails', [{}])[-1].get('url') if entry.get('thumbnails') else None),
+        'duration': entry.get('duration'),
+        'view_count': entry.get('view_count'),
+        'channel': entry.get('channel') or entry.get('uploader'),
+        'channel_id': entry.get('channel_id') or entry.get('uploader_id'),
+        'url': f"https://www.youtube.com/shorts/{entry.get('id')}" if entry.get('id') else None,
+    }
+
+def extract_video_info(entry):
+    """Extract relevant info from a video entry"""
+    if not entry:
+        return None
+    return {
+        'id': entry.get('id'),
+        'title': entry.get('title'),
+        'thumbnail': entry.get('thumbnail') or (entry.get('thumbnails', [{}])[-1].get('url') if entry.get('thumbnails') else None),
+        'duration': entry.get('duration'),
+        'view_count': entry.get('view_count'),
+        'like_count': entry.get('like_count'),
+        'channel': entry.get('channel') or entry.get('uploader'),
+        'channel_id': entry.get('channel_id') or entry.get('uploader_id'),
+        'description': entry.get('description', '')[:500] if entry.get('description') else None,
+        'upload_date': entry.get('upload_date'),
+        'url': f"https://www.youtube.com/watch?v={entry.get('id')}" if entry.get('id') else None,
+    }
+
+@app.get("/api/shorts/trending")
+async def get_trending_shorts(country: str = "US", limit: int = 20):
+    """Get trending YouTube Shorts"""
+    try:
+        # YouTube Shorts trending URL
+        url = f"https://www.youtube.com/results?search_query=shorts&sp=EgIQAQ%253D%253D"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['geo_bypass_country'] = country
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                entries = result.get('entries', [])[:limit]
+                return [extract_short_info(e) for e in entries if e and e.get('duration', 61) <= 60]
+
+        shorts = await run_in_thread(fetch)
+        return {"success": True, "data": [s for s in shorts if s]}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/shorts/search")
+async def search_shorts(q: str, limit: int = 20):
+    """Search YouTube Shorts"""
+    try:
+        # Add shorts filter to search
+        url = f"ytsearch{limit}:{q} #shorts"
+
+        opts = get_ydl_opts(extract_flat=True)
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                entries = result.get('entries', [])
+                # Filter to only short videos (<=60 seconds)
+                return [extract_short_info(e) for e in entries if e and e.get('duration', 61) <= 60]
+
+        shorts = await run_in_thread(fetch)
+        return {"success": True, "data": [s for s in shorts if s]}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/shorts/{video_id}")
+async def get_short_details(video_id: str):
+    """Get detailed info for a specific short"""
+    try:
+        url = f"https://www.youtube.com/shorts/{video_id}"
+
+        opts = get_ydl_opts(extract_flat=False)
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                return extract_video_info(result)
+
+        info = await run_in_thread(fetch)
+        return {"success": True, "data": info}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/videos/trending")
+async def get_trending_videos(country: str = "US", limit: int = 20):
+    """Get trending YouTube videos"""
+    try:
+        # YouTube trending URL
+        url = f"https://www.youtube.com/feed/trending"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['geo_bypass_country'] = country
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                entries = result.get('entries', [])[:limit]
+                return [extract_video_info(e) for e in entries if e]
+
+        videos = await run_in_thread(fetch)
+        return {"success": True, "data": [v for v in videos if v]}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/videos/search")
+async def search_videos(q: str, limit: int = 20):
+    """Search YouTube videos"""
+    try:
+        url = f"ytsearch{limit}:{q}"
+
+        opts = get_ydl_opts(extract_flat=True)
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                entries = result.get('entries', [])
+                return [extract_video_info(e) for e in entries if e]
+
+        videos = await run_in_thread(fetch)
+        return {"success": True, "data": [v for v in videos if v]}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/video/{video_id}")
+async def get_video_details(video_id: str):
+    """Get detailed info for a specific video"""
+    try:
+        url = f"https://www.youtube.com/watch?v={video_id}"
+
+        opts = get_ydl_opts(extract_flat=False)
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                info = extract_video_info(result)
+                # Add extra details
+                if result:
+                    info['formats'] = len(result.get('formats', []))
+                    info['categories'] = result.get('categories', [])
+                    info['tags'] = result.get('tags', [])[:10]
+                return info
+
+        info = await run_in_thread(fetch)
+        return {"success": True, "data": info}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/channel/{channel_id}/shorts")
+async def get_channel_shorts(channel_id: str, limit: int = 20):
+    """Get shorts from a specific channel"""
+    try:
+        url = f"https://www.youtube.com/channel/{channel_id}/shorts"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                entries = result.get('entries', [])[:limit]
+                return [extract_short_info(e) for e in entries if e]
+
+        shorts = await run_in_thread(fetch)
+        return {"success": True, "data": [s for s in shorts if s]}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/channel/{channel_id}/videos")
+async def get_channel_videos(channel_id: str, limit: int = 20):
+    """Get videos from a specific channel"""
+    try:
+        url = f"https://www.youtube.com/channel/{channel_id}/videos"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                entries = result.get('entries', [])[:limit]
+                return [extract_video_info(e) for e in entries if e]
+
+        videos = await run_in_thread(fetch)
+        return {"success": True, "data": [v for v in videos if v]}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}

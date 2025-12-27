@@ -54,4 +54,16 @@ export const api = {
 
   // Playlist
   getPlaylist: (id: string) => fetchAPI(`/api/playlist/${id}`),
+
+  // Shorts (yt-dlp)
+  getTrendingShorts: (country = 'US', limit = 20) => fetchAPI(`/api/shorts/trending?country=${country}&limit=${limit}`),
+  searchShorts: (query: string, limit = 20) => fetchAPI(`/api/shorts/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+  getShortDetails: (videoId: string) => fetchAPI(`/api/shorts/${videoId}`),
+  getChannelShorts: (channelId: string, limit = 20) => fetchAPI(`/api/channel/${channelId}/shorts?limit=${limit}`),
+
+  // Videos (yt-dlp)
+  getTrendingVideos: (country = 'US', limit = 20) => fetchAPI(`/api/videos/trending?country=${country}&limit=${limit}`),
+  searchVideos: (query: string, limit = 20) => fetchAPI(`/api/videos/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+  getVideoDetails: (videoId: string) => fetchAPI(`/api/video/${videoId}`),
+  getChannelVideos: (channelId: string, limit = 20) => fetchAPI(`/api/channel/${channelId}/videos?limit=${limit}`),
 };
