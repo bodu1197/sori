@@ -93,10 +93,10 @@ export default function PodcastsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium line-clamp-2">{episode.title}</p>
-                    {episode.description && (
+                    {typeof episode.description === 'string' && episode.description && (
                       <p className="text-sm text-zinc-400 mt-1 line-clamp-2">{episode.description}</p>
                     )}
-                    {episode.date && (
+                    {typeof episode.date === 'string' && episode.date && (
                       <p className="text-xs text-zinc-500 mt-2">{episode.date}</p>
                     )}
                   </div>
