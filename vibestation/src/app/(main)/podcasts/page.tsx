@@ -27,10 +27,18 @@ export default function PodcastsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get episodes playlist (trending/latest episodes)
-    api.getEpisodesPlaylist().then((data) => {
+    const fetchData = async () => {
+      let country = 'US';
+      try {
+        const geoRes = await fetch('https://ipapi.co/json/');
+        const geoData = await geoRes.json();
+        country = geoData.country_code || 'US';
+      } catch {
+        // Fallback to US
+      }
+
+      const data = await api.getEpisodesPlaylist(country);
       if (data.success) {
-        // The response might have different structure
         if (Array.isArray(data.data)) {
           setEpisodes(data.data);
         } else if (data.data?.episodes) {
@@ -40,7 +48,9 @@ export default function PodcastsPage() {
         }
       }
       setLoading(false);
-    });
+    };
+
+    fetchData();
   }, []);
 
   if (loading) {

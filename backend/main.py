@@ -358,5 +358,11 @@ async def get_channel(channel_id: str):
         return {"success": True, "data": None}
 
 @app.get("/api/episodes-playlist")
-async def get_episodes_playlist():
-    return {"success": True, "data": []}
+async def get_episodes_playlist(country: str = None):
+    ytmusic = get_ytmusic(location=country)
+    try:
+        explore_data = await run_in_thread(ytmusic.get_explore)
+        episodes = explore_data.get("top_episodes", [])
+        return {"success": True, "data": episodes}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}

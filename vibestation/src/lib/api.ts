@@ -50,7 +50,7 @@ export const api = {
   getPodcast: (id: string) => fetchAPI(`/api/podcast/${id}`),
   getEpisode: (id: string) => fetchAPI(`/api/episode/${id}`),
   getChannel: (id: string) => fetchAPI(`/api/channel/${id}`),
-  getEpisodesPlaylist: () => fetchAPI('/api/episodes-playlist'),
+  getEpisodesPlaylist: (country?: string) => fetchAPI(`/api/episodes-playlist${country ? `?country=${country}` : ''}`),
 
   // Playlist
   getPlaylist: (id: string) => fetchAPI(`/api/playlist/${id}`),
