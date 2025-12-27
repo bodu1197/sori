@@ -2,18 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Compass, BarChart3, Music, Mic2, LogIn, Clapperboard, Video, Wrench } from 'lucide-react';
+import { Home, Search, Compass, BarChart3, Music, Mic2, LogIn } from 'lucide-react';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/search', icon: Search, label: 'Search' },
   { href: '/explore', icon: Compass, label: 'Explore' },
   { href: '/charts', icon: BarChart3, label: 'Charts' },
-  { href: '/shorts', icon: Clapperboard, label: 'Shorts' },
-  { href: '/videos', icon: Video, label: 'Videos' },
   { href: '/moods', icon: Music, label: 'Moods' },
   { href: '/podcasts', icon: Mic2, label: 'Podcasts' },
-  { href: '/ytdlp', icon: Wrench, label: 'yt-dlp' },
 ];
 
 export default function Navigation() {
