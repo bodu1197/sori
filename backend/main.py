@@ -382,27 +382,49 @@ def get_ydl_opts(extract_flat=True):
 
 def extract_short_info(entry):
     """Extract relevant info from a short/video entry"""
-    if not entry:
+    if not entry or not isinstance(entry, dict):
         return None
+
+    # Safe thumbnail extraction
+    thumbnail = entry.get('thumbnail')
+    if not thumbnail:
+        thumbnails = entry.get('thumbnails')
+        if thumbnails and isinstance(thumbnails, list) and len(thumbnails) > 0:
+            last_thumb = thumbnails[-1]
+            if last_thumb and isinstance(last_thumb, dict):
+                thumbnail = last_thumb.get('url')
+
+    video_id = entry.get('id')
     return {
-        'id': entry.get('id'),
+        'id': video_id,
         'title': entry.get('title'),
-        'thumbnail': entry.get('thumbnail') or (entry.get('thumbnails', [{}])[-1].get('url') if entry.get('thumbnails') else None),
+        'thumbnail': thumbnail,
         'duration': entry.get('duration'),
         'view_count': entry.get('view_count'),
         'channel': entry.get('channel') or entry.get('uploader'),
         'channel_id': entry.get('channel_id') or entry.get('uploader_id'),
-        'url': f"https://www.youtube.com/shorts/{entry.get('id')}" if entry.get('id') else None,
+        'url': f"https://www.youtube.com/shorts/{video_id}" if video_id else None,
     }
 
 def extract_video_info(entry):
     """Extract relevant info from a video entry"""
-    if not entry:
+    if not entry or not isinstance(entry, dict):
         return None
+
+    # Safe thumbnail extraction
+    thumbnail = entry.get('thumbnail')
+    if not thumbnail:
+        thumbnails = entry.get('thumbnails')
+        if thumbnails and isinstance(thumbnails, list) and len(thumbnails) > 0:
+            last_thumb = thumbnails[-1]
+            if last_thumb and isinstance(last_thumb, dict):
+                thumbnail = last_thumb.get('url')
+
+    video_id = entry.get('id')
     return {
-        'id': entry.get('id'),
+        'id': video_id,
         'title': entry.get('title'),
-        'thumbnail': entry.get('thumbnail') or (entry.get('thumbnails', [{}])[-1].get('url') if entry.get('thumbnails') else None),
+        'thumbnail': thumbnail,
         'duration': entry.get('duration'),
         'view_count': entry.get('view_count'),
         'like_count': entry.get('like_count'),
@@ -410,7 +432,7 @@ def extract_video_info(entry):
         'channel_id': entry.get('channel_id') or entry.get('uploader_id'),
         'description': entry.get('description', '')[:500] if entry.get('description') else None,
         'upload_date': entry.get('upload_date'),
-        'url': f"https://www.youtube.com/watch?v={entry.get('id')}" if entry.get('id') else None,
+        'url': f"https://www.youtube.com/watch?v={video_id}" if video_id else None,
     }
 
 @app.get("/api/shorts/trending")
