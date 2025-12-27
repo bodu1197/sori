@@ -576,3 +576,579 @@ async def get_channel_videos(channel_id: str, limit: int = 20):
         return {"success": True, "data": [v for v in videos if v]}
     except Exception as e:
         return {"success": False, "data": [], "error": str(e)}
+
+# =====================================
+# yt-dlp Full Features API
+# =====================================
+
+@app.get("/api/ytdlp/extract")
+async def ytdlp_extract(url: str):
+    """Extract full metadata from any supported URL"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'ignoreerrors': True,
+            'extract_flat': False,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return None
+                return {
+                    'id': result.get('id'),
+                    'title': result.get('title'),
+                    'description': result.get('description', '')[:1000] if result.get('description') else None,
+                    'thumbnail': result.get('thumbnail'),
+                    'duration': result.get('duration'),
+                    'view_count': result.get('view_count'),
+                    'like_count': result.get('like_count'),
+                    'comment_count': result.get('comment_count'),
+                    'channel': result.get('channel') or result.get('uploader'),
+                    'channel_id': result.get('channel_id') or result.get('uploader_id'),
+                    'channel_url': result.get('channel_url') or result.get('uploader_url'),
+                    'upload_date': result.get('upload_date'),
+                    'categories': result.get('categories', []),
+                    'tags': result.get('tags', [])[:20],
+                    'is_live': result.get('is_live'),
+                    'was_live': result.get('was_live'),
+                    'live_status': result.get('live_status'),
+                    'age_limit': result.get('age_limit'),
+                    'webpage_url': result.get('webpage_url'),
+                    'extractor': result.get('extractor'),
+                    'extractor_key': result.get('extractor_key'),
+                    'playlist': result.get('playlist'),
+                    'playlist_index': result.get('playlist_index'),
+                    'availability': result.get('availability'),
+                    'original_url': url,
+                }
+
+        info = await run_in_thread(fetch)
+        return {"success": True, "data": info}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/ytdlp/formats")
+async def ytdlp_formats(url: str):
+    """Get all available formats for a video"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'listformats': False,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return []
+                formats = result.get('formats', [])
+                return [{
+                    'format_id': f.get('format_id'),
+                    'format_note': f.get('format_note'),
+                    'ext': f.get('ext'),
+                    'resolution': f.get('resolution') or f"{f.get('width', '?')}x{f.get('height', '?')}",
+                    'fps': f.get('fps'),
+                    'vcodec': f.get('vcodec'),
+                    'acodec': f.get('acodec'),
+                    'filesize': f.get('filesize') or f.get('filesize_approx'),
+                    'tbr': f.get('tbr'),
+                    'abr': f.get('abr'),
+                    'vbr': f.get('vbr'),
+                    'audio_channels': f.get('audio_channels'),
+                    'quality': f.get('quality'),
+                } for f in formats]
+
+        formats = await run_in_thread(fetch)
+        return {"success": True, "data": formats}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/ytdlp/subtitles")
+async def ytdlp_subtitles(url: str):
+    """Get available subtitles/captions"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return {'subtitles': {}, 'automatic_captions': {}}
+
+                subtitles = {}
+                for lang, subs in result.get('subtitles', {}).items():
+                    subtitles[lang] = [{
+                        'ext': s.get('ext'),
+                        'url': s.get('url'),
+                        'name': s.get('name'),
+                    } for s in subs]
+
+                auto_captions = {}
+                for lang, caps in result.get('automatic_captions', {}).items():
+                    auto_captions[lang] = [{
+                        'ext': c.get('ext'),
+                        'url': c.get('url'),
+                        'name': c.get('name'),
+                    } for c in caps[:3]]  # Limit to 3 formats per language
+
+                return {
+                    'subtitles': subtitles,
+                    'automatic_captions': auto_captions,
+                    'subtitle_count': len(subtitles),
+                    'auto_caption_count': len(auto_captions),
+                }
+
+        subs = await run_in_thread(fetch)
+        return {"success": True, "data": subs}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/ytdlp/chapters")
+async def ytdlp_chapters(url: str):
+    """Get video chapters"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return []
+                chapters = result.get('chapters', [])
+                return [{
+                    'title': c.get('title'),
+                    'start_time': c.get('start_time'),
+                    'end_time': c.get('end_time'),
+                } for c in chapters]
+
+        chapters = await run_in_thread(fetch)
+        return {"success": True, "data": chapters}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/ytdlp/comments")
+async def ytdlp_comments(url: str, limit: int = 20):
+    """Get video comments (limited)"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'getcomments': True,
+            'extractor_args': {'youtube': {'max_comments': [str(limit)]}},
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return []
+                comments = result.get('comments', [])[:limit]
+                return [{
+                    'id': c.get('id'),
+                    'text': c.get('text'),
+                    'author': c.get('author'),
+                    'author_id': c.get('author_id'),
+                    'author_thumbnail': c.get('author_thumbnail'),
+                    'like_count': c.get('like_count'),
+                    'timestamp': c.get('timestamp'),
+                    'is_pinned': c.get('is_pinned'),
+                    'parent': c.get('parent'),
+                } for c in comments]
+
+        comments = await run_in_thread(fetch)
+        return {"success": True, "data": comments}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/ytdlp/playlist")
+async def ytdlp_playlist(url: str, limit: int = 50):
+    """Get playlist information"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'extract_flat': True,
+            'playlistend': limit,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return None
+                entries = result.get('entries', [])
+                return {
+                    'id': result.get('id'),
+                    'title': result.get('title'),
+                    'description': result.get('description', '')[:500] if result.get('description') else None,
+                    'thumbnail': result.get('thumbnail'),
+                    'channel': result.get('channel') or result.get('uploader'),
+                    'channel_id': result.get('channel_id'),
+                    'playlist_count': result.get('playlist_count') or len(entries),
+                    'view_count': result.get('view_count'),
+                    'modified_date': result.get('modified_date'),
+                    'entries': [{
+                        'id': e.get('id'),
+                        'title': e.get('title'),
+                        'thumbnail': e.get('thumbnail'),
+                        'duration': e.get('duration'),
+                        'channel': e.get('channel') or e.get('uploader'),
+                    } for e in entries if e],
+                }
+
+        playlist = await run_in_thread(fetch)
+        return {"success": True, "data": playlist}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/ytdlp/live")
+async def ytdlp_live(url: str):
+    """Get live stream information"""
+    try:
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return None
+                return {
+                    'id': result.get('id'),
+                    'title': result.get('title'),
+                    'thumbnail': result.get('thumbnail'),
+                    'is_live': result.get('is_live'),
+                    'was_live': result.get('was_live'),
+                    'live_status': result.get('live_status'),
+                    'release_timestamp': result.get('release_timestamp'),
+                    'concurrent_view_count': result.get('concurrent_view_count'),
+                    'channel': result.get('channel'),
+                    'channel_id': result.get('channel_id'),
+                }
+
+        info = await run_in_thread(fetch)
+        return {"success": True, "data": info}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/ytdlp/supported-sites")
+async def ytdlp_supported_sites():
+    """Get list of all supported sites"""
+    try:
+        def fetch():
+            extractors = yt_dlp.list_extractors()
+            sites = []
+            seen = set()
+            for e in extractors:
+                name = e.IE_NAME if hasattr(e, 'IE_NAME') else e.__name__
+                if name and name not in seen and not name.startswith('Generic'):
+                    seen.add(name)
+                    sites.append({
+                        'name': name,
+                        'description': e.IE_DESC if hasattr(e, 'IE_DESC') else None,
+                    })
+            return sorted(sites, key=lambda x: x['name'].lower())
+
+        sites = await run_in_thread(fetch)
+        return {"success": True, "data": sites, "count": len(sites)}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+# =====================================
+# Multi-Platform Support
+# =====================================
+
+@app.get("/api/tiktok/trending")
+async def tiktok_trending(limit: int = 20):
+    """Get TikTok trending videos"""
+    try:
+        # TikTok trending search
+        url = "https://www.tiktok.com/search?q=trending"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return []
+                entries = result.get('entries', [])[:limit]
+                return [{
+                    'id': e.get('id'),
+                    'title': e.get('title') or e.get('description', '')[:100],
+                    'thumbnail': e.get('thumbnail'),
+                    'duration': e.get('duration'),
+                    'view_count': e.get('view_count'),
+                    'like_count': e.get('like_count'),
+                    'channel': e.get('uploader') or e.get('creator'),
+                    'url': e.get('webpage_url'),
+                } for e in entries if e]
+
+        videos = await run_in_thread(fetch)
+        return {"success": True, "data": videos}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/tiktok/search")
+async def tiktok_search(q: str, limit: int = 20):
+    """Search TikTok videos"""
+    try:
+        url = f"https://www.tiktok.com/search?q={q}"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return []
+                entries = result.get('entries', [])[:limit]
+                return [{
+                    'id': e.get('id'),
+                    'title': e.get('title') or e.get('description', '')[:100],
+                    'thumbnail': e.get('thumbnail'),
+                    'duration': e.get('duration'),
+                    'view_count': e.get('view_count'),
+                    'like_count': e.get('like_count'),
+                    'channel': e.get('uploader') or e.get('creator'),
+                    'url': e.get('webpage_url'),
+                } for e in entries if e]
+
+        videos = await run_in_thread(fetch)
+        return {"success": True, "data": videos}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/tiktok/user/{username}")
+async def tiktok_user(username: str, limit: int = 20):
+    """Get TikTok user videos"""
+    try:
+        url = f"https://www.tiktok.com/@{username}"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return {'user': None, 'videos': []}
+                entries = result.get('entries', [])[:limit]
+                return {
+                    'user': {
+                        'id': result.get('id'),
+                        'username': username,
+                        'title': result.get('title'),
+                        'thumbnail': result.get('thumbnail'),
+                    },
+                    'videos': [{
+                        'id': e.get('id'),
+                        'title': e.get('title') or e.get('description', '')[:100],
+                        'thumbnail': e.get('thumbnail'),
+                        'duration': e.get('duration'),
+                        'view_count': e.get('view_count'),
+                        'url': e.get('webpage_url'),
+                    } for e in entries if e]
+                }
+
+        data = await run_in_thread(fetch)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/instagram/user/{username}")
+async def instagram_user(username: str, limit: int = 20):
+    """Get Instagram user posts"""
+    try:
+        url = f"https://www.instagram.com/{username}/"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return {'user': None, 'posts': []}
+                entries = result.get('entries', [])[:limit]
+                return {
+                    'user': {
+                        'id': result.get('id'),
+                        'username': username,
+                        'title': result.get('title'),
+                        'thumbnail': result.get('thumbnail'),
+                    },
+                    'posts': [{
+                        'id': e.get('id'),
+                        'title': e.get('title') or e.get('description', '')[:100] if e.get('description') else '',
+                        'thumbnail': e.get('thumbnail'),
+                        'duration': e.get('duration'),
+                        'view_count': e.get('view_count'),
+                        'like_count': e.get('like_count'),
+                        'url': e.get('webpage_url'),
+                    } for e in entries if e]
+                }
+
+        data = await run_in_thread(fetch)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/instagram/reels/{username}")
+async def instagram_reels(username: str, limit: int = 20):
+    """Get Instagram user reels"""
+    try:
+        url = f"https://www.instagram.com/{username}/reels/"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return []
+                entries = result.get('entries', [])[:limit]
+                return [{
+                    'id': e.get('id'),
+                    'title': e.get('title') or e.get('description', '')[:100] if e.get('description') else '',
+                    'thumbnail': e.get('thumbnail'),
+                    'duration': e.get('duration'),
+                    'view_count': e.get('view_count'),
+                    'like_count': e.get('like_count'),
+                    'url': e.get('webpage_url'),
+                } for e in entries if e]
+
+        reels = await run_in_thread(fetch)
+        return {"success": True, "data": reels}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
+
+@app.get("/api/twitter/user/{username}")
+async def twitter_user(username: str, limit: int = 20):
+    """Get Twitter/X user videos"""
+    try:
+        url = f"https://twitter.com/{username}/media"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return {'user': None, 'videos': []}
+                entries = result.get('entries', [])[:limit]
+                return {
+                    'user': {
+                        'username': username,
+                        'title': result.get('title'),
+                    },
+                    'videos': [{
+                        'id': e.get('id'),
+                        'title': e.get('title') or e.get('description', '')[:100] if e.get('description') else '',
+                        'thumbnail': e.get('thumbnail'),
+                        'duration': e.get('duration'),
+                        'view_count': e.get('view_count'),
+                        'like_count': e.get('like_count'),
+                        'repost_count': e.get('repost_count'),
+                        'url': e.get('webpage_url'),
+                    } for e in entries if e]
+                }
+
+        data = await run_in_thread(fetch)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/twitch/channel/{channel}")
+async def twitch_channel(channel: str, limit: int = 20):
+    """Get Twitch channel videos"""
+    try:
+        url = f"https://www.twitch.tv/{channel}/videos"
+
+        opts = get_ydl_opts(extract_flat=True)
+        opts['playlistend'] = limit
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return {'channel': None, 'videos': []}
+                entries = result.get('entries', [])[:limit]
+                return {
+                    'channel': {
+                        'name': channel,
+                        'title': result.get('title'),
+                        'thumbnail': result.get('thumbnail'),
+                    },
+                    'videos': [{
+                        'id': e.get('id'),
+                        'title': e.get('title'),
+                        'thumbnail': e.get('thumbnail'),
+                        'duration': e.get('duration'),
+                        'view_count': e.get('view_count'),
+                        'url': e.get('webpage_url'),
+                    } for e in entries if e]
+                }
+
+        data = await run_in_thread(fetch)
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}
+
+@app.get("/api/twitch/live/{channel}")
+async def twitch_live(channel: str):
+    """Get Twitch live stream info"""
+    try:
+        url = f"https://www.twitch.tv/{channel}"
+
+        opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+        }
+
+        def fetch():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                result = ydl.extract_info(url, download=False)
+                if not result:
+                    return None
+                return {
+                    'id': result.get('id'),
+                    'title': result.get('title') or result.get('description'),
+                    'thumbnail': result.get('thumbnail'),
+                    'is_live': result.get('is_live'),
+                    'view_count': result.get('view_count'),
+                    'concurrent_view_count': result.get('concurrent_view_count'),
+                    'channel': channel,
+                    'uploader': result.get('uploader'),
+                }
+
+        info = await run_in_thread(fetch)
+        return {"success": True, "data": info}
+    except Exception as e:
+        return {"success": False, "data": None, "error": str(e)}

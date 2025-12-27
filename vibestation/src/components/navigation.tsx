@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Compass, BarChart3, Music, Mic2, LogIn, Clapperboard, Video } from 'lucide-react';
+import { Home, Search, Compass, BarChart3, Music, Mic2, LogIn, Clapperboard, Video, Wrench } from 'lucide-react';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/videos', icon: Video, label: 'Videos' },
   { href: '/moods', icon: Music, label: 'Moods' },
   { href: '/podcasts', icon: Mic2, label: 'Podcasts' },
+  { href: '/ytdlp', icon: Wrench, label: 'yt-dlp' },
 ];
 
 export default function Navigation() {
