@@ -3,6 +3,6 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://sori-backend.vercel.app"
+    "NEXT_PUBLIC_API_URL": "https://backend-psi-sable-33.vercel.app"
   }
 }
