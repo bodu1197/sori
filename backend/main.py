@@ -417,8 +417,9 @@ def extract_video_info(entry):
 async def get_trending_shorts(country: str = "US", limit: int = 20):
     """Get trending YouTube Shorts"""
     try:
-        # YouTube Shorts trending URL
-        url = f"https://www.youtube.com/results?search_query=shorts&sp=EgIQAQ%253D%253D"
+        # Use YouTube Shorts tab from trending or popular shorts search
+        # Option 1: Search for trending shorts
+        url = f"ytsearch{limit * 2}:trending shorts {country} 2024"
 
         opts = get_ydl_opts(extract_flat=True)
         opts['geo_bypass_country'] = country
@@ -426,11 +427,20 @@ async def get_trending_shorts(country: str = "US", limit: int = 20):
         def fetch():
             with yt_dlp.YoutubeDL(opts) as ydl:
                 result = ydl.extract_info(url, download=False)
-                entries = result.get('entries', [])[:limit]
-                return [extract_short_info(e) for e in entries if e and e.get('duration', 61) <= 60]
+                entries = result.get('entries', [])
+                # Filter to only short videos (<=60 seconds) and with thumbnails
+                shorts = []
+                for e in entries:
+                    if e and e.get('duration', 61) <= 60:
+                        info = extract_short_info(e)
+                        if info and info.get('thumbnail'):
+                            shorts.append(info)
+                    if len(shorts) >= limit:
+                        break
+                return shorts
 
         shorts = await run_in_thread(fetch)
-        return {"success": True, "data": [s for s in shorts if s]}
+        return {"success": True, "data": shorts}
     except Exception as e:
         return {"success": False, "data": [], "error": str(e)}
 
@@ -477,8 +487,8 @@ async def get_short_details(video_id: str):
 async def get_trending_videos(country: str = "US", limit: int = 20):
     """Get trending YouTube videos"""
     try:
-        # YouTube trending URL
-        url = f"https://www.youtube.com/feed/trending"
+        # Search for trending/popular videos
+        url = f"ytsearch{limit * 2}:trending music video {country} 2024"
 
         opts = get_ydl_opts(extract_flat=True)
         opts['geo_bypass_country'] = country
@@ -486,11 +496,20 @@ async def get_trending_videos(country: str = "US", limit: int = 20):
         def fetch():
             with yt_dlp.YoutubeDL(opts) as ydl:
                 result = ydl.extract_info(url, download=False)
-                entries = result.get('entries', [])[:limit]
-                return [extract_video_info(e) for e in entries if e]
+                entries = result.get('entries', [])
+                # Filter to videos with proper info and duration > 60s
+                videos = []
+                for e in entries:
+                    if e and e.get('duration', 0) > 60:
+                        info = extract_video_info(e)
+                        if info and info.get('thumbnail') and info.get('title'):
+                            videos.append(info)
+                    if len(videos) >= limit:
+                        break
+                return videos
 
         videos = await run_in_thread(fetch)
-        return {"success": True, "data": [v for v in videos if v]}
+        return {"success": True, "data": videos}
     except Exception as e:
         return {"success": False, "data": [], "error": str(e)}
 
