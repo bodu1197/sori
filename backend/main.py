@@ -1,5 +1,5 @@
 # VibeStation Backend API - Minimal ytmusicapi endpoints
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from ytmusicapi import YTMusic
 import asyncio
@@ -7,19 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Thread pool for blocking ytmusicapi calls
 executor = ThreadPoolExecutor(max_workers=4)
-
-def get_country_from_request(request: Request) -> str:
-    """Detect user's country from Vercel geo headers or fallback to US"""
-    # Vercel provides x-vercel-ip-country header
-    country = request.headers.get("x-vercel-ip-country")
-    if country:
-        return country
-    # Fallback: check CF-IPCountry (Cloudflare)
-    country = request.headers.get("cf-ipcountry")
-    if country:
-        return country
-    # Default fallback
-    return "US"
 
 def get_ytmusic(language="en", location=None):
     if location:
@@ -164,12 +151,11 @@ def root():
     return {"service": "VibeStation API", "status": "ok"}
 
 @app.get("/api/home")
-async def get_home(request: Request, limit: int = 5, country: str = None):
-    location = country or get_country_from_request(request)
-    ytmusic = get_ytmusic(location=location)
+async def get_home(limit: int = 5, country: str = None):
+    ytmusic = get_ytmusic(location=country)
     try:
         data = await run_in_thread(ytmusic.get_home, limit)
-        return {"success": True, "data": data, "country": location}
+        return {"success": True, "data": data}
     except Exception as e:
         return {"success": False, "data": [], "error": str(e)}
 
@@ -192,32 +178,29 @@ async def get_suggestions(q: str):
         return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/explore")
-async def get_explore(request: Request, country: str = None):
-    location = country or get_country_from_request(request)
-    ytmusic = get_ytmusic(location=location)
+async def get_explore(country: str = None):
+    ytmusic = get_ytmusic(location=country)
     try:
         data = await run_in_thread(ytmusic.get_explore)
-        return {"success": True, "data": data, "country": location}
+        return {"success": True, "data": data}
     except Exception as e:
         return {"success": False, "data": {}, "error": str(e)}
 
 @app.get("/api/charts")
-async def get_charts(request: Request, country: str = None):
-    location = country or get_country_from_request(request)
+async def get_charts(country: str = "ZZ"):
     ytmusic = get_ytmusic()
     try:
-        data = await run_in_thread(ytmusic.get_charts, location)
-        return {"success": True, "data": data, "country": location}
+        data = await run_in_thread(ytmusic.get_charts, country)
+        return {"success": True, "data": data}
     except Exception as e:
         return {"success": False, "data": {}, "error": str(e)}
 
 @app.get("/api/moods")
-async def get_moods(request: Request, country: str = None):
-    location = country or get_country_from_request(request)
-    ytmusic = get_ytmusic(location=location)
+async def get_moods(country: str = "KR"):
+    ytmusic = get_ytmusic(location=country)
     try:
         data = await run_in_thread(ytmusic.get_mood_categories)
-        return {"success": True, "data": data, "country": location}
+        return {"success": True, "data": data}
     except Exception as e:
         return {"success": False, "data": {}, "error": str(e)}
 
@@ -358,12 +341,11 @@ async def get_channel(channel_id: str):
         return {"success": True, "data": None}
 
 @app.get("/api/episodes-playlist")
-async def get_episodes_playlist(request: Request, country: str = None):
-    location = country or get_country_from_request(request)
-    ytmusic = get_ytmusic(location=location)
+async def get_episodes_playlist(country: str = None):
+    ytmusic = get_ytmusic(location=country)
     try:
         explore_data = await run_in_thread(ytmusic.get_explore)
         episodes = explore_data.get("top_episodes", [])
-        return {"success": True, "data": episodes, "country": location}
+        return {"success": True, "data": episodes}
     except Exception as e:
         return {"success": False, "data": [], "error": str(e)}
