@@ -54,42 +54,4 @@ export const api = {
 
   // Playlist
   getPlaylist: (id: string) => fetchAPI(`/api/playlist/${id}`),
-
-  // Shorts (yt-dlp)
-  getTrendingShorts: (country = 'US', limit = 20) => fetchAPI(`/api/shorts/trending?country=${country}&limit=${limit}`),
-  searchShorts: (query: string, limit = 20) => fetchAPI(`/api/shorts/search?q=${encodeURIComponent(query)}&limit=${limit}`),
-  getShortDetails: (videoId: string) => fetchAPI(`/api/shorts/${videoId}`),
-  getChannelShorts: (channelId: string, limit = 20) => fetchAPI(`/api/channel/${channelId}/shorts?limit=${limit}`),
-
-  // Videos (yt-dlp)
-  getTrendingVideos: (country = 'US', limit = 20) => fetchAPI(`/api/videos/trending?country=${country}&limit=${limit}`),
-  searchVideos: (query: string, limit = 20) => fetchAPI(`/api/videos/search?q=${encodeURIComponent(query)}&limit=${limit}`),
-  getVideoDetails: (videoId: string) => fetchAPI(`/api/video/${videoId}`),
-  getChannelVideos: (channelId: string, limit = 20) => fetchAPI(`/api/channel/${channelId}/videos?limit=${limit}`),
-
-  // yt-dlp Full Features
-  ytdlpExtract: (url: string) => fetchAPI(`/api/ytdlp/extract?url=${encodeURIComponent(url)}`),
-  ytdlpFormats: (url: string) => fetchAPI(`/api/ytdlp/formats?url=${encodeURIComponent(url)}`),
-  ytdlpSubtitles: (url: string) => fetchAPI(`/api/ytdlp/subtitles?url=${encodeURIComponent(url)}`),
-  ytdlpChapters: (url: string) => fetchAPI(`/api/ytdlp/chapters?url=${encodeURIComponent(url)}`),
-  ytdlpComments: (url: string, limit = 20) => fetchAPI(`/api/ytdlp/comments?url=${encodeURIComponent(url)}&limit=${limit}`),
-  ytdlpPlaylist: (url: string, limit = 50) => fetchAPI(`/api/ytdlp/playlist?url=${encodeURIComponent(url)}&limit=${limit}`),
-  ytdlpLive: (url: string) => fetchAPI(`/api/ytdlp/live?url=${encodeURIComponent(url)}`),
-  ytdlpSupportedSites: () => fetchAPI('/api/ytdlp/supported-sites'),
-
-  // TikTok
-  tiktokTrending: (limit = 20) => fetchAPI(`/api/tiktok/trending?limit=${limit}`),
-  tiktokSearch: (query: string, limit = 20) => fetchAPI(`/api/tiktok/search?q=${encodeURIComponent(query)}&limit=${limit}`),
-  tiktokUser: (username: string, limit = 20) => fetchAPI(`/api/tiktok/user/${username}?limit=${limit}`),
-
-  // Instagram
-  instagramUser: (username: string, limit = 20) => fetchAPI(`/api/instagram/user/${username}?limit=${limit}`),
-  instagramReels: (username: string, limit = 20) => fetchAPI(`/api/instagram/reels/${username}?limit=${limit}`),
-
-  // Twitter/X
-  twitterUser: (username: string, limit = 20) => fetchAPI(`/api/twitter/user/${username}?limit=${limit}`),
-
-  // Twitch
-  twitchChannel: (channel: string, limit = 20) => fetchAPI(`/api/twitch/channel/${channel}?limit=${limit}`),
-  twitchLive: (channel: string) => fetchAPI(`/api/twitch/live/${channel}`),
 };
