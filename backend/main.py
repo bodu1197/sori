@@ -190,8 +190,8 @@ async def get_suggestions(q: str):
         return {"success": False, "data": [], "error": str(e)}
 
 @app.get("/api/explore")
-async def get_explore():
-    ytmusic = get_ytmusic()
+async def get_explore(country: str = None):
+    ytmusic = get_ytmusic(location=country)
     try:
         data = await run_in_thread(ytmusic.get_explore)
         return {"success": True, "data": data}

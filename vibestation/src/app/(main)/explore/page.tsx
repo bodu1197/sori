@@ -25,10 +25,22 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getExplore().then((res) => {
+    const fetchData = async () => {
+      let country = 'US';
+      try {
+        const geoRes = await fetch('https://ipapi.co/json/');
+        const geoData = await geoRes.json();
+        country = geoData.country_code || 'US';
+      } catch {
+        // Fallback to US
+      }
+
+      const res = await api.getExplore(country);
       if (res.success && res.data) setData(res.data);
       setLoading(false);
-    });
+    };
+
+    fetchData();
   }, []);
 
   if (loading) {

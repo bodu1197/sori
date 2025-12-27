@@ -24,7 +24,7 @@ export const api = {
     fetchAPI(`/api/search/suggestions?q=${encodeURIComponent(query)}`),
 
   // Explore
-  getExplore: () => fetchAPI('/api/explore'),
+  getExplore: (country?: string) => fetchAPI(`/api/explore${country ? `?country=${country}` : ''}`),
 
   // Charts
   getCharts: (country = 'ZZ') => fetchAPI(`/api/charts?country=${country}`),
